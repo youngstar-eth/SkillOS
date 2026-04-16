@@ -1,0 +1,18 @@
+{
+  "name": "mas",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:2048": "npm run dev -w 2048",
+    "build:2048": "npm run build -w 2048",
+    "start:2048": "npm run start -w 2048",
+    "lint:2048": "npm run lint -w 2048",
+    "typecheck:2048": "npm run typecheck -w 2048",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  }
+}

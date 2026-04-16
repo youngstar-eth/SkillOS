@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+
+# Next.js build output
+.next/
+out/
+dist/
+
+# TypeScript incremental build
+*.tsbuildinfo
+
+# Foundry artifacts
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Design token outputs (generated — keep only source)
+designs/*/
+!designs/.gitkeep
+
+# OS / editors
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
+
+# Logs
+*.log

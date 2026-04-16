@@ -1,0 +1,12 @@
+# Foundry
+cache/
+out/
+broadcast/*/*/dry-run/
+broadcast/**/run-*.json
+
+# Env
+.env
+.env.local
+
+# Editor / OS
+.DS_Store

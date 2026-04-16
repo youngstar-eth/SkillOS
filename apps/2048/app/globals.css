@@ -1,0 +1,82 @@
+@import "@coinbase/onchainkit/styles.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * 2048 — Bauhaus100 design tokens
+ * Source: designs/2048/2048-design/tokens/
+ *
+ * Base palette (from scan): #000000 bg, #ffffff fg, #ed0015 danger/primary,
+ * #603cba tile info, #b7d5d5 pale teal secondary.
+ * Extended with classic Bauhaus yellow + blue to round out the palette —
+ * these are placeholders; tune in globals.css :root once the final visual
+ * direction is locked in.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  /* Surfaces — RGB channels so Tailwind opacity modifiers (bg-fg/10) work. */
+  --color-bg: 0 0 0;               /* #000000 */
+  --color-fg: 255 255 255;         /* #ffffff */
+  --color-muted: 183 213 213;      /* #b7d5d5 */
+
+  /* Accents — scan-faithful (Bauhaus100.de palette) */
+  --color-accent-primary: 237 0 21;     /* #ed0015 red */
+  --color-accent-secondary: 96 60 186;  /* #603cba tile purple */
+  --color-accent-tertiary: 183 213 213; /* #b7d5d5 pale teal */
+
+  /* Semantic */
+  --color-danger: 237 0 21;        /* #ed0015 */
+  --color-tile: #603cba;           /* kept as its own channel (hex, tile component reads directly) */
+
+  /* 2048 tile value scale — 11 steps mapping to in-game tile values.
+   * Progression: neutral → warm peak → deep cool. Consumed by the tile
+   * component (e.g. var(--tile-${value})). */
+  --tile-2: #ffffff;
+  --tile-4: #b7d5d5;
+  --tile-8: #ffcc00;
+  --tile-16: #ff9500;
+  --tile-32: #ed0015;
+  --tile-64: #d10012;
+  --tile-128: #603cba;
+  --tile-256: #4a2a9e;
+  --tile-512: #0047bb;
+  --tile-1024: #002a8f;
+  --tile-2048: #000000;
+
+  /* Tile foreground — pick based on tile luminance threshold (≥128 dark-on-light flips) */
+  --tile-text-light: #000000;
+  --tile-text-dark: #ffffff;
+
+  /* Typography */
+  --font-display: "Lab Grotesque Black", "Archivo Black", "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Lab Grotesque", "Archivo", "Space Grotesk", system-ui, sans-serif;
+
+  /* Spacing base (5px grid from scan) */
+  --space-base: 5px;
+
+  /* Radius */
+  --radius: 8px;
+}
+
+/* OnchainKit's stylesheet sets body color/bg to its own tokens — win back. */
+html,
+body,
+html body {
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-fg));
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Utility: pure Bauhaus primitive shape — 1:1 square */
+.bauhaus-block {
+  aspect-ratio: 1 / 1;
+}

@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "2048-dev",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/2048/apps/2048 && exec npm run dev"
+      ],
+      "port": 3000
+    }
+  ]
+}
