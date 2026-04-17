@@ -17,13 +17,17 @@ source "$HERE/lib.sh"
 
 cat <<'INTRO'
 ═══════════════════════════════════════════════════════════════
-  MAS — Base App Account Association Walkthrough (20 games)
+  skillbase — Base App Account Association Walkthrough (20 games)
 ═══════════════════════════════════════════════════════════════
 
-Each mini app needs a signed proof that you own its Vercel
+Each mini app needs a signed proof that you own its public
 subdomain. Base App (base.dev) issues the signature via your
 Coinbase Wallet. Once signed, 4 values go into Vercel env +
 one redeploy makes the manifest pick them up.
+
+Domain shape (skillbase.games migration):
+  Primary: <game>.skillbase.games   ← SIGN THIS ONE
+  Fallback: mas-<game>.vercel.app   (still live, no need to sign)
 
 General steps for each domain:
   1. Open https://base.dev (sign in with Coinbase account)
@@ -37,44 +41,62 @@ General steps for each domain:
   6. Run the 4 `vercel env add` commands from apps/<game>
   7. Redeploy so the manifest picks up the new env vars
 
+TIP: The `NEXT_PUBLIC_BASE_BUILDER_ADDRESS` is the SAME value for
+all 20 games when you sign every domain with the same Coinbase
+Wallet. Copy once, paste 20 times — don't worry that you're
+re-entering it.
+
 Estimated: ~1 min signing + ~30s env ops + ~3 min redeploy
 per game × 20 games = ~90 min total (or parallelize redeploys).
 
 ───────────────────────────────────────────────────────────────
+                   QUICK NAVIGATION (20 games)
+───────────────────────────────────────────────────────────────
 INTRO
 
+# Build a table-of-contents so the user can cmd-F to any game fast
 for game in "${GAMES[@]}"; do
-  domain="mas-$game.vercel.app"
+  printf "  • %-12s → %s.skillbase.games\n" "$game" "$game"
+done
+
+cat <<'NAV_END'
+───────────────────────────────────────────────────────────────
+NAV_END
+
+for game in "${GAMES[@]}"; do
+  domain="$game.skillbase.games"
   cat <<EOF
 
 ### GAME: $game
-URL:     https://$domain
+URL:      https://$domain
 Manifest: https://$domain/.well-known/farcaster.json
 
   1. Open:      https://base.dev
   2. Login:     Coinbase account
   3. Navigate:  Preview → Account Association
-  4. Domain:    $domain
+  4. Domain:    $domain         ← paste WITHOUT https://
   5. Submit → Verify → Sign (Coinbase Wallet)
   6. Copy: { header, payload, signature } + verified address
 
-Terminal (from apps/$game):
+Terminal (copy-paste the whole block from MAS repo root):
 
-  cd apps/$game
-  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
-  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
-  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
-  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
-  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+  cd /Users/inancayvaz/MAS/apps/$game
+  echo "<HEADER>"    | ../../node_modules/.bin/vercel env add FARCASTER_HEADER                 production
+  echo "<PAYLOAD>"   | ../../node_modules/.bin/vercel env add FARCASTER_PAYLOAD                production
+  echo "<SIGNATURE>" | ../../node_modules/.bin/vercel env add FARCASTER_SIGNATURE              production
+  echo "<0xADDRESS>" | ../../node_modules/.bin/vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  ../../node_modules/.bin/vercel --prod --yes --scope simpl3s-projects
 
 Verify after redeploy:
 
   curl -s https://$domain/.well-known/farcaster.json \\
-    | jq '.accountAssociation, .baseBuilder'
+    | jq '{accountAssociation, baseBuilder}'
 
 Expected:
-  { "header": "...", "payload": "...", "signature": "..." }
-  { "allowedAddresses": ["0x..."] }
+  {
+    "accountAssociation": { "header": "...", "payload": "...", "signature": "..." },
+    "baseBuilder":        { "allowedAddresses": ["0x..."] }
+  }
 
 ───────────────────────────────────────────────────────────────
 EOF
@@ -87,7 +109,7 @@ After all 20 are signed and redeployed, verify in bulk:
   for g in 2048 wordle snake minesweeper sudoku pong clicker breakout \
            bubble solitaire match3 flappy crossy helix geometry jetpack \
            stickman tower pool hillclimb; do
-    result=$(curl -s "https://mas-$g.vercel.app/.well-known/farcaster.json" \
+    result=$(curl -s "https://$g.skillbase.games/.well-known/farcaster.json" \
       | python3 -c 'import sys,json
 d=json.load(sys.stdin)
 aa = isinstance(d.get("accountAssociation"),dict)
@@ -97,6 +119,10 @@ print("ok" if aa and bb else "missing")')
   done
 
 Expect: 20 × "ok".
+
+Or run the canonical validator (fails non-zero on any missing fields):
+
+  bash scripts/vercel/validate-deploys.sh
 
 Tip: env vars propagate to new deployments only. The curl above will
 show the old manifest until the redeploy finishes. Vercel builds are
