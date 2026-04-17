@@ -1,0 +1,124 @@
+@import "@coinbase/onchainkit/styles.css";
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Crimson+Pro:wght@400;500;600&family=Playfair+Display:wght@600;700;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * Solitaire — Dark Academia aesthetic
+ * Deep browns, antique gold, parchment, burgundy ink.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  --color-bg: 22 18 15;
+  --color-fg: 234 220 200;
+  --color-surface: 38 30 24;
+  --color-surface-2: 48 38 30;
+  --color-border: 90 70 50;
+  --color-muted: 160 140 120;
+
+  --color-accent: 196 154 94;
+  --color-accent-deep: 156 114 54;
+  --color-burgundy: 120 40 50;
+  --color-ivory: 234 220 200;
+
+  --color-card-bg: 234 220 200;
+  --color-card-red: 150 30 40;
+  --color-card-black: 20 15 12;
+  --color-card-back: 80 40 30;
+
+  --color-success: 120 150 80;
+  --color-warning: 196 154 94;
+  --color-danger: 150 30 40;
+
+  --font-primary: "Cormorant Garamond", "Times New Roman", serif;
+  --font-body: "Crimson Pro", Georgia, serif;
+  --font-display: "Playfair Display", serif;
+}
+
+html,
+body,
+html body {
+  background: radial-gradient(
+      ellipse at top,
+      rgba(196, 154, 94, 0.08),
+      transparent 60%
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9'/%3E%3CfeColorMatrix values='0 0 0 0 0.05 0 0 0 0 0.04 0 0 0 0 0.03 0 0 0 0.2 0'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E"),
+    rgb(var(--color-bg));
+  color: rgb(var(--color-fg));
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+.card {
+  background: rgb(var(--color-card-bg));
+  border: 1px solid rgb(var(--color-accent));
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  aspect-ratio: 2.5 / 3.5;
+  font-family: var(--font-display);
+  position: relative;
+  user-select: none;
+  overflow: hidden;
+}
+
+.card-red {
+  color: rgb(var(--color-card-red));
+}
+
+.card-black {
+  color: rgb(var(--color-card-black));
+}
+
+.card-back {
+  background: repeating-linear-gradient(
+      45deg,
+      rgb(var(--color-accent-deep)) 0 6px,
+      rgb(var(--color-card-back)) 6px 12px
+    ),
+    rgb(var(--color-card-back));
+  border: 2px solid rgb(var(--color-accent));
+  box-shadow: inset 0 0 0 2px rgba(196, 154, 94, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.card-selected {
+  outline: 2px solid rgb(var(--color-accent));
+  outline-offset: 2px;
+  box-shadow: 0 0 20px rgba(196, 154, 94, 0.6);
+}
+
+.pile-empty {
+  border: 1px dashed rgba(var(--color-border), 0.7);
+  border-radius: 6px;
+  aspect-ratio: 2.5 / 3.5;
+  background: rgba(var(--color-surface), 0.4);
+}
+
+.pile-foundation {
+  background: rgba(var(--color-accent), 0.06);
+  border: 1px dashed rgb(var(--color-accent-deep));
+}
+
+.board-felt {
+  background: linear-gradient(
+      180deg,
+      rgba(48, 38, 30, 0.6),
+      rgba(22, 18, 15, 0.8)
+    ),
+    rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-accent-deep));
+  border-radius: 8px;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5);
+}
