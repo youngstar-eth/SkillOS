@@ -1,0 +1,61 @@
+@import "@coinbase/onchainkit/styles.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * Crossy — Pixel 8-bit (PICO-8 palette).
+ * ----------------------------------------------------------------------- */
+
+:root {
+  --color-bg: 29 43 83;        /* PICO-8 dark blue */
+  --color-fg: 255 241 232;     /* PICO-8 tan */
+  --color-surface: 95 87 79;
+  --color-surface-2: 65 60 55;
+  --color-muted: 194 195 199;
+  --color-border: 194 195 199;
+  --color-accent: 255 236 39;  /* yellow */
+  --color-accent-2: 41 173 255;
+  --color-success: 0 135 81;   /* green */
+  --color-warning: 255 163 0;
+  --color-danger: 255 0 77;    /* pink-red */
+
+  --color-grass: 0 135 81;
+  --color-road: 95 87 79;
+  --color-water: 41 173 255;
+
+  --font-primary: "Press Start 2P", "JetBrains Mono", ui-monospace, monospace;
+  --font-body: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html,
+body,
+html body {
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-fg));
+  font-family: var(--font-primary);
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+}
+
+.pixel-button {
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-bg));
+  border: 4px solid rgb(var(--color-fg));
+  box-shadow: 4px 4px 0 rgb(0 0 0);
+  font-family: var(--font-primary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  image-rendering: pixelated;
+}
+
+.pixel-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgb(0 0 0);
+}
+
+.crossy-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
