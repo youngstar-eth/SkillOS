@@ -1,0 +1,112 @@
+@import "@coinbase/onchainkit/styles.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * Geometry — Glitchcore aesthetic.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  --color-bg: 8 8 12;
+  --color-surface: 20 20 30;
+  --color-surface-2: 28 28 42;
+  --color-fg: 230 230 240;
+  --color-muted: 150 150 170;
+  --color-border: 60 60 80;
+
+  --color-accent: 0 240 255; /* cyan */
+  --color-accent-2: 255 0 180; /* magenta */
+  --color-success: 0 240 180;
+  --color-warning: 255 200 0;
+  --color-danger: 255 60 60;
+
+  --font-primary: "Space Grotesk", -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Major Mono Display", "Space Mono", monospace;
+}
+
+html,
+body,
+html body {
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-fg));
+  font-family: var(--font-primary);
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scanline overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.015) 0 1px,
+    transparent 1px 3px
+  );
+  z-index: 100;
+}
+
+.glitch-text {
+  text-shadow:
+    2px 0 rgb(var(--color-accent)),
+    -2px 0 rgb(var(--color-accent-2));
+  animation: glitch 3s infinite;
+}
+
+@keyframes glitch {
+  0%,
+  90% {
+    text-shadow: 2px 0 rgb(var(--color-accent)), -2px 0 rgb(var(--color-accent-2));
+  }
+  92% {
+    text-shadow: -3px 0 rgb(var(--color-accent)), 3px 0 rgb(var(--color-accent-2));
+  }
+  94% {
+    text-shadow: 1px 0 rgb(var(--color-accent)), -1px 0 rgb(var(--color-accent-2));
+  }
+  96% {
+    text-shadow: 2px 0 rgb(var(--color-accent)), -2px 0 rgb(var(--color-accent-2));
+  }
+}
+
+@keyframes glitch-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-3px, 2px);
+  }
+  20% {
+    transform: translate(3px, -2px);
+  }
+  30% {
+    transform: translate(-2px, -3px);
+  }
+  40% {
+    transform: translate(2px, 3px);
+  }
+  50% {
+    transform: translate(-3px, 1px);
+  }
+  60% {
+    transform: translate(3px, 1px);
+  }
+  70% {
+    transform: translate(-1px, -2px);
+  }
+  80% {
+    transform: translate(1px, 2px);
+  }
+  90% {
+    transform: translate(-2px, 1px);
+  }
+}
+
+.death-glitch {
+  animation: glitch-shake 0.5s steps(10) 1;
+}
