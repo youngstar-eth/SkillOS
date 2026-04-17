@@ -1,0 +1,20 @@
+# Exclude from Vercel deploy upload.
+# node_modules / .next are already ignored by Vercel default.
+
+# Solidity artifacts (not needed for frontend builds)
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Game specs (not used at runtime)
+prompts/
+
+# Ad-hoc scripts
+scripts/
+
+# Worktree artifacts
+.claude/worktrees/
+
+# Misc
+*.log
+.DS_Store

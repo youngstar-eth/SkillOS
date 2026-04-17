@@ -81,6 +81,15 @@
         "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/bubble && exec npm run dev"
       ],
       "port": 3008
+    },
+    {
+      "name": "solitaire-dev",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/solitaire && exec npm run dev"
+      ],
+      "port": 3009
     }
   ]
 }

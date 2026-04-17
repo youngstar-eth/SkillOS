@@ -1,14 +1,18 @@
 // Centralized mini-app metadata consumed by manifest + embed builders.
-// Edit here to update subtitle/description/tags; route handler + layout read from this file.
+// Brand constants come from @mas/shared/brand; per-game fields stay local.
+
+import { SKILLBASE_BRAND } from "@mas/shared/brand"
 
 export const APP_CONFIG = {
   name: "solitaire",
   title: "Solitaire",
   subtitle: "Dark Academia on Base",
-  description: "Klondike solitaire with Dark Academia mood.",
+  description: "Klondike solitaire with Dark Academia mood. Part of skillbase.",
   splashBg: "#1E1916",
   themeColor: "#1E1916",
-  tags: ["classic","cards","onchain"] as const,
+  tags: ["skillbase","classic","cards","onchain"] as const,
+  brandName: SKILLBASE_BRAND.name,
+  brandTagline: SKILLBASE_BRAND.tagline,
 } as const
 
 export type AppConfig = typeof APP_CONFIG

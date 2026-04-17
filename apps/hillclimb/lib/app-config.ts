@@ -1,14 +1,18 @@
 // Centralized mini-app metadata consumed by manifest + embed builders.
-// Edit here to update subtitle/description/tags; route handler + layout read from this file.
+// Brand constants come from @mas/shared/brand; per-game fields stay local.
+
+import { SKILLBASE_BRAND } from "@mas/shared/brand"
 
 export const APP_CONFIG = {
   name: "hillclimb",
   title: "Hill Climb",
   subtitle: "Dieselpunk on Base",
-  description: "Dieselpunk hill climb. Manage fuel, dont flip.",
+  description: "Dieselpunk hill climb. Manage fuel, dont flip. Part of skillbase.",
   splashBg: "#323728",
   themeColor: "#323728",
-  tags: ["arcade","physics","onchain"] as const,
+  tags: ["skillbase","arcade","physics","onchain"] as const,
+  brandName: SKILLBASE_BRAND.name,
+  brandTagline: SKILLBASE_BRAND.tagline,
 } as const
 
 export type AppConfig = typeof APP_CONFIG

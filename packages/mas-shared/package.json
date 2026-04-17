@@ -12,7 +12,8 @@
     "./api": "./src/api/index.ts",
     "./supabase": "./src/supabase/index.ts",
     "./game": "./src/game/index.ts",
-    "./miniapp": "./src/miniapp/index.ts"
+    "./miniapp": "./src/miniapp/index.ts",
+    "./brand": "./src/brand/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
