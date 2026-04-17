@@ -1,0 +1,106 @@
+@import "@coinbase/onchainkit/styles.css";
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * Breakout — Vercel Dark + Synthwave aesthetic
+ *
+ * Near-black canvas with a stacked pink/purple/cyan radial glow. The
+ * board itself is a bordered neon-cyan rectangle with inner sunset haze;
+ * block glow + ball trail carry the synthwave motif. JetBrains Mono
+ * throughout for the Vercel-ish ink feel.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  /* Canvas */
+  --color-bg: 10 10 15;
+  --color-surface: 23 23 23;
+  --color-surface-2: 32 32 40;
+  --color-fg: 250 250 250;
+  --color-muted: 140 140 140;
+  --color-border: 64 64 64;
+
+  /* Synthwave accents */
+  --color-synth-pink: 255 61 139;    /* #ff3d8b */
+  --color-synth-purple: 170 84 255;  /* #aa54ff */
+  --color-synth-cyan: 82 174 255;    /* #52aeff — scan accent */
+  --color-synth-yellow: 255 210 80;  /* #ffd250 */
+
+  /* Status */
+  --color-success: 64 255 160;
+  --color-danger: 255 92 92;
+  --color-warning: 255 210 80;
+
+  --font-primary: "JetBrains Mono", "Geist Mono", "SF Mono", Menlo, monospace;
+}
+
+html,
+body,
+html body {
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(170, 84, 255, 0.18), transparent 55%),
+    radial-gradient(ellipse at 90% 95%, rgba(255, 61, 139, 0.14), transparent 55%),
+    rgb(var(--color-bg));
+  background-attachment: fixed;
+  color: rgb(var(--color-fg));
+  font-family: var(--font-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* --- Board container --- */
+
+.breakout-board {
+  background: linear-gradient(180deg, rgb(5 5 10), rgb(15 10 25));
+  border: 2px solid rgb(var(--color-synth-cyan));
+  border-radius: 6px;
+  box-shadow:
+    0 0 40px rgba(82, 174, 255, 0.35),
+    inset 0 0 80px rgba(170, 84, 255, 0.1),
+    0 0 0 1px rgba(170, 84, 255, 0.4);
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.breakout-board::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.12) 0,
+    rgba(0, 0, 0, 0.12) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* --- Neon utilities --- */
+
+.neon-cyan {
+  color: rgb(var(--color-synth-cyan));
+  text-shadow: 0 0 8px rgba(82, 174, 255, 0.65), 0 0 18px rgba(82, 174, 255, 0.3);
+}
+.neon-pink {
+  color: rgb(var(--color-synth-pink));
+  text-shadow: 0 0 8px rgba(255, 61, 139, 0.65), 0 0 18px rgba(255, 61, 139, 0.3);
+}
+.neon-purple {
+  color: rgb(var(--color-synth-purple));
+  text-shadow: 0 0 8px rgba(170, 84, 255, 0.65);
+}
+.neon-yellow {
+  color: rgb(var(--color-synth-yellow));
+  text-shadow: 0 0 6px rgba(255, 210, 80, 0.55);
+}

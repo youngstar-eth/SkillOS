@@ -5,9 +5,8 @@
  * narrow to the exact Row types emitted by `supabase gen types typescript`.
  * If the generated types drift or a client drops its generic, tsc fails.
  */
-import type { Database } from "@/lib/types/supabase";
-import { createClient } from "@/lib/supabase/client";
-import { createAdminSupabase } from "@/lib/supabase/server";
+import type { Database } from "@mas/shared/supabase";
+import { createClient, createAdminSupabase } from "@mas/shared/supabase";
 
 type UsersRow = Database["public"]["Tables"]["users"]["Row"];
 type SessionsRow = Database["public"]["Tables"]["game_sessions"]["Row"];

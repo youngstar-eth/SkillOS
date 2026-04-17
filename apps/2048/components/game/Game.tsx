@@ -14,7 +14,7 @@ import { GameOver, type SubmitState } from "./GameOver";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
-} from "@/lib/contracts/arcade-pool";
+} from "@mas/shared/contracts";
 import {
   createEmptyGrid,
   hasWon as engineHasWon,

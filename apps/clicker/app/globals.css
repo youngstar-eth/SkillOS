@@ -1,0 +1,150 @@
+@import "@coinbase/onchainkit/styles.css";
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * Clicker — Cottagecore / Forest-app aesthetic
+ *
+ * Warm cream canvas with soft radial light washes (top-left sun, bottom-
+ * right sage), handwritten Caveat for display, rounded Nunito for body.
+ * Sage / forest green accents; earthy bark brown for outlines.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  /* Surfaces — earth tones */
+  --color-bg: 245 238 227;          /* #f5eee3 cream */
+  --color-surface: 255 250 240;     /* #fffaf0 warm white card */
+  --color-surface-2: 238 230 214;   /* #eee6d6 */
+  --color-fg: 62 44 34;             /* #3e2c22 dark bark */
+  --color-muted: 140 120 105;       /* #8c7869 */
+  --color-border: 207 188 158;      /* #cfbc9e soft tan */
+
+  /* Accent — sage green family */
+  --color-accent: 90 132 92;        /* #5a845c */
+  --color-accent-deep: 58 94 70;    /* #3a5e46 */
+  --color-accent-soft: 168 198 143; /* #a8c68f */
+
+  /* Nature palette */
+  --color-leaf: 72 146 86;          /* #489256 */
+  --color-bark: 122 92 56;          /* #7a5c38 */
+  --color-sunshine: 235 194 96;     /* #ebc260 */
+  --color-earth: 160 130 100;       /* #a08264 */
+
+  /* Status */
+  --color-danger: 191 81 78;
+  --color-success: 90 132 92;
+
+  /* Typography */
+  --font-primary: "Nunito", -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Caveat", "Marker Felt", "Comic Sans MS", cursive;
+}
+
+html,
+body,
+html body {
+  background:
+    radial-gradient(ellipse at top left, rgba(235, 194, 96, 0.25), transparent 55%),
+    radial-gradient(ellipse at bottom right, rgba(168, 198, 143, 0.35), transparent 55%),
+    rgb(var(--color-bg));
+  background-attachment: fixed;
+  color: rgb(var(--color-fg));
+  font-family: var(--font-primary);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* ---------- Click area — the "tree" button --------------------------- */
+
+.click-area {
+  background:
+    radial-gradient(at 30% 25%, rgba(255, 255, 255, 0.6), transparent 55%),
+    rgb(var(--color-surface));
+  border-radius: 50%;
+  border: 3px solid rgb(var(--color-bark));
+  box-shadow:
+    0 10px 24px rgba(62, 44, 34, 0.18),
+    inset 0 -6px 12px rgba(122, 92, 56, 0.12),
+    inset 0 4px 8px rgba(255, 255, 255, 0.35);
+  width: clamp(180px, 56vw, 240px);
+  height: clamp(180px, 56vw, 240px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(88px, 26vw, 120px);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.click-area:active {
+  transform: scale(0.94);
+}
+.click-area:hover {
+  box-shadow:
+    0 12px 28px rgba(62, 44, 34, 0.22),
+    inset 0 -6px 12px rgba(122, 92, 56, 0.12),
+    inset 0 4px 8px rgba(255, 255, 255, 0.4);
+}
+
+/* Floating "+N" leaf animation. Parent sets --x as a CSS variable (the
+ * horizontal drift in px) so each click floats at a slightly different
+ * angle, and we avoid a re-render per frame. */
+@keyframes floatUp {
+  0%   { transform: translate(var(--x, 0), 0) scale(0.6); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translate(var(--x, 0), -110px) scale(1.1); opacity: 0; }
+}
+
+.float-leaf {
+  position: absolute;
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  color: rgb(var(--color-leaf));
+  animation: floatUp 900ms ease-out forwards;
+  text-shadow: 0 1px 2px rgba(62, 44, 34, 0.15);
+}
+
+/* ---------- Upgrade cards -------------------------------------------- */
+
+.upgrade-card {
+  background: rgb(var(--color-surface));
+  border: 2px solid rgb(var(--color-border));
+  border-radius: 14px;
+  padding: 12px 14px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-primary);
+}
+.upgrade-card:hover:not(.locked) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(62, 44, 34, 0.1);
+}
+.upgrade-card.affordable {
+  border-color: rgb(var(--color-accent));
+  box-shadow: 0 0 0 3px rgba(90, 132, 92, 0.12);
+}
+.upgrade-card.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

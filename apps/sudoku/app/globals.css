@@ -1,0 +1,156 @@
+@import "@coinbase/onchainkit/styles.css";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * Sudoku — Stripe.com aesthetic
+ *
+ * White canvas with a soft radial gradient wash, #061b31 near-black ink,
+ * #635bff / #9966ff Stripe indigo accent, thin hairline borders, subtle
+ * elevation on the board (10/40 soft shadow). Inter for UI, JetBrains
+ * Mono for the grid cell digits.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  /* Surfaces */
+  --color-bg: 255 255 255;
+  --color-surface: 247 250 252;
+  --color-fg: 6 27 49;              /* #061b31 Stripe dark navy */
+  --color-muted: 97 108 122;        /* #616c7a */
+  --color-subtle: 114 127 150;      /* #727f96 linkColor */
+  --color-border: 230 236 241;      /* #e6ecf1 hairline */
+
+  /* Accent — Stripe indigo/violet */
+  --color-accent: 99 91 255;        /* #635bff Stripe brand */
+  --color-accent-soft: 153 102 255; /* #9966ff from scan */
+  --color-accent-deep: 83 58 253;   /* #533afd gradient start */
+
+  /* Status */
+  --color-success: 0 180 150;
+  --color-warning: 255 204 85;
+  --color-error: 223 77 80;
+
+  /* Board-specific */
+  --color-highlight: 236 233 255;   /* very light indigo wash */
+  --color-peer: 247 250 252;        /* cells in same row/col/box */
+  --color-conflict: 254 226 226;
+  --color-given: 6 27 49;
+  --color-user: 99 91 255;
+
+  /* Typography */
+  --font-primary: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Source Code Pro", Menlo, monospace;
+}
+
+html,
+body,
+html body {
+  /* Stripe-signature stacked radial gradients — imperceptible warmth at
+   * top + indigo wash at bottom, over white. */
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(236, 233, 255, 0.7), transparent 60%),
+    radial-gradient(900px 500px at 50% 110%, rgba(247, 250, 252, 1), transparent 55%),
+    rgb(var(--color-bg));
+  background-attachment: fixed;
+  color: rgb(var(--color-fg));
+  font-family: var(--font-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+h1, h2, h3 {
+  font-family: var(--font-primary);
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+/* --- Sudoku board + cells --------------------------------------------- */
+
+.sudoku-board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  border: 2px solid rgb(var(--color-fg));
+  border-radius: 12px;
+  background: rgb(var(--color-bg));
+  box-shadow: 0 12px 36px rgba(6, 27, 49, 0.08), 0 2px 6px rgba(6, 27, 49, 0.04);
+  overflow: hidden;
+}
+
+.sudoku-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-right: 1px solid rgb(var(--color-border));
+  border-bottom: 1px solid rgb(var(--color-border));
+  font-family: var(--font-mono);
+  font-size: clamp(16px, 4.2vw, 22px);
+  font-weight: 500;
+  cursor: pointer;
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-fg));
+  transition: background 150ms ease, color 150ms ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+/* Kill the outer-edge hairlines — the board's own border handles those. */
+.sudoku-cell[data-col="8"] { border-right: none; }
+.sudoku-cell[data-row="8"] { border-bottom: none; }
+
+/* 3×3 box separators: thick navy line after every third column/row. */
+.sudoku-cell[data-col="2"],
+.sudoku-cell[data-col="5"] { border-right: 2px solid rgb(var(--color-fg)); }
+.sudoku-cell[data-row="2"],
+.sudoku-cell[data-row="5"] { border-bottom: 2px solid rgb(var(--color-fg)); }
+
+.sudoku-cell.given { font-weight: 700; color: rgb(var(--color-given)); }
+.sudoku-cell.user  { color: rgb(var(--color-user)); font-weight: 600; }
+
+.sudoku-cell.peer        { background: rgb(var(--color-peer)); }
+.sudoku-cell.same-number { background: rgb(var(--color-highlight)); }
+.sudoku-cell.selected {
+  background: rgb(var(--color-highlight));
+  box-shadow: inset 0 0 0 2px rgb(var(--color-accent));
+  z-index: 1;
+}
+.sudoku-cell.conflict {
+  background: rgb(var(--color-conflict));
+  color: rgb(var(--color-error));
+}
+
+.sudoku-cell.solved {
+  animation: solved-pulse 600ms ease;
+}
+
+@keyframes solved-pulse {
+  0%   { background: rgb(var(--color-bg)); }
+  50%  { background: rgba(0, 180, 150, 0.18); }
+  100% { background: rgb(var(--color-bg)); }
+}
+
+/* Pencil-marks grid inside empty cells. */
+.sudoku-cell .notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  color: rgb(var(--color-muted));
+  padding: 2px;
+}
+
+.sudoku-cell .notes span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

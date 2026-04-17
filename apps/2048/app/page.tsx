@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
-import { ConnectHeader } from "@/components/game/ConnectHeader";
+import { ConnectHeader, TournamentEntry } from "@mas/shared/components";
 import { Game } from "@/components/game/Game";
-import { TournamentEntry } from "@/components/game/TournamentEntry";
+
+const TOURNAMENT_ID = 0n;
 
 const REQUIRED_CHAIN = baseSepolia.id;
 
@@ -29,7 +30,7 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-screen-sm flex-col gap-3b px-2b py-3b">
-      <ConnectHeader />
+      <ConnectHeader title="2048" kicker="on Base" />
 
       {!isConnected && <ConnectPrompt />}
 
@@ -41,7 +42,11 @@ export default function HomePage() {
       )}
 
       {isConnected && !wrongChain && !entered && (
-        <TournamentEntry onEntered={onEntered} />
+        <TournamentEntry
+          tournamentId={TOURNAMENT_ID}
+          gameLabel="2048"
+          onEntered={onEntered}
+        />
       )}
 
       {isConnected && !wrongChain && entered && <Game />}

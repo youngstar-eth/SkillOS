@@ -1,0 +1,142 @@
+@import "@coinbase/onchainkit/styles.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+ * Minesweeper — Y2K / Cameron's World aesthetic
+ *
+ * Classic Win98 chrome (gray #c0c0c0 windows with inset/outset 3D bevels
+ * on a teal desktop), peppered with Y2K accents from the scan tokens
+ * (#feff58 highlight yellow, #ff6699 flag hot-pink). MS Sans Serif family
+ * for UI, Courier for the digital timer read-out.
+ * ----------------------------------------------------------------------- */
+
+:root {
+  /* Surfaces */
+  --color-bg: 0 128 128;           /* #008080 desktop teal */
+  --color-window: 192 192 192;     /* #c0c0c0 Win98 gray */
+  --color-surface: 220 220 220;    /* lighter reveal-cell shade */
+  --color-fg: 0 0 0;
+  --color-muted: 109 109 109;      /* #6d6d6d text-muted */
+
+  /* 3D bevel palette */
+  --color-border-light: 255 255 255;
+  --color-border-dark: 128 128 128;
+  --color-border-deep: 0 0 0;
+
+  /* Y2K accents (from skillui scan) */
+  --color-accent: 254 255 88;      /* #feff58 highlight yellow */
+  --color-accent-2: 255 102 153;   /* #ff6699 hot pink (flag) */
+  --color-lavender: 159 151 250;   /* #9f97fa */
+  --color-titlebar-a: 0 0 128;     /* classic title-bar navy */
+  --color-titlebar-b: 16 132 208;  /* title-bar gradient end */
+
+  /* Status */
+  --color-danger: 255 10 10;       /* #ff0a0a mine red */
+  --color-success: 72 196 44;      /* #48c42c */
+
+  /* Classic Minesweeper number palette */
+  --num-1: #0000ff;
+  --num-2: #008000;
+  --num-3: #ff0000;
+  --num-4: #000080;
+  --num-5: #800000;
+  --num-6: #008080;
+  --num-7: #000000;
+  --num-8: #808080;
+
+  /* Typography */
+  --font-primary: "MS Sans Serif", "Tahoma", "Arial", sans-serif;
+  --font-mono: "Courier New", "Courier", monospace;
+}
+
+html,
+body,
+html body {
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-fg));
+  font-family: var(--font-primary);
+  font-size: 11px; /* Win98 UI size */
+  -webkit-font-smoothing: none; /* pixel-crisp retro look */
+  image-rendering: pixelated;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-primary);
+  font-weight: bold;
+}
+
+/* ---------- Win98 chrome utilities ------------------------------------- */
+
+/* Raised button / panel — light on top-left, dark on bottom-right. */
+.win-raised {
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(var(--color-border-light));
+  border-left-color: rgb(var(--color-border-light));
+  border-right-color: rgb(var(--color-border-dark));
+  border-bottom-color: rgb(var(--color-border-dark));
+  background: rgb(var(--color-window));
+}
+
+/* Inset (pressed / content well) — reversed bevel. */
+.win-inset {
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(var(--color-border-dark));
+  border-left-color: rgb(var(--color-border-dark));
+  border-right-color: rgb(var(--color-border-light));
+  border-bottom-color: rgb(var(--color-border-light));
+  background: rgb(var(--color-window));
+}
+
+/* Pressed button active state — flatter bevel. */
+.win-pressed {
+  border-style: solid;
+  border-width: 1px;
+  border-color: rgb(var(--color-border-dark));
+  background: rgb(var(--color-window));
+}
+
+/* Classic title bar: navy → blue gradient with white text. */
+.win-titlebar {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-titlebar-a)) 0%,
+    rgb(var(--color-titlebar-b)) 100%
+  );
+  color: #fff;
+  font-weight: bold;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-primary);
+  font-size: 11px;
+}
+
+/* LED-style numeric read-out (mine counter + timer). */
+.win-lcd {
+  background: #000;
+  color: #ff2a2a;
+  font-family: var(--font-mono);
+  font-weight: bold;
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 6px;
+  letter-spacing: 0.05em;
+  border: 1px solid rgb(var(--color-border-dark));
+  box-shadow: inset 1px 1px 0 rgb(var(--color-border-dark));
+}
+
+/* Classic Minesweeper number colours for revealed cells. */
+.num-1 { color: var(--num-1); }
+.num-2 { color: var(--num-2); }
+.num-3 { color: var(--num-3); }
+.num-4 { color: var(--num-4); }
+.num-5 { color: var(--num-5); }
+.num-6 { color: var(--num-6); }
+.num-7 { color: var(--num-7); }
+.num-8 { color: var(--num-8); }
