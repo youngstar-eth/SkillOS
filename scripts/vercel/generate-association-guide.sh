@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Print a per-game walkthrough for Farcaster account association.
+# Print a per-game walkthrough for Base App (base.dev) account association.
 #
 # Output is a plain-text guide that tells the user, for each of the 20 games:
-#   1. Where to paste the domain
-#   2. How to sign with Warpcast custody wallet
-#   3. Which 3 env vars to set and the commands to set them
+#   1. Where to paste the domain (base.dev)
+#   2. How to sign with Coinbase Wallet
+#   3. Which 4 env vars to set (FARCASTER_HEADER/PAYLOAD/SIGNATURE + NEXT_PUBLIC_BASE_BUILDER_ADDRESS)
 #
 # Usage:
 #   scripts/vercel/generate-association-guide.sh > account-association-guide.txt
@@ -17,27 +17,28 @@ source "$HERE/lib.sh"
 
 cat <<'INTRO'
 ═══════════════════════════════════════════════════════════════
-  MAS — Farcaster Account Association Walkthrough (20 games)
+  MAS — Base App Account Association Walkthrough (20 games)
 ═══════════════════════════════════════════════════════════════
 
-You need to sign a proof-of-domain ownership for each game's Vercel
-subdomain. Your Farcaster custody wallet is the signer. Once signed,
-the 3 returned fields (header/payload/signature) go into Vercel env.
-
-The deploy step already set everything else — only account
-association is left.
+Each mini app needs a signed proof that you own its Vercel
+subdomain. Base App (base.dev) issues the signature via your
+Coinbase Wallet. Once signed, 4 values go into Vercel env +
+one redeploy makes the manifest pick them up.
 
 General steps for each domain:
-  1. Open https://farcaster.xyz/~/developers/mini-apps/manifest
-  2. Paste the domain shown below (WITHOUT https://)
-  3. Click "Submit" → "Verify"
-  4. Approve the signature request in Warpcast
-  5. Copy the three values shown (header / payload / signature)
-  6. Run the three `vercel env add` commands
-  7. Trigger a redeploy so the manifest picks up the new env vars
+  1. Open https://base.dev (sign in with Coinbase account)
+  2. Navigate: Preview → Account Association
+  3. Paste the domain shown below (WITHOUT https://)
+  4. Click Submit → Verify → Sign in Coinbase Wallet
+     (use the Coinbase Wallet already linked to your Farcaster
+     FID if you have one; otherwise any Coinbase Wallet)
+  5. Copy the returned object: { header, payload, signature }
+     plus the verified signing address (baseBuilder)
+  6. Run the 4 `vercel env add` commands from apps/<game>
+  7. Redeploy so the manifest picks up the new env vars
 
-Per-game instructions below. Estimated: ~1 min signing + ~30s env ops
-per game × 20 games = ~30 min total.
+Estimated: ~1 min signing + ~30s env ops + ~3 min redeploy
+per game × 20 games = ~90 min total (or parallelize redeploys).
 
 ───────────────────────────────────────────────────────────────
 INTRO
@@ -46,20 +47,34 @@ for game in "${GAMES[@]}"; do
   domain="mas-$game.vercel.app"
   cat <<EOF
 
-[$game]
-  Domain:       $domain
-  Manifest URL: https://$domain/.well-known/farcaster.json
+### GAME: $game
+URL:     https://$domain
+Manifest: https://$domain/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       $domain
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    $domain
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/$game
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/$game):
+
+  cd apps/$game
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://$domain/.well-known/farcaster.json \\
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 EOF
@@ -67,15 +82,23 @@ done
 
 cat <<'OUTRO'
 
-After all 20 are signed and redeployed, verify with:
+After all 20 are signed and redeployed, verify in bulk:
 
   for g in 2048 wordle snake minesweeper sudoku pong clicker breakout \
            bubble solitaire match3 flappy crossy helix geometry jetpack \
            stickman tower pool hillclimb; do
-    code=$(curl -s "https://mas-$g.vercel.app/.well-known/farcaster.json" \
-      | python3 -c 'import sys,json; d=json.load(sys.stdin); print("ok" if "accountAssociation" in d else "missing")')
-    echo "$g: $code"
+    result=$(curl -s "https://mas-$g.vercel.app/.well-known/farcaster.json" \
+      | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+aa = isinstance(d.get("accountAssociation"),dict)
+bb = d.get("baseBuilder",{}).get("allowedAddresses",[])
+print("ok" if aa and bb else "missing")')
+    echo "$g: $result"
   done
 
 Expect: 20 × "ok".
+
+Tip: env vars propagate to new deployments only. The curl above will
+show the old manifest until the redeploy finishes. Vercel builds are
+~2-3 min cold, ~30s warm (build cache reused).
 OUTRO

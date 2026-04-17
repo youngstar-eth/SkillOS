@@ -4,8 +4,9 @@
 # For each mas-<game>.vercel.app, checks:
 #   - GET /                          → 200
 #   - GET /.well-known/farcaster.json → 200 + valid JSON
-#   - JSON contains frame.name, frame.iconUrl (required)
-#   - JSON contains accountAssociation (optional; warns if missing)
+#   - JSON contains miniapp.name, miniapp.iconUrl (required, Base App spec)
+#   - JSON contains accountAssociation (optional; warns if missing — manual sign)
+#   - JSON contains baseBuilder.allowedAddresses[0] (optional; warns if empty)
 #   - GET / HTML contains fc:miniapp meta tag
 #
 # Usage:
@@ -30,7 +31,7 @@ fi
 fail=0
 warn=0
 
-printf "%-12s %-6s %-9s %-5s %-5s %s\n" "game" "page" "manifest" "frame" "embed" "assoc"
+printf "%-12s %-6s %-9s %-7s %-5s %-5s %s\n" "game" "page" "manifest" "miniapp" "embed" "assoc" "builder"
 
 for game in "${TO_CHECK[@]}"; do
   base="https://mas-$game.vercel.app"
@@ -39,12 +40,13 @@ for game in "${TO_CHECK[@]}"; do
   manifest_json=$(curl -s "$base/.well-known/farcaster.json" -m 15)
   page_html=$(curl -s "$base/" -m 15)
 
-  frame=✗
+  miniapp=✗
   embed=✗
   assoc=✗
+  builder=✗
 
-  if echo "$manifest_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); sys.exit(0 if isinstance(d.get("frame"),dict) and d["frame"].get("name") and d["frame"].get("iconUrl") else 1)' 2>/dev/null; then
-    frame=✓
+  if echo "$manifest_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); m=d.get("miniapp") or d.get("frame"); sys.exit(0 if isinstance(m,dict) and m.get("name") and m.get("iconUrl") else 1)' 2>/dev/null; then
+    miniapp=✓
   fi
   if echo "$page_html" | grep -q 'fc:miniapp'; then
     embed=✓
@@ -52,18 +54,21 @@ for game in "${TO_CHECK[@]}"; do
   if echo "$manifest_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); sys.exit(0 if isinstance(d.get("accountAssociation"),dict) else 1)' 2>/dev/null; then
     assoc=✓
   fi
+  if echo "$manifest_json" | python3 -c 'import sys,json; d=json.load(sys.stdin); a=d.get("baseBuilder",{}).get("allowedAddresses",[]); sys.exit(0 if a else 1)' 2>/dev/null; then
+    builder=✓
+  fi
 
-  printf "%-12s %-6s %-9s %-5s %-5s %s\n" "$game" "$page_code" "$manifest_code" "$frame" "$embed" "$assoc"
+  printf "%-12s %-6s %-9s %-7s %-5s %-5s %s\n" "$game" "$page_code" "$manifest_code" "$miniapp" "$embed" "$assoc" "$builder"
 
-  if [ "$page_code" != "200" ] || [ "$manifest_code" != "200" ] || [ "$frame" != "✓" ] || [ "$embed" != "✓" ]; then
+  if [ "$page_code" != "200" ] || [ "$manifest_code" != "200" ] || [ "$miniapp" != "✓" ] || [ "$embed" != "✓" ]; then
     fail=$((fail+1))
   fi
-  if [ "$assoc" != "✓" ]; then
+  if [ "$assoc" != "✓" ] || [ "$builder" != "✓" ]; then
     warn=$((warn+1))
   fi
 done
 
 echo ""
 echo "Fails: $fail (required checks)"
-echo "Warns: $warn (accountAssociation — manual sign step)"
+echo "Warns: $warn (accountAssociation / baseBuilder — manual sign step)"
 exit $fail

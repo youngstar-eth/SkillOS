@@ -1,376 +1,665 @@
 ═══════════════════════════════════════════════════════════════
-  MAS — Farcaster Account Association Walkthrough (20 games)
+  MAS — Base App Account Association Walkthrough (20 games)
 ═══════════════════════════════════════════════════════════════
 
-You need to sign a proof-of-domain ownership for each game's Vercel
-subdomain. Your Farcaster custody wallet is the signer. Once signed,
-the 3 returned fields (header/payload/signature) go into Vercel env.
-
-The deploy step already set everything else — only account
-association is left.
+Each mini app needs a signed proof that you own its Vercel
+subdomain. Base App (base.dev) issues the signature via your
+Coinbase Wallet. Once signed, 4 values go into Vercel env +
+one redeploy makes the manifest pick them up.
 
 General steps for each domain:
-  1. Open https://farcaster.xyz/~/developers/mini-apps/manifest
-  2. Paste the domain shown below (WITHOUT https://)
-  3. Click "Submit" → "Verify"
-  4. Approve the signature request in Warpcast
-  5. Copy the three values shown (header / payload / signature)
-  6. Run the three `vercel env add` commands
-  7. Trigger a redeploy so the manifest picks up the new env vars
+  1. Open https://base.dev (sign in with Coinbase account)
+  2. Navigate: Preview → Account Association
+  3. Paste the domain shown below (WITHOUT https://)
+  4. Click Submit → Verify → Sign in Coinbase Wallet
+     (use the Coinbase Wallet already linked to your Farcaster
+     FID if you have one; otherwise any Coinbase Wallet)
+  5. Copy the returned object: { header, payload, signature }
+     plus the verified signing address (baseBuilder)
+  6. Run the 4 `vercel env add` commands from apps/<game>
+  7. Redeploy so the manifest picks up the new env vars
 
-Per-game instructions below. Estimated: ~1 min signing + ~30s env ops
-per game × 20 games = ~30 min total.
-
-───────────────────────────────────────────────────────────────
-
-[2048]
-  Domain:       mas-2048.vercel.app
-  Manifest URL: https://mas-2048.vercel.app/.well-known/farcaster.json
-
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-2048.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
-
-       cd apps/2048
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Estimated: ~1 min signing + ~30s env ops + ~3 min redeploy
+per game × 20 games = ~90 min total (or parallelize redeploys).
 
 ───────────────────────────────────────────────────────────────
 
-[wordle]
-  Domain:       mas-wordle.vercel.app
-  Manifest URL: https://mas-wordle.vercel.app/.well-known/farcaster.json
+### GAME: 2048
+URL:     https://mas-2048.vercel.app
+Manifest: https://mas-2048.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-wordle.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-2048.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/wordle
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/2048):
 
-───────────────────────────────────────────────────────────────
+  cd apps/2048
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[snake]
-  Domain:       mas-snake.vercel.app
-  Manifest URL: https://mas-snake.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-snake.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-2048.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/snake
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[minesweeper]
-  Domain:       mas-minesweeper.vercel.app
-  Manifest URL: https://mas-minesweeper.vercel.app/.well-known/farcaster.json
+### GAME: wordle
+URL:     https://mas-wordle.vercel.app
+Manifest: https://mas-wordle.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-minesweeper.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-wordle.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/minesweeper
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/wordle):
 
-───────────────────────────────────────────────────────────────
+  cd apps/wordle
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[sudoku]
-  Domain:       mas-sudoku.vercel.app
-  Manifest URL: https://mas-sudoku.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-sudoku.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-wordle.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/sudoku
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[pong]
-  Domain:       mas-pong.vercel.app
-  Manifest URL: https://mas-pong.vercel.app/.well-known/farcaster.json
+### GAME: snake
+URL:     https://mas-snake.vercel.app
+Manifest: https://mas-snake.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-pong.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-snake.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/pong
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/snake):
 
-───────────────────────────────────────────────────────────────
+  cd apps/snake
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[clicker]
-  Domain:       mas-clicker.vercel.app
-  Manifest URL: https://mas-clicker.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-clicker.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-snake.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/clicker
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[breakout]
-  Domain:       mas-breakout.vercel.app
-  Manifest URL: https://mas-breakout.vercel.app/.well-known/farcaster.json
+### GAME: minesweeper
+URL:     https://mas-minesweeper.vercel.app
+Manifest: https://mas-minesweeper.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-breakout.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-minesweeper.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/breakout
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/minesweeper):
 
-───────────────────────────────────────────────────────────────
+  cd apps/minesweeper
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[bubble]
-  Domain:       mas-bubble.vercel.app
-  Manifest URL: https://mas-bubble.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-bubble.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-minesweeper.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/bubble
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[solitaire]
-  Domain:       mas-solitaire.vercel.app
-  Manifest URL: https://mas-solitaire.vercel.app/.well-known/farcaster.json
+### GAME: sudoku
+URL:     https://mas-sudoku.vercel.app
+Manifest: https://mas-sudoku.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-solitaire.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-sudoku.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/solitaire
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/sudoku):
 
-───────────────────────────────────────────────────────────────
+  cd apps/sudoku
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[match3]
-  Domain:       mas-match3.vercel.app
-  Manifest URL: https://mas-match3.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-match3.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-sudoku.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/match3
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[flappy]
-  Domain:       mas-flappy.vercel.app
-  Manifest URL: https://mas-flappy.vercel.app/.well-known/farcaster.json
+### GAME: pong
+URL:     https://mas-pong.vercel.app
+Manifest: https://mas-pong.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-flappy.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-pong.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/flappy
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/pong):
 
-───────────────────────────────────────────────────────────────
+  cd apps/pong
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[crossy]
-  Domain:       mas-crossy.vercel.app
-  Manifest URL: https://mas-crossy.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-crossy.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-pong.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/crossy
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[helix]
-  Domain:       mas-helix.vercel.app
-  Manifest URL: https://mas-helix.vercel.app/.well-known/farcaster.json
+### GAME: clicker
+URL:     https://mas-clicker.vercel.app
+Manifest: https://mas-clicker.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-helix.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-clicker.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/helix
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/clicker):
 
-───────────────────────────────────────────────────────────────
+  cd apps/clicker
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[geometry]
-  Domain:       mas-geometry.vercel.app
-  Manifest URL: https://mas-geometry.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-geometry.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-clicker.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/geometry
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[jetpack]
-  Domain:       mas-jetpack.vercel.app
-  Manifest URL: https://mas-jetpack.vercel.app/.well-known/farcaster.json
+### GAME: breakout
+URL:     https://mas-breakout.vercel.app
+Manifest: https://mas-breakout.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-jetpack.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-breakout.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/jetpack
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/breakout):
 
-───────────────────────────────────────────────────────────────
+  cd apps/breakout
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[stickman]
-  Domain:       mas-stickman.vercel.app
-  Manifest URL: https://mas-stickman.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-stickman.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-breakout.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/stickman
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[tower]
-  Domain:       mas-tower.vercel.app
-  Manifest URL: https://mas-tower.vercel.app/.well-known/farcaster.json
+### GAME: bubble
+URL:     https://mas-bubble.vercel.app
+Manifest: https://mas-bubble.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-tower.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-bubble.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/tower
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/bubble):
 
-───────────────────────────────────────────────────────────────
+  cd apps/bubble
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
 
-[pool]
-  Domain:       mas-pool.vercel.app
-  Manifest URL: https://mas-pool.vercel.app/.well-known/farcaster.json
+Verify after redeploy:
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-pool.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  curl -s https://mas-bubble.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
 
-       cd apps/pool
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-[hillclimb]
-  Domain:       mas-hillclimb.vercel.app
-  Manifest URL: https://mas-hillclimb.vercel.app/.well-known/farcaster.json
+### GAME: solitaire
+URL:     https://mas-solitaire.vercel.app
+Manifest: https://mas-solitaire.vercel.app/.well-known/farcaster.json
 
-  1. Paste into https://farcaster.xyz/~/developers/mini-apps/manifest:
-       mas-hillclimb.vercel.app
-  2. Sign with your Warpcast custody wallet.
-  3. Copy the 3 returned values and run:
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-solitaire.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
 
-       cd apps/hillclimb
-       printf '%s\n' '<HEADER_VALUE>'    | npx vercel@latest env add FARCASTER_HEADER    production
-       printf '%s\n' '<PAYLOAD_VALUE>'   | npx vercel@latest env add FARCASTER_PAYLOAD   production
-       printf '%s\n' '<SIGNATURE_VALUE>' | npx vercel@latest env add FARCASTER_SIGNATURE production
-       npx vercel@latest --prod --yes
+Terminal (from apps/solitaire):
+
+  cd apps/solitaire
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-solitaire.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
 
 ───────────────────────────────────────────────────────────────
 
-After all 20 are signed and redeployed, verify with:
+### GAME: match3
+URL:     https://mas-match3.vercel.app
+Manifest: https://mas-match3.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-match3.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/match3):
+
+  cd apps/match3
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-match3.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: flappy
+URL:     https://mas-flappy.vercel.app
+Manifest: https://mas-flappy.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-flappy.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/flappy):
+
+  cd apps/flappy
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-flappy.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: crossy
+URL:     https://mas-crossy.vercel.app
+Manifest: https://mas-crossy.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-crossy.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/crossy):
+
+  cd apps/crossy
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-crossy.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: helix
+URL:     https://mas-helix.vercel.app
+Manifest: https://mas-helix.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-helix.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/helix):
+
+  cd apps/helix
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-helix.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: geometry
+URL:     https://mas-geometry.vercel.app
+Manifest: https://mas-geometry.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-geometry.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/geometry):
+
+  cd apps/geometry
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-geometry.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: jetpack
+URL:     https://mas-jetpack.vercel.app
+Manifest: https://mas-jetpack.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-jetpack.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/jetpack):
+
+  cd apps/jetpack
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-jetpack.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: stickman
+URL:     https://mas-stickman.vercel.app
+Manifest: https://mas-stickman.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-stickman.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/stickman):
+
+  cd apps/stickman
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-stickman.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: tower
+URL:     https://mas-tower.vercel.app
+Manifest: https://mas-tower.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-tower.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/tower):
+
+  cd apps/tower
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-tower.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: pool
+URL:     https://mas-pool.vercel.app
+Manifest: https://mas-pool.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-pool.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/pool):
+
+  cd apps/pool
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-pool.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+### GAME: hillclimb
+URL:     https://mas-hillclimb.vercel.app
+Manifest: https://mas-hillclimb.vercel.app/.well-known/farcaster.json
+
+  1. Open:      https://base.dev
+  2. Login:     Coinbase account
+  3. Navigate:  Preview → Account Association
+  4. Domain:    mas-hillclimb.vercel.app
+  5. Submit → Verify → Sign (Coinbase Wallet)
+  6. Copy: { header, payload, signature } + verified address
+
+Terminal (from apps/hillclimb):
+
+  cd apps/hillclimb
+  echo "<HEADER>"    | /opt/homebrew/bin/npx vercel env add FARCASTER_HEADER               production
+  echo "<PAYLOAD>"   | /opt/homebrew/bin/npx vercel env add FARCASTER_PAYLOAD              production
+  echo "<SIGNATURE>" | /opt/homebrew/bin/npx vercel env add FARCASTER_SIGNATURE            production
+  echo "<0xADDRESS>" | /opt/homebrew/bin/npx vercel env add NEXT_PUBLIC_BASE_BUILDER_ADDRESS production
+  /opt/homebrew/bin/npx vercel --prod --yes --scope simpl3s-projects
+
+Verify after redeploy:
+
+  curl -s https://mas-hillclimb.vercel.app/.well-known/farcaster.json \
+    | jq '.accountAssociation, .baseBuilder'
+
+Expected:
+  { "header": "...", "payload": "...", "signature": "..." }
+  { "allowedAddresses": ["0x..."] }
+
+───────────────────────────────────────────────────────────────
+
+After all 20 are signed and redeployed, verify in bulk:
 
   for g in 2048 wordle snake minesweeper sudoku pong clicker breakout \
            bubble solitaire match3 flappy crossy helix geometry jetpack \
            stickman tower pool hillclimb; do
-    code=$(curl -s "https://mas-$g.vercel.app/.well-known/farcaster.json" \
-      | python3 -c 'import sys,json; d=json.load(sys.stdin); print("ok" if "accountAssociation" in d else "missing")')
-    echo "$g: $code"
+    result=$(curl -s "https://mas-$g.vercel.app/.well-known/farcaster.json" \
+      | python3 -c 'import sys,json
+d=json.load(sys.stdin)
+aa = isinstance(d.get("accountAssociation"),dict)
+bb = d.get("baseBuilder",{}).get("allowedAddresses",[])
+print("ok" if aa and bb else "missing")')
+    echo "$g: $result"
   done
 
 Expect: 20 × "ok".
+
+Tip: env vars propagate to new deployments only. The curl above will
+show the old manifest until the redeploy finishes. Vercel builds are
+~2-3 min cold, ~30s warm (build cache reused).
