@@ -792,6 +792,16 @@ export const USDC_ABI = [
     outputs: [{ type: "bool" }],
   },
   {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+  {
     name: "balanceOf",
     type: "function",
     stateMutability: "view",

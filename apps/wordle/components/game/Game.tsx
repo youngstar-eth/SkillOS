@@ -12,7 +12,11 @@ import { Board } from "./Board";
 import { Keyboard } from "./Keyboard";
 import { Toast } from "./Toast";
 import { GameOver, type SubmitState } from "./GameOver";
-import { AICoachButton, AutoSubmitScore } from "@mas/shared/components";
+import {
+  AICoachButton,
+  AutoSubmitScore,
+  PayoutCelebration,
+} from "@mas/shared/components";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
@@ -374,6 +378,14 @@ export function Game({ dailyWord }: GameProps = {}) {
                   guesses: guesses.length,
                   won,
                 }}
+              />
+              <PayoutCelebration
+                userAddress={address}
+                gameSlug="wordle"
+                score={score}
+                enabled={
+                  process.env.NEXT_PUBLIC_INSTANT_PAYOUT === "1"
+                }
               />
               {address && guesses.length > 0 ? (
                 <AICoachButton

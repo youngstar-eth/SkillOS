@@ -26,3 +26,7 @@ export {
   AutoSubmitScore,
   type AutoSubmitScoreProps,
 } from "./AutoSubmitScore";
+export {
+  PayoutCelebration,
+  type PayoutCelebrationProps,
+} from "./PayoutCelebration";

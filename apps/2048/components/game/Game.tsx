@@ -11,7 +11,11 @@ import {
 import { Board } from "./Board";
 import { ScoreBoard } from "./ScoreBoard";
 import { GameOver, type SubmitState } from "./GameOver";
-import { AICoachButton, AutoSubmitScore } from "@mas/shared/components";
+import {
+  AICoachButton,
+  AutoSubmitScore,
+  PayoutCelebration,
+} from "@mas/shared/components";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
@@ -324,6 +328,14 @@ export function Game({ dailyTiles }: GameProps = {}) {
                   durationMs: Date.now() - startedAt,
                   won,
                 }}
+              />
+              <PayoutCelebration
+                userAddress={address}
+                gameSlug="2048"
+                score={score}
+                enabled={
+                  process.env.NEXT_PUBLIC_INSTANT_PAYOUT === "1"
+                }
               />
               {address ? (
                 <AICoachButton

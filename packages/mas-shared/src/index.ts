@@ -14,3 +14,4 @@ export * from "./brand";
 export * from "./games";
 export * from "./ai";
 export * from "./leaderboard";
+export * from "./payout";

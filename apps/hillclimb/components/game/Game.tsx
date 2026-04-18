@@ -6,6 +6,7 @@ import {
   AICoachButton,
   AutoSubmitScore,
   GameOverSubmit,
+  PayoutCelebration,
 } from "@mas/shared/components";
 import { useScoreSubmit } from "@mas/shared/hooks";
 import { Board } from "./Board";
@@ -228,6 +229,14 @@ export function Game({ dailySeed }: GameProps = {}) {
                   elapsedMs: Math.floor(state.elapsedMs),
                   seed: state.seed,
                 }}
+              />
+              <PayoutCelebration
+                userAddress={address}
+                gameSlug="hillclimb"
+                score={finalScore}
+                enabled={
+                  process.env.NEXT_PUBLIC_INSTANT_PAYOUT === "1"
+                }
               />
               {address ? (
                 <AICoachButton

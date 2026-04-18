@@ -16,7 +16,8 @@
     "./brand": "./src/brand/index.ts",
     "./games": "./src/games/index.ts",
     "./ai": "./src/ai/index.ts",
-    "./leaderboard": "./src/leaderboard/index.ts"
+    "./leaderboard": "./src/leaderboard/index.ts",
+    "./payout": "./src/payout/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -35,6 +36,7 @@
     "wagmi": "^2.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0"
+    "@anthropic-ai/sdk": "^0.90.0",
+    "canvas-confetti": "^1.9.3"
   }
 }

@@ -42,7 +42,6 @@ import { baseSepolia } from "viem/chains";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
-  USDC_ABI,
   USDC_ADDRESS,
 } from "@mas/shared/contracts";
 import {
@@ -51,6 +50,10 @@ import {
   computeDailyAggregates,
   computeDailyRanks,
 } from "@mas/shared/leaderboard";
+import {
+  transferUSDCWithLog as sharedTransferUSDCWithLog,
+  type PayoutScope,
+} from "@mas/shared/payout";
 import { createClient } from "@supabase/supabase-js";
 
 // ─── Args ───────────────────────────────────────────────────────────────────
@@ -66,7 +69,7 @@ const SB_KEY = req("SUPABASE_SERVICE_ROLE_KEY");
 const PK = (process.env.STUDIO_PRIVATE_KEY ?? "") as Hex;
 const RPC = process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia.base.org";
 
-// Off-chain payout amounts (USDC integer units; see toUSDC()).
+// Off-chain payout amounts (USDC decimal units; helper converts to 6-decimal atomic).
 const CATEGORY_PRIZES_USDC = [5, 3, 2]; // top 3 per category
 const OVERALL_PRIZES_USDC = [8, 5, 3, 2, 1, 0.5, 0.3, 0.1, 0.05, 0.05]; // top 10
 
@@ -287,36 +290,21 @@ async function payOverallWinners(day: string) {
 }
 
 // ─── transfer + log + idempotency check ─────────────────────────────────────
+// Thin wrapper that preserves the cron's log output shape and DRY short-circuit,
+// while delegating the actual reservation + chain write + audit log to the
+// shared two-phase helper in @mas/shared/payout. The shared helper enforces
+// the UNIQUE partial index on payouts(...) WHERE status IN ('pending','sent')
+// so parallel callers (cron + /api/payout/trigger) can't double-pay.
 async function transferUSDCWithLog(opts: {
   userAddress: string;
   amount: number;
-  scope: "category" | "overall";
-  category: CategoryKey | null;
+  scope: PayoutScope;
+  category: CategoryKey | string | null;
   gameSlug: string | null;
   day: string;
   rank: number;
   label: string;
 }) {
-  // Dedup: don't re-pay if a 'sent' row already exists for this slot.
-  const { data: existing } = await supabase
-    .from("payouts")
-    .select("id, tx_hash")
-    .eq("user_address", opts.userAddress.toLowerCase())
-    .eq("scope", opts.scope)
-    .eq("day", opts.day)
-    .eq("rank", opts.rank)
-    .eq("status", "sent");
-
-  const matchedExisting = existing?.find((r) => {
-    // Postgres treats null != null in eq filters above; double-check
-    // category match here (where the API doesn't expose IS NULL helper).
-    return true;
-  });
-  if (matchedExisting) {
-    console.log(`      ${opts.label}: already paid (${matchedExisting.tx_hash?.slice(0, 10)}…) — skip`);
-    return;
-  }
-
   console.log(
     `      ${opts.label}: ${opts.amount} USDC → ${opts.userAddress.slice(0, 8)}…`,
   );
@@ -326,45 +314,36 @@ async function transferUSDCWithLog(opts: {
     return;
   }
 
-  const { wallet, pub } = chain();
-  try {
-    const hash = await wallet.writeContract({
-      chain: baseSepolia,
-      account: wallet.account!,
-      address: USDC_ADDRESS,
-      abi: USDC_ABI,
-      functionName: "transfer",
-      args: [opts.userAddress as Address, toUSDC(opts.amount)],
-    });
-    await pub.waitForTransactionReceipt({ hash });
-    console.log(`        tx=${hash}`);
+  const { pub: p, wallet: w } = chain();
+  const res = await sharedTransferUSDCWithLog(
+    {
+      userAddress: opts.userAddress,
+      amount: opts.amount,
+      scope: opts.scope,
+      category: opts.category,
+      gameSlug: opts.gameSlug,
+      day: opts.day,
+      rank: opts.rank,
+      label: opts.label,
+    },
+    { supabase, pub: p, wallet: w },
+  );
 
-    await supabase.from("payouts").insert({
-      user_address: opts.userAddress.toLowerCase(),
-      amount_usdc: opts.amount,
-      scope: opts.scope,
-      category: opts.category,
-      game_slug: opts.gameSlug,
-      day: opts.day,
-      rank: opts.rank,
-      tx_hash: hash,
-      status: "sent",
-      sent_at: new Date().toISOString(),
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.log(`        FAILED: ${msg.split("\n")[0]}`);
-    await supabase.from("payouts").insert({
-      user_address: opts.userAddress.toLowerCase(),
-      amount_usdc: opts.amount,
-      scope: opts.scope,
-      category: opts.category,
-      game_slug: opts.gameSlug,
-      day: opts.day,
-      rank: opts.rank,
-      status: "failed",
-      failure_reason: msg.slice(0, 200),
-    });
+  switch (res.status) {
+    case "sent":
+      console.log(`        tx=${res.txHash}`);
+      return;
+    case "duplicate":
+      console.log(
+        `        already paid (${res.existing.tx_hash?.slice(0, 10) ?? "?"}…) — skip`,
+      );
+      return;
+    case "failed":
+      console.log(`        FAILED: ${res.error.split("\n")[0]}`);
+      return;
+    case "dry_run":
+      // Unreachable: DRY was handled above.
+      return;
   }
 }
 
@@ -386,11 +365,6 @@ function req(name: string): string {
     process.exit(2);
   }
   return v;
-}
-
-function toUSDC(n: number): bigint {
-  // 6-decimal token; round to nearest atomic unit.
-  return BigInt(Math.round(n * 1_000_000));
 }
 
 function formatUSDC(units: bigint): string {

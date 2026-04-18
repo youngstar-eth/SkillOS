@@ -16,6 +16,13 @@ export {
   userStatsHandler,
 } from "./handlers/leaderboard";
 
+// Instant payout (Feature 1)
+export { payoutTriggerHandler } from "./handlers/payout-trigger";
+export {
+  ogWinCardHandler,
+  ogWinCardRuntime,
+} from "./handlers/og-win-card";
+
 // Primitives (for custom routes that don't want the full shared handler).
 export { verifyBearer } from "./quick-auth";
 export type { VerifiedToken, AuthFailure, AuthSuccess } from "./quick-auth";
