@@ -7,7 +7,11 @@ import { baseSepolia } from "wagmi/chains";
 import { ConnectHeader } from "@/components/game/ConnectHeader";
 import { Game, WORDLE_TOURNAMENT_ID } from "@/components/game/Game";
 import { TournamentEntry } from "@/components/game/TournamentEntry";
-import { DailyChallengeBanner, type DailyChallenge } from "@mas/shared/components";
+import {
+  DailyChallengeBanner,
+  GameLeaderboard,
+  type DailyChallenge,
+} from "@mas/shared/components";
 
 const REQUIRED_CHAIN = baseSepolia.id;
 
@@ -31,7 +35,7 @@ function useDemoMode(): boolean {
 
 export default function HomePage() {
   const { isFrameReady, setFrameReady } = useMiniKit();
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChain, isPending: switchPending } = useSwitchChain();
 
@@ -96,6 +100,8 @@ export default function HomePage() {
       {(demo || (isConnected && !wrongChain && entered)) && (
         <Game dailyWord={pendingDaily ?? undefined} />
       )}
+
+      <GameLeaderboard gameSlug="wordle" highlightAddress={address} />
     </main>
   );
 }

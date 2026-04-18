@@ -83,6 +83,7 @@ export default function LandingPage() {
           <nav className="nav">
             <a href="#games">Arcade</a>
             <a href="#ai">AI</a>
+            <a href="/leaderboard">Leaderboards</a>
             <a href="#how">How it works</a>
             <a className="mono" href="#">Docs ↗</a>
           </nav>
@@ -408,6 +409,87 @@ export default function LandingPage() {
                 <b>gate</b> pre-submit oracle
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== LEADERBOARDS TEASER =================== */}
+      <section className="band" id="leaderboards" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="sec-hd">
+            <div>
+              <div className="eyebrow">Leaderboards</div>
+              <h2>Three tiers. One ladder.</h2>
+            </div>
+            <p className="rhs">
+              Per-game daily ranks roll up into 5 category boards
+              and one overall board. Multi-game players (5+ games on one
+              day) get a ×1.5 bonus on the overall total.
+            </p>
+          </div>
+
+          <div className="steps">
+            <div className="step">
+              <div className="n">Tier 01</div>
+              <div className="illus" style={{ fontSize: 28 }} aria-hidden>
+                🎮
+              </div>
+              <h3>Per-game</h3>
+              <p>
+                Best-score-per-day per wallet. On-chain prize via{" "}
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>
+                  ArcadePool.settle()
+                </span>
+                {" "} — winner-takes-all, auto-distributed nightly.
+              </p>
+              <div className="mono-snippet">
+                <b>payout</b> on-chain
+                <br />
+                <b>winner</b> <span className="y">takes pool</span>
+              </div>
+            </div>
+
+            <div className="step">
+              <div className="n">Tier 02</div>
+              <div className="illus" style={{ fontSize: 28 }} aria-hidden>
+                🏆
+              </div>
+              <h3>Category</h3>
+              <p>
+                Five buckets: Card &amp; Puzzle, Arcade, Action,
+                Skill &amp; Sports, Economy. Top 3 each day get a slice
+                of the category pool.
+              </p>
+              <div className="mono-snippet">
+                <b>top 3</b> <span className="y">5 / 3 / 2 USDC</span>
+                <br />
+                <b>payout</b> studio wallet
+              </div>
+            </div>
+
+            <div className="step">
+              <div className="n">Tier 03</div>
+              <div className="illus" style={{ fontSize: 28 }} aria-hidden>
+                👑
+              </div>
+              <h3>Overall</h3>
+              <p>
+                All 20 games combined. Multi-game bonus rewards range
+                — players who spread skill across games rise. Top 10
+                paid daily.
+              </p>
+              <div className="mono-snippet">
+                <b>top 10</b> graded payout
+                <br />
+                <b>bonus</b> <span className="g">×1.5 on 5+ games</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 28, textAlign: "center" }}>
+            <a href="/leaderboard" className="btn btn-ghost btn-lg">
+              See full leaderboards <span className="arrow">→</span>
+            </a>
           </div>
         </div>
       </section>

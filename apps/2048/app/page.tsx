@@ -8,6 +8,7 @@ import {
   ConnectHeader,
   TournamentEntry,
   DailyChallengeBanner,
+  GameLeaderboard,
   type DailyChallenge,
 } from "@mas/shared/components";
 import { Game } from "@/components/game/Game";
@@ -33,7 +34,7 @@ function useDemoMode(): boolean {
 
 export default function HomePage() {
   const { isFrameReady, setFrameReady } = useMiniKit();
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChain, isPending: switchPending } = useSwitchChain();
 
@@ -98,6 +99,8 @@ export default function HomePage() {
       {(demo || (isConnected && !wrongChain && entered)) && (
         <Game dailyTiles={pendingDailyTiles ?? undefined} />
       )}
+
+      <GameLeaderboard gameSlug="2048" highlightAddress={address} />
     </main>
   );
 }

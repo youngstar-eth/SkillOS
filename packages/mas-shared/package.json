@@ -15,7 +15,8 @@
     "./miniapp": "./src/miniapp/index.ts",
     "./brand": "./src/brand/index.ts",
     "./games": "./src/games/index.ts",
-    "./ai": "./src/ai/index.ts"
+    "./ai": "./src/ai/index.ts",
+    "./leaderboard": "./src/leaderboard/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

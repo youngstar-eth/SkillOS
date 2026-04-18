@@ -18,3 +18,11 @@ export {
   AICoachButton,
   type AICoachButtonProps,
 } from "./AICoachButton";
+export {
+  GameLeaderboard,
+  type GameLeaderboardProps,
+} from "./GameLeaderboard";
+export {
+  AutoSubmitScore,
+  type AutoSubmitScoreProps,
+} from "./AutoSubmitScore";

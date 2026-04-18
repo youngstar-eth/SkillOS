@@ -12,7 +12,7 @@ import { Board } from "./Board";
 import { Keyboard } from "./Keyboard";
 import { Toast } from "./Toast";
 import { GameOver, type SubmitState } from "./GameOver";
-import { AICoachButton } from "@mas/shared/components";
+import { AICoachButton, AutoSubmitScore } from "@mas/shared/components";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
@@ -363,25 +363,38 @@ export function Game({ dailyWord }: GameProps = {}) {
           onSubmit={submitScore}
           submit={submit}
           aiCoachSlot={
-            address && guesses.length > 0 ? (
-              <AICoachButton
-                gameSlug="wordle"
+            <>
+              <AutoSubmitScore
                 userAddress={address}
+                gameSlug="wordle"
                 score={score}
                 tournamentId={Number(WORDLE_TOURNAMENT_ID)}
-                stats={{
+                gameData={{
                   word: answer.toUpperCase(),
                   guesses: guesses.length,
-                  timeSeconds: Math.round((Date.now() - startedAt) / 1000),
-                  startWord: guesses[0]?.word.toUpperCase() ?? "",
-                  guessHistory: guesses.map((g) => ({
-                    word: g.word.toUpperCase(),
-                    states: g.states,
-                  })),
                   won,
                 }}
               />
-            ) : null
+              {address && guesses.length > 0 ? (
+                <AICoachButton
+                  gameSlug="wordle"
+                  userAddress={address}
+                  score={score}
+                  tournamentId={Number(WORDLE_TOURNAMENT_ID)}
+                  stats={{
+                    word: answer.toUpperCase(),
+                    guesses: guesses.length,
+                    timeSeconds: Math.round((Date.now() - startedAt) / 1000),
+                    startWord: guesses[0]?.word.toUpperCase() ?? "",
+                    guessHistory: guesses.map((g) => ({
+                      word: g.word.toUpperCase(),
+                      states: g.states,
+                    })),
+                    won,
+                  }}
+                />
+              ) : null}
+            </>
           }
         />
       )}

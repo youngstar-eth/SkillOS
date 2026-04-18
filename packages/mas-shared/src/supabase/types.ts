@@ -50,6 +50,45 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_aggregates: {
+        Row: {
+          category: string | null
+          computed_at: string
+          day: string
+          games_played: number
+          id: string
+          multi_game_bonus_applied: boolean
+          rank: number | null
+          scope: string
+          total_points: number
+          user_address: string
+        }
+        Insert: {
+          category?: string | null
+          computed_at?: string
+          day: string
+          games_played: number
+          id?: string
+          multi_game_bonus_applied?: boolean
+          rank?: number | null
+          scope: string
+          total_points: number
+          user_address: string
+        }
+        Update: {
+          category?: string | null
+          computed_at?: string
+          day?: string
+          games_played?: number
+          id?: string
+          multi_game_bonus_applied?: boolean
+          rank?: number | null
+          scope?: string
+          total_points?: number
+          user_address?: string
+        }
+        Relationships: []
+      }
       daily_challenges: {
         Row: {
           ai_description: string
@@ -80,6 +119,72 @@ export type Database = {
           id?: string
           model_used?: string
           theme?: string
+        }
+        Relationships: []
+      }
+      daily_ranks: {
+        Row: {
+          best_score: number
+          computed_at: string
+          day: string
+          game_slug: string
+          id: string
+          rank: number
+          rank_points: number
+          user_address: string
+        }
+        Insert: {
+          best_score: number
+          computed_at?: string
+          day: string
+          game_slug: string
+          id?: string
+          rank: number
+          rank_points: number
+          user_address: string
+        }
+        Update: {
+          best_score?: number
+          computed_at?: string
+          day?: string
+          game_slug?: string
+          id?: string
+          rank?: number
+          rank_points?: number
+          user_address?: string
+        }
+        Relationships: []
+      }
+      game_scores: {
+        Row: {
+          day: string | null
+          game_data: Json | null
+          game_slug: string
+          id: string
+          score: number
+          submitted_at: string
+          tournament_id: number | null
+          user_address: string
+        }
+        Insert: {
+          day?: string | null
+          game_data?: Json | null
+          game_slug: string
+          id?: string
+          score: number
+          submitted_at?: string
+          tournament_id?: number | null
+          user_address: string
+        }
+        Update: {
+          day?: string | null
+          game_data?: Json | null
+          game_slug?: string
+          id?: string
+          score?: number
+          submitted_at?: string
+          tournament_id?: number | null
+          user_address?: string
         }
         Relationships: []
       }
@@ -134,6 +239,54 @@ export type Database = {
           },
         ]
       }
+      payouts: {
+        Row: {
+          amount_usdc: number
+          category: string | null
+          created_at: string
+          day: string
+          failure_reason: string | null
+          game_slug: string | null
+          id: string
+          rank: number | null
+          scope: string
+          sent_at: string | null
+          status: string
+          tx_hash: string | null
+          user_address: string
+        }
+        Insert: {
+          amount_usdc: number
+          category?: string | null
+          created_at?: string
+          day: string
+          failure_reason?: string | null
+          game_slug?: string | null
+          id?: string
+          rank?: number | null
+          scope: string
+          sent_at?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_address: string
+        }
+        Update: {
+          amount_usdc?: number
+          category?: string | null
+          created_at?: string
+          day?: string
+          failure_reason?: string | null
+          game_slug?: string | null
+          id?: string
+          rank?: number | null
+          scope?: string
+          sent_at?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_address?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
@@ -187,6 +340,28 @@ export type Database = {
       }
     }
     Functions: {
+      get_best_scores_for_day: {
+        Args: { p_day: string; p_game: string }
+        Returns: {
+          best_score: number
+          submissions: number
+          user_address: string
+        }[]
+      }
+      get_unique_games_for_day: {
+        Args: { p_day: string }
+        Returns: {
+          game_slug: string
+          submissions: number
+        }[]
+      }
+      get_users_with_activity_on_day: {
+        Args: { p_day: string }
+        Returns: {
+          games_played: number
+          user_address: string
+        }[]
+      }
       upsert_user: {
         Args: {
           p_display_name?: string

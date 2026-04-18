@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
-import { AICoachButton, GameOverSubmit } from "@mas/shared/components";
+import {
+  AICoachButton,
+  AutoSubmitScore,
+  GameOverSubmit,
+} from "@mas/shared/components";
 import { useScoreSubmit } from "@mas/shared/hooks";
 import { Board } from "./Board";
 import {
@@ -212,20 +216,34 @@ export function Game({ dailySeed }: GameProps = {}) {
           onSubmit={handleSubmit}
           playAgainLabel="New Run"
           aiCoachSlot={
-            address ? (
-              <AICoachButton
-                gameSlug="hillclimb"
+            <>
+              <AutoSubmitScore
                 userAddress={address}
+                gameSlug="hillclimb"
                 score={finalScore}
                 tournamentId={Number(TOURNAMENT_ID)}
-                stats={{
+                gameData={{
                   distance: Math.floor(state.distance),
-                  score: finalScore,
                   fuelConsumed: Math.floor(state.fuelConsumed),
                   elapsedMs: Math.floor(state.elapsedMs),
+                  seed: state.seed,
                 }}
               />
-            ) : null
+              {address ? (
+                <AICoachButton
+                  gameSlug="hillclimb"
+                  userAddress={address}
+                  score={finalScore}
+                  tournamentId={Number(TOURNAMENT_ID)}
+                  stats={{
+                    distance: Math.floor(state.distance),
+                    score: finalScore,
+                    fuelConsumed: Math.floor(state.fuelConsumed),
+                    elapsedMs: Math.floor(state.elapsedMs),
+                  }}
+                />
+              ) : null}
+            </>
           }
         >
           <div className="mt-3 grid grid-cols-3 gap-2 rounded border border-border bg-surface-2 p-3 text-xs">

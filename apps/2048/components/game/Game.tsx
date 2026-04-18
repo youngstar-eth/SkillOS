@@ -11,7 +11,7 @@ import {
 import { Board } from "./Board";
 import { ScoreBoard } from "./ScoreBoard";
 import { GameOver, type SubmitState } from "./GameOver";
-import { AICoachButton } from "@mas/shared/components";
+import { AICoachButton, AutoSubmitScore } from "@mas/shared/components";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
@@ -312,21 +312,35 @@ export function Game({ dailyTiles }: GameProps = {}) {
           onSubmit={submitScore}
           submit={submit}
           aiCoachSlot={
-            address ? (
-              <AICoachButton
-                gameSlug="2048"
+            <>
+              <AutoSubmitScore
                 userAddress={address}
+                gameSlug="2048"
                 score={score}
                 tournamentId={Number(TOURNAMENT_ID)}
-                stats={{
-                  score,
-                  moves,
+                gameData={{
                   maxTile: maxTile(grid),
+                  moves,
                   durationMs: Date.now() - startedAt,
                   won,
                 }}
               />
-            ) : null
+              {address ? (
+                <AICoachButton
+                  gameSlug="2048"
+                  userAddress={address}
+                  score={score}
+                  tournamentId={Number(TOURNAMENT_ID)}
+                  stats={{
+                    score,
+                    moves,
+                    maxTile: maxTile(grid),
+                    durationMs: Date.now() - startedAt,
+                    won,
+                  }}
+                />
+              ) : null}
+            </>
           }
         />
       )}
