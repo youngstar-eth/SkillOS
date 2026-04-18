@@ -6,11 +6,13 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/
 
-# Game specs (not used at runtime)
-prompts/
+# Game design specs at repo root (not used at runtime).
+# Leading slash anchors to root so it won't match nested prompts/ dirs
+# (e.g. packages/mas-shared/src/ai/prompts/ which IS needed at build time).
+/prompts/
 
 # Ad-hoc scripts
-scripts/
+/scripts/
 
 # Worktree artifacts
 .claude/worktrees/

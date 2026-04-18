@@ -11,6 +11,7 @@ import {
 import { Board } from "./Board";
 import { ScoreBoard } from "./ScoreBoard";
 import { GameOver, type SubmitState } from "./GameOver";
+import { AICoachButton } from "@mas/shared/components";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
@@ -27,8 +28,27 @@ import {
 import type { Direction, Grid } from "@/lib/game/types";
 
 const BEST_KEY = "2048:best";
-const TOURNAMENT_ID = 0n;
+export const TOURNAMENT_ID = 0n;
 const SWIPE_THRESHOLD = 50;
+
+export interface GameProps {
+  /** Daily challenge: pre-seeded tiles that replace the default 2-tile spawn. */
+  dailyTiles?: Array<{ row: number; col: number; value: number }>;
+}
+
+// Build a 4×4 grid with specific tile placements. Used in daily-challenge mode
+// to enforce the AI-designed starting board instead of the random init.
+function gridFromTiles(
+  tiles: Array<{ row: number; col: number; value: number }>,
+): Grid {
+  const g = createEmptyGrid();
+  for (const t of tiles) {
+    if (t.row < 0 || t.row > 3 || t.col < 0 || t.col > 3) continue;
+    const row = g[t.row];
+    if (row) row[t.col] = t.value;
+  }
+  return g;
+}
 
 const KEY_DIR: Record<string, Direction> = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
@@ -36,7 +56,7 @@ const KEY_DIR: Record<string, Direction> = {
   W: "up", S: "down", A: "left", D: "right",
 };
 
-export function Game() {
+export function Game({ dailyTiles }: GameProps = {}) {
   const { address, isConnected } = useAccount();
 
   // Deterministic initial state (hydration-safe), seeded after mount.
@@ -56,10 +76,15 @@ export function Game() {
   useEffect(() => { gameOverRef.current = gameOver; }, [gameOver]);
 
   // Seed the two starting tiles + clock on client mount.
+  // Daily mode replaces the random init with AI-designed tiles.
   useEffect(() => {
-    setGrid(initialGrid());
+    setGrid(
+      dailyTiles && dailyTiles.length > 0
+        ? gridFromTiles(dailyTiles)
+        : initialGrid(),
+    );
     setStartedAt(Date.now());
-  }, []);
+  }, [dailyTiles]);
 
   // Hydrate best score from localStorage.
   useEffect(() => {
@@ -286,6 +311,23 @@ export function Game() {
           onRestart={restart}
           onSubmit={submitScore}
           submit={submit}
+          aiCoachSlot={
+            address ? (
+              <AICoachButton
+                gameSlug="2048"
+                userAddress={address}
+                score={score}
+                tournamentId={Number(TOURNAMENT_ID)}
+                stats={{
+                  score,
+                  moves,
+                  maxTile: maxTile(grid),
+                  durationMs: Date.now() - startedAt,
+                  won,
+                }}
+              />
+            ) : null
+          }
         />
       )}
     </>

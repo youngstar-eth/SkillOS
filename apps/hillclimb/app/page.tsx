@@ -4,10 +4,31 @@ import { useCallback, useEffect, useState } from "react";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
-import { ConnectHeader, TournamentEntry } from "@mas/shared/components";
+import {
+  ConnectHeader,
+  TournamentEntry,
+  DailyChallengeBanner,
+  type DailyChallenge,
+} from "@mas/shared/components";
 import { Game, TOURNAMENT_ID } from "@/components/game/Game";
 
 const REQUIRED_CHAIN = baseSepolia.id;
+
+type HillclimbChallengeData = {
+  seed: number;
+  targetDistance?: number;
+  conditions?: string;
+};
+
+/** Demo bypass — `?demo=1` exercises AI layer without on-chain entry. */
+function useDemoMode(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setOn(new URLSearchParams(window.location.search).get("demo") === "1");
+  }, []);
+  return on;
+}
 
 export default function HomePage() {
   const { isFrameReady, setFrameReady } = useMiniKit();
@@ -15,8 +36,16 @@ export default function HomePage() {
   const chainId = useChainId();
   const { switchChain, isPending: switchPending } = useSwitchChain();
 
+  const demo = useDemoMode();
   const [entered, setEntered] = useState(false);
   const onEntered = useCallback(() => setEntered(true), []);
+
+  const [pendingDailySeed, setPendingDailySeed] = useState<number | null>(null);
+
+  const onPlayDaily = useCallback((c: DailyChallenge) => {
+    const d = c.challenge_data as HillclimbChallengeData | null;
+    if (typeof d?.seed === "number") setPendingDailySeed(d.seed);
+  }, []);
 
   useEffect(() => {
     if (!isFrameReady) setFrameReady();
@@ -28,7 +57,23 @@ export default function HomePage() {
     <main className="mx-auto flex min-h-screen max-w-screen-sm flex-col gap-4 px-4 py-6">
       <ConnectHeader title="Hill Climb" kicker="on Base" />
 
-      {!isConnected && (
+      <DailyChallengeBanner
+        gameSlug="hillclimb"
+        onPlay={onPlayDaily}
+        playDisabled={!demo && (!isConnected || wrongChain)}
+        playLabel={
+          demo || entered ? "Load Daily Terrain" : "Enter then Play Daily →"
+        }
+      />
+
+      {demo && (
+        <section className="rounded border border-warning/50 bg-warning/10 p-3 text-xs text-warning">
+          ⚠ Demo mode — tournament entry bypassed. On-chain submit still works
+          if a tournament is live.
+        </section>
+      )}
+
+      {!isConnected && !demo && (
         <section className="rounded border border-border bg-surface p-5">
           <h2 className="text-h3 text-fg">Connect wallet</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -52,7 +97,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {isConnected && !wrongChain && !entered && (
+      {isConnected && !wrongChain && !entered && !demo && (
         <TournamentEntry
           tournamentId={TOURNAMENT_ID}
           gameLabel="hillclimb"
@@ -60,7 +105,9 @@ export default function HomePage() {
         />
       )}
 
-      {isConnected && !wrongChain && entered && <Game />}
+      {(demo || (isConnected && !wrongChain && entered)) && (
+        <Game dailySeed={pendingDailySeed ?? undefined} />
+      )}
     </main>
   );
 }

@@ -12,6 +12,7 @@ import { Board } from "./Board";
 import { Keyboard } from "./Keyboard";
 import { Toast } from "./Toast";
 import { GameOver, type SubmitState } from "./GameOver";
+import { AICoachButton } from "@mas/shared/components";
 import {
   ARCADE_POOL_ABI,
   ARCADE_POOL_ADDRESS,
@@ -34,6 +35,11 @@ import {
 
 export const WORDLE_TOURNAMENT_ID = 1n;
 
+export interface GameProps {
+  /** When present, overrides the deterministic daily word. */
+  dailyWord?: string;
+}
+
 /** Delay before opening GameOver modal — lets the final-row flip finish. */
 const REVEAL_DURATION_MS = WORD_LENGTH * 100 + 500;
 const TOAST_DURATION_MS = 1800;
@@ -41,7 +47,7 @@ const SHAKE_DURATION_MS = 400;
 
 const LETTER = /^[a-z]$/;
 
-export function Game() {
+export function Game({ dailyWord }: GameProps = {}) {
   const { address, isConnected } = useAccount();
 
   // ----- Game state ---------------------------------------------------------
@@ -83,11 +89,12 @@ export function Game() {
     };
   }, [answer, guesses, currentInput, status, keyboardStates, revealing]);
 
-  // Seed on mount.
+  // Seed on mount. Daily mode overrides the deterministic pick.
   useEffect(() => {
-    setAnswer(pickAnswer(Number(WORDLE_TOURNAMENT_ID)));
+    const word = dailyWord ? dailyWord.toLowerCase() : pickAnswer(Number(WORDLE_TOURNAMENT_ID));
+    setAnswer(word);
     setStartedAt(Date.now());
-  }, []);
+  }, [dailyWord]);
 
   // ----- Action helpers -----------------------------------------------------
   const showToast = useCallback((msg: string) => {
@@ -355,6 +362,27 @@ export function Game() {
           onRestart={restart}
           onSubmit={submitScore}
           submit={submit}
+          aiCoachSlot={
+            address && guesses.length > 0 ? (
+              <AICoachButton
+                gameSlug="wordle"
+                userAddress={address}
+                score={score}
+                tournamentId={Number(WORDLE_TOURNAMENT_ID)}
+                stats={{
+                  word: answer.toUpperCase(),
+                  guesses: guesses.length,
+                  timeSeconds: Math.round((Date.now() - startedAt) / 1000),
+                  startWord: guesses[0]?.word.toUpperCase() ?? "",
+                  guessHistory: guesses.map((g) => ({
+                    word: g.word.toUpperCase(),
+                    states: g.states,
+                  })),
+                  won,
+                }}
+              />
+            ) : null
+          }
         />
       )}
     </div>

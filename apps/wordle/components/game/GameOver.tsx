@@ -1,6 +1,7 @@
 "use client";
 
 import type { Hex } from "viem";
+import type { ReactNode } from "react";
 
 export type SubmitState =
   | { status: "idle" }
@@ -49,6 +50,7 @@ export function GameOver({
   onRestart,
   onSubmit,
   submit,
+  aiCoachSlot,
 }: {
   won: boolean;
   answer: string;
@@ -58,6 +60,8 @@ export function GameOver({
   onRestart: () => void;
   onSubmit: () => void;
   submit: SubmitState;
+  /** Optional slot rendered below the submit button — typically the AI Coach. */
+  aiCoachSlot?: ReactNode;
 }) {
   const buttonLabel = (() => {
     switch (submit.status) {
@@ -185,6 +189,8 @@ export function GameOver({
             {friendlyError(submit.message)}
           </p>
         )}
+
+        {aiCoachSlot}
       </div>
     </div>
   );

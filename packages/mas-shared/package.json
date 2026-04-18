@@ -14,22 +14,26 @@
     "./game": "./src/game/index.ts",
     "./miniapp": "./src/miniapp/index.ts",
     "./brand": "./src/brand/index.ts",
-    "./games": "./src/games/index.ts"
+    "./games": "./src/games/index.ts",
+    "./ai": "./src/ai/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "wagmi": "^2.0.0",
-    "viem": "^2.0.0",
-    "@tanstack/react-query": "^5.0.0",
     "@coinbase/onchainkit": "^0.38.0",
-    "@supabase/supabase-js": "^2.0.0",
-    "@supabase/ssr": "^0.10.0",
     "@farcaster/frame-sdk": "*",
     "@farcaster/quick-auth": "*",
-    "next": "^14.0.0"
+    "@supabase/ssr": "^0.10.0",
+    "@supabase/supabase-js": "^2.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "next": "^14.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "viem": "^2.0.0",
+    "wagmi": "^2.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0"
   }
 }

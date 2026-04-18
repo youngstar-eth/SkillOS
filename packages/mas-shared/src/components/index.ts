@@ -9,3 +9,12 @@ export {
   type GameOverSubmitProps,
 } from "./GameOverSubmit";
 export { HomeButton, type HomeButtonProps } from "./HomeButton";
+export {
+  DailyChallengeBanner,
+  type DailyChallengeBannerProps,
+  type DailyChallenge,
+} from "./DailyChallengeBanner";
+export {
+  AICoachButton,
+  type AICoachButtonProps,
+} from "./AICoachButton";

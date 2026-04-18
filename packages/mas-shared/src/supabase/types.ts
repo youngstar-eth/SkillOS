@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_analyses: {
+        Row: {
+          created_at: string
+          game_slug: string
+          id: string
+          model_used: string
+          narration: string
+          score: number
+          stats_hash: string
+          tournament_id: number | null
+          user_address: string
+        }
+        Insert: {
+          created_at?: string
+          game_slug: string
+          id?: string
+          model_used?: string
+          narration: string
+          score: number
+          stats_hash: string
+          tournament_id?: number | null
+          user_address: string
+        }
+        Update: {
+          created_at?: string
+          game_slug?: string
+          id?: string
+          model_used?: string
+          narration?: string
+          score?: number
+          stats_hash?: string
+          tournament_id?: number | null
+          user_address?: string
+        }
+        Relationships: []
+      }
+      daily_challenges: {
+        Row: {
+          ai_description: string
+          challenge_data: Json
+          challenge_date: string
+          created_at: string
+          game_slug: string
+          id: string
+          model_used: string
+          theme: string
+        }
+        Insert: {
+          ai_description: string
+          challenge_data: Json
+          challenge_date: string
+          created_at?: string
+          game_slug: string
+          id?: string
+          model_used?: string
+          theme: string
+        }
+        Update: {
+          ai_description?: string
+          challenge_data?: Json
+          challenge_date?: string
+          created_at?: string
+          game_slug?: string
+          id?: string
+          model_used?: string
+          theme?: string
+        }
+        Relationships: []
+      }
       game_sessions: {
         Row: {
           created_at: string

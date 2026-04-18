@@ -2,6 +2,9 @@
 export { scoreHandler } from "./handlers/score";
 export { leaderboardHandler } from "./handlers/leaderboard";
 export { userUpsertHandler } from "./handlers/user-upsert";
+export { dailyGetHandler } from "./handlers/daily-get";
+export { dailyGenerateHandler } from "./handlers/daily-generate";
+export { analyzeHandler } from "./handlers/analyze";
 
 // Primitives (for custom routes that don't want the full shared handler).
 export { verifyBearer } from "./quick-auth";

@@ -22,6 +22,8 @@ export interface GameOverSubmitProps {
   allowZeroScoreSubmit?: boolean;
   /** Override the Play Again button label ("Plant again", "New puzzle", etc.). */
   playAgainLabel?: string;
+  /** Slot rendered below the submit receipt — typically the AI coach. */
+  aiCoachSlot?: ReactNode;
 }
 
 function friendlyError(raw: string): string {
@@ -57,6 +59,7 @@ export function GameOverSubmit({
   children,
   allowZeroScoreSubmit = false,
   playAgainLabel = "Play again",
+  aiCoachSlot,
 }: GameOverSubmitProps) {
   const buttonLabel = (() => {
     switch (submit.status) {
@@ -168,6 +171,8 @@ export function GameOverSubmit({
             {friendlyError(submit.message)}
           </p>
         )}
+
+        {aiCoachSlot}
       </div>
     </div>
   );

@@ -19,6 +19,9 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/
 
+# Supabase CLI working dir (linked-project.json contains project ref + tokens)
+supabase/.temp/
+
 # Design token outputs (generated — keep only source)
 designs/*/
 !designs/.gitkeep

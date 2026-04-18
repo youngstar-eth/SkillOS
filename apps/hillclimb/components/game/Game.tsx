@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
-import { GameOverSubmit } from "@mas/shared/components";
+import { AICoachButton, GameOverSubmit } from "@mas/shared/components";
 import { useScoreSubmit } from "@mas/shared/hooks";
 import { Board } from "./Board";
 import {
@@ -15,13 +15,18 @@ import type { HillState } from "@/lib/game/types";
 
 export const TOURNAMENT_ID = 17n;
 
+export interface GameProps {
+  /** Fixed terrain seed from the AI daily challenge. */
+  dailySeed?: number;
+}
+
 /**
  * Hill Climb Racing driver. Runs a requestAnimationFrame loop that calls
  * `tick(state, dt)` with real elapsed time. Keyboard (←/→) and pointer
  * input feed `setThrottle`. On game-over the shared `GameOverSubmit`
  * modal handles the on-chain submit.
  */
-export function Game() {
+export function Game({ dailySeed }: GameProps = {}) {
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
   // DEBUG (temporary): capture any error raised inside handleSubmit so the
@@ -38,10 +43,11 @@ export function Game() {
   const submit = useScoreSubmit({ tournamentId: TOURNAMENT_ID });
 
   // Re-seed on client mount — avoids SSR hydration mismatch.
+  // Daily mode uses the AI-provided seed instead of a random one.
   useEffect(() => {
-    const seed = Math.floor(Math.random() * 0xffffff) || 1;
+    const seed = dailySeed || Math.floor(Math.random() * 0xffffff) || 1;
     setState(createInitialState(seed));
-  }, []);
+  }, [dailySeed]);
 
   // --- rAF loop ---
   useEffect(() => {
@@ -109,10 +115,11 @@ export function Game() {
   const finalScore = calculateScore(state);
 
   const restart = useCallback(() => {
-    const seed = Math.floor(Math.random() * 0xffffff) || 1;
+    // Preserve daily seed when restarting inside a daily run.
+    const seed = dailySeed || Math.floor(Math.random() * 0xffffff) || 1;
     setState(createInitialState(seed));
     submit.reset();
-  }, [submit]);
+  }, [submit, dailySeed]);
 
   const handleSubmit = useCallback(() => {
     setSubmitThrow(null);
@@ -204,6 +211,22 @@ export function Game() {
           onPlayAgain={restart}
           onSubmit={handleSubmit}
           playAgainLabel="New Run"
+          aiCoachSlot={
+            address ? (
+              <AICoachButton
+                gameSlug="hillclimb"
+                userAddress={address}
+                score={finalScore}
+                tournamentId={Number(TOURNAMENT_ID)}
+                stats={{
+                  distance: Math.floor(state.distance),
+                  score: finalScore,
+                  fuelConsumed: Math.floor(state.fuelConsumed),
+                  elapsedMs: Math.floor(state.elapsedMs),
+                }}
+              />
+            ) : null
+          }
         >
           <div className="mt-3 grid grid-cols-3 gap-2 rounded border border-border bg-surface-2 p-3 text-xs">
             <Stat label="Distance" value={`${Math.floor(state.distance)} m`} />

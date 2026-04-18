@@ -12,3 +12,4 @@ export * from "./game";
 export * from "./miniapp";
 export * from "./brand";
 export * from "./games";
+export * from "./ai";

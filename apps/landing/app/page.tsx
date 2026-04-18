@@ -82,8 +82,7 @@ export default function LandingPage() {
           </a>
           <nav className="nav">
             <a href="#games">Arcade</a>
-            <a href="#tournaments">Tournaments</a>
-            <a href="#leaderboards">Leaderboards</a>
+            <a href="#ai">AI</a>
             <a href="#how">How it works</a>
             <a className="mono" href="#">Docs ↗</a>
           </nav>
@@ -331,6 +330,82 @@ export default function LandingPage() {
                 <b>score</b> 34,128
                 <br />
                 <b>tx</b> 0x8e4a…42c1 <span className="g">✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =================== AI LAYER =================== */}
+      <section className="band" id="ai" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="sec-hd">
+            <div>
+              <div className="eyebrow">AI Layer</div>
+              <h2>
+                Claude curates the content. And grades your run.
+              </h2>
+            </div>
+            <p className="rhs">
+              Every morning, Claude Sonnet writes a themed challenge for each
+              pilot game. Every game-over, Claude Haiku grades your run
+              against the data — chess-coach tone, no hype adjectives.
+            </p>
+          </div>
+
+          <div className="steps">
+            <div className="step">
+              <div className="n">Feature 01</div>
+              <div className="illus" style={{ fontSize: 28 }} aria-hidden>
+                🎯
+              </div>
+              <h3>Daily Challenges</h3>
+              <p>
+                Themed puzzle per game per day. Wordle gets a themed word,
+                2048 gets a seeded board, Hill Climb gets a fixed terrain.
+                Same setup for every player — pure skill leaderboard.
+              </p>
+              <div className="mono-snippet">
+                <b>model</b> claude-sonnet-4-6
+                <br />
+                <b>cadence</b> <span className="y">every 24h</span>
+              </div>
+            </div>
+
+            <div className="step">
+              <div className="n">Feature 02</div>
+              <div className="illus" style={{ fontSize: 28 }} aria-hidden>
+                🤖
+              </div>
+              <h3>AI Coach</h3>
+              <p>
+                Post-run narration. References specific guesses, merges, or
+                terrain events. Explains what you missed, scored against
+                tournament percentile. Cached per stats-hash — zero-cost
+                replay.
+              </p>
+              <div className="mono-snippet">
+                <b>model</b> claude-haiku-4-5
+                <br />
+                <b>trigger</b> <span className="g">on game-over</span>
+              </div>
+            </div>
+
+            <div className="step">
+              <div className="n">Feature 03</div>
+              <div className="illus" style={{ fontSize: 28 }} aria-hidden>
+                🛡
+              </div>
+              <h3>Anti-cheat</h3>
+              <p>
+                Behavioural scoring of submissions. Flags input cadence,
+                solver-tool signatures, impossible moves. On-chain scores
+                that don&rsquo;t pass sit in a quarantine queue.
+              </p>
+              <div className="mono-snippet">
+                <b>status</b> <span className="y">coming soon</span>
+                <br />
+                <b>gate</b> pre-submit oracle
               </div>
             </div>
           </div>

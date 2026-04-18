@@ -28,8 +28,7 @@ type Status =
   | "approving"
   | "needs_enter"
   | "entering"
-  | "entered"
-  | "error";
+  | "entered";
 
 export interface TournamentEntryProps {
   tournamentId: bigint;
@@ -93,6 +92,10 @@ export function TournamentEntry({
     if (hasEnteredQ.data === true) onEntered();
   }, [hasEnteredQ.data, onEntered]);
 
+  // Status is derived from ON-CHAIN reality, not from the last user action's
+  // outcome. If the user rejected an approve in-wallet but the allowance was
+  // already sufficient, we still want the Enter button enabled. Errors are
+  // surfaced separately in StatusRow; they don't gate the buttons.
   const status: Status = useMemo(() => {
     if (!isConnected || !address) return "connecting";
     if (hasEnteredQ.isLoading || allowanceQ.isLoading || balanceQ.isLoading) {
@@ -101,7 +104,6 @@ export function TournamentEntry({
     if (hasEnteredQ.data === true) return "entered";
     if (enterW.isPending || enterRcpt.isLoading) return "entering";
     if (approveW.isPending || approveRcpt.isLoading) return "approving";
-    if (approveW.error || enterW.error) return "error";
     const bal = (balanceQ.data as bigint | undefined) ?? 0n;
     if (bal < ENTRY_FEE) return "no_balance";
     const allowed = (allowanceQ.data as bigint | undefined) ?? 0n;
@@ -117,10 +119,8 @@ export function TournamentEntry({
     balanceQ.isLoading,
     balanceQ.data,
     approveW.isPending,
-    approveW.error,
     approveRcpt.isLoading,
     enterW.isPending,
-    enterW.error,
     enterRcpt.isLoading,
   ]);
 
@@ -178,7 +178,7 @@ export function TournamentEntry({
         <button
           type="button"
           onClick={handleApprove}
-          disabled={status !== "needs_approve" && status !== "error"}
+          disabled={status !== "needs_approve"}
           className="min-h-[44px] flex-1 rounded-sm border border-border bg-bg px-3 py-2 text-sm font-semibold text-fg hover:border-fg/30 disabled:opacity-40"
         >
           {status === "approving" ? "Approving…" : "1. Approve 1 USDC"}
