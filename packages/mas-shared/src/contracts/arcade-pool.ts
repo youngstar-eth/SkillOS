@@ -8,11 +8,34 @@ import { type Address } from "viem";
  * preview deploys or future re-deployments without editing source.
  */
 
-export const ARCADE_POOL_ADDRESS = (process.env.NEXT_PUBLIC_ARCADE_POOL_ADDRESS ??
-  "0xe3f93950F97e1698DC14d5D79324E3c2BA9ACcec") as Address;
+/**
+ * Normalize a contract address from source or env: trim whitespace
+ * (including trailing \n that `echo "..." | vercel env add` injects) and
+ * validate shape. Fails loudly at build time if the env var is malformed,
+ * instead of silently producing "Address is invalid" errors inside every
+ * useReadContract call downstream.
+ */
+function normalize(raw: string, label: string): Address {
+  const trimmed = raw.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(trimmed)) {
+    throw new Error(
+      `Invalid ${label} address: "${raw}" (normalized: "${trimmed}")`,
+    );
+  }
+  return trimmed as Address;
+}
 
-export const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ??
-  "0x036CbD53842c5426634e7929541eC2318f3dCF7e") as Address;
+export const ARCADE_POOL_ADDRESS = normalize(
+  process.env.NEXT_PUBLIC_ARCADE_POOL_ADDRESS ??
+    "0xe3f93950F97e1698DC14d5D79324E3c2BA9ACcec",
+  "ARCADE_POOL",
+);
+
+export const USDC_ADDRESS = normalize(
+  process.env.NEXT_PUBLIC_USDC_ADDRESS ??
+    "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "USDC",
+);
 
 /** Full ABI — generated from contracts/out/ArcadePool.sol/ArcadePool.json */
 export const ARCADE_POOL_ABI = [
