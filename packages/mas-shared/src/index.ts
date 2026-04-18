@@ -11,3 +11,4 @@ export * from "./components";
 export * from "./game";
 export * from "./miniapp";
 export * from "./brand";
+export * from "./games";

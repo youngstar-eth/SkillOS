@@ -8,3 +8,4 @@ export {
   GameOverSubmit,
   type GameOverSubmitProps,
 } from "./GameOverSubmit";
+export { HomeButton, type HomeButtonProps } from "./HomeButton";

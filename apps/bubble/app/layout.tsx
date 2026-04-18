@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Providers } from "@mas/shared/components";
+import { HomeButton, Providers } from "@mas/shared/components";
 import { createEmbedMetadata } from "@mas/shared/miniapp";
 import { APP_CONFIG, getBaseUrl } from "../lib/app-config";
 import "./globals.css";
@@ -39,6 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-bg text-fg antialiased">
+        <HomeButton />
         <Providers>{children}</Providers>
       </body>
     </html>
