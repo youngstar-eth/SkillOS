@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import {
   useAccount,
+  useChainId,
   useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -51,6 +52,13 @@ export interface UseTournamentEntryResult {
   enterHash: Hex | undefined;
   approveError: string | undefined;
   enterError: string | undefined;
+  // --- DEBUG (temporary, to be removed) ---
+  address: `0x${string}` | undefined;
+  chainId: number | undefined;
+  isConnected: boolean;
+  balanceError: string | undefined;
+  allowanceError: string | undefined;
+  hasEnteredError: string | undefined;
 }
 
 /**
@@ -64,6 +72,7 @@ export function useTournamentEntry(
 ): UseTournamentEntryResult {
   const { tournamentId, entryFee = 1_000_000n, onEntered } = opts;
   const { address, isConnected } = useAccount();
+  const currentChainId = useChainId();
 
   const hasEnteredQ = useReadContract({
     address: ARCADE_POOL_ADDRESS,
@@ -168,5 +177,11 @@ export function useTournamentEntry(
     enterHash: enterW.data,
     approveError: approveW.error?.message ?? approveRcpt.error?.message,
     enterError: enterW.error?.message ?? enterRcpt.error?.message,
+    address,
+    chainId: currentChainId,
+    isConnected,
+    balanceError: balanceQ.error?.message,
+    allowanceError: allowanceQ.error?.message,
+    hasEnteredError: hasEnteredQ.error?.message,
   };
 }

@@ -2,6 +2,7 @@
 
 import type { Hex } from "viem";
 import { useTournamentEntry } from "../hooks/useTournamentEntry";
+import { USDC_ADDRESS } from "../contracts/arcade-pool";
 
 export interface TournamentEntryProps {
   tournamentId: bigint;
@@ -56,6 +57,17 @@ export function TournamentEntry({
         </p>
       </div>
 
+      <DebugPanel
+        address={entry.address}
+        chainId={entry.chainId}
+        isConnected={entry.isConnected}
+        balance={entry.balance}
+        allowance={entry.allowance}
+        balanceError={entry.balanceError}
+        allowanceError={entry.allowanceError}
+        hasEnteredError={entry.hasEnteredError}
+      />
+
       <StatusRow
         status={entry.status}
         balance={entry.balance}
@@ -84,6 +96,62 @@ export function TournamentEntry({
           {entry.status === "entering" ? "Entering…" : "2. Enter Tournament"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// DEBUG (temporary): shows raw wallet + read state so we can diagnose why
+// balance/allowance show "—" despite the wallet holding Sepolia USDC.
+// Remove once the silent-read issue is resolved.
+function DebugPanel({
+  address,
+  chainId,
+  isConnected,
+  balance,
+  allowance,
+  balanceError,
+  allowanceError,
+  hasEnteredError,
+}: {
+  address?: `0x${string}`;
+  chainId?: number;
+  isConnected: boolean;
+  balance?: bigint;
+  allowance?: bigint;
+  balanceError?: string;
+  allowanceError?: string;
+  hasEnteredError?: string;
+}) {
+  return (
+    <div
+      style={{
+        fontFamily: "monospace",
+        fontSize: "10px",
+        opacity: 0.9,
+        padding: "8px",
+        background: "rgba(255,200,0,0.1)",
+        border: "1px solid rgba(255,200,0,0.3)",
+        borderRadius: "4px",
+        wordBreak: "break-all",
+        color: "#FFC72C",
+        lineHeight: "1.45",
+      }}
+    >
+      <div>[debug panel — temporary]</div>
+      <div>addr: {address ?? "UNDEFINED"}</div>
+      <div>chainId: {chainId ?? "undefined"} (want 84532)</div>
+      <div>isConnected: {String(isConnected)}</div>
+      <div>USDC addr: {USDC_ADDRESS}</div>
+      <div>
+        balance raw: {balance !== undefined ? String(balance) : "undefined"}
+      </div>
+      <div>
+        allowance raw:{" "}
+        {allowance !== undefined ? String(allowance) : "undefined"}
+      </div>
+      <div>bal err: {balanceError?.slice(0, 140) ?? "none"}</div>
+      <div>alw err: {allowanceError?.slice(0, 140) ?? "none"}</div>
+      <div>entered err: {hasEnteredError?.slice(0, 140) ?? "none"}</div>
     </div>
   );
 }
