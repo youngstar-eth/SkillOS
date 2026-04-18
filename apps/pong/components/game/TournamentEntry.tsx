@@ -7,6 +7,7 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { baseSepolia } from "wagmi/chains";
 import type { Hex } from "viem";
 import {
   ARCADE_POOL_ABI,
@@ -16,6 +17,8 @@ import {
 } from "@mas/shared/contracts";
 
 const ENTRY_FEE = 1_000_000n;
+// Pin on-chain reads to Base Sepolia — see useTournamentEntry.ts.
+const READ_CHAIN_ID = baseSepolia.id;
 
 type Status =
   | "connecting"
@@ -48,6 +51,7 @@ export function TournamentEntry({
     abi: ARCADE_POOL_ABI,
     functionName: "hasEntered",
     args: address ? [tournamentId, address] : undefined,
+    chainId: READ_CHAIN_ID,
     query: { enabled: !!address },
   });
   const allowanceQ = useReadContract({
@@ -55,6 +59,7 @@ export function TournamentEntry({
     abi: USDC_ABI,
     functionName: "allowance",
     args: address ? [address, ARCADE_POOL_ADDRESS] : undefined,
+    chainId: READ_CHAIN_ID,
     query: { enabled: !!address },
   });
   const balanceQ = useReadContract({
@@ -62,6 +67,7 @@ export function TournamentEntry({
     abi: USDC_ABI,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
+    chainId: READ_CHAIN_ID,
     query: { enabled: !!address },
   });
 

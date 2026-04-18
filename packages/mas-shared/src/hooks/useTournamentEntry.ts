@@ -7,6 +7,7 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { baseSepolia } from "wagmi/chains";
 import type { Hex } from "viem";
 import {
   ARCADE_POOL_ABI,
@@ -14,6 +15,12 @@ import {
   USDC_ABI,
   USDC_ADDRESS,
 } from "../contracts/arcade-pool";
+
+// Pin on-chain reads to Base Sepolia regardless of the connected wallet's
+// reported chain. Miniapp connectors (Farcaster) can report mainnet even
+// after a chain switch, which silently routes reads to the wrong RPC and
+// returns undefined → UI shows "—". Explicit chainId avoids that.
+const READ_CHAIN_ID = baseSepolia.id;
 
 export type TournamentEntryStatus =
   | "connecting"
@@ -63,6 +70,7 @@ export function useTournamentEntry(
     abi: ARCADE_POOL_ABI,
     functionName: "hasEntered",
     args: address ? [tournamentId, address] : undefined,
+    chainId: READ_CHAIN_ID,
     query: { enabled: !!address },
   });
 
@@ -71,6 +79,7 @@ export function useTournamentEntry(
     abi: USDC_ABI,
     functionName: "allowance",
     args: address ? [address, ARCADE_POOL_ADDRESS] : undefined,
+    chainId: READ_CHAIN_ID,
     query: { enabled: !!address },
   });
 
@@ -79,6 +88,7 @@ export function useTournamentEntry(
     abi: USDC_ABI,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
+    chainId: READ_CHAIN_ID,
     query: { enabled: !!address },
   });
 
