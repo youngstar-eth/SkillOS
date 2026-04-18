@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { GameOverSubmit } from "@mas/shared/components";
 import { useScoreSubmit } from "@mas/shared/hooks";
 import { Board } from "./Board";
@@ -23,6 +23,11 @@ export const TOURNAMENT_ID = 17n;
  */
 export function Game() {
   const { address, isConnected } = useAccount();
+  const currentChainId = useChainId();
+  // DEBUG (temporary): capture any error raised inside handleSubmit so the
+  // overlay can surface it — the "Cannot read properties of undefined
+  // (reading 'result')" crash happens synchronously inside submit.submit().
+  const [submitThrow, setSubmitThrow] = useState<string | null>(null);
 
   const [state, setState] = useState<HillState>(() => createInitialState(1));
   const stateRef = useRef(state);
@@ -110,19 +115,37 @@ export function Game() {
   }, [submit]);
 
   const handleSubmit = useCallback(() => {
-    submit.submit({
-      score: finalScore,
-      moves: 0,
-      maxTile: Math.floor(state.distance),
-      durationMs: state.elapsedMs,
-      won: false,
-      grid: {
-        seed: state.seed,
-        distance: Math.floor(state.distance),
-        fuelConsumed: Math.floor(state.fuelConsumed),
-        elapsedMs: Math.floor(state.elapsedMs),
-      },
-    });
+    setSubmitThrow(null);
+    try {
+      const promise = submit.submit({
+        score: finalScore,
+        moves: 0,
+        maxTile: Math.floor(state.distance),
+        durationMs: state.elapsedMs,
+        won: false,
+        grid: {
+          seed: state.seed,
+          distance: Math.floor(state.distance),
+          fuelConsumed: Math.floor(state.fuelConsumed),
+          elapsedMs: Math.floor(state.elapsedMs),
+        },
+      });
+      if (promise && typeof promise.then === "function") {
+        promise.catch((err: unknown) => {
+          const msg =
+            err instanceof Error
+              ? `${err.name}: ${err.message}\n${err.stack?.slice(0, 400) ?? ""}`
+              : String(err);
+          setSubmitThrow(msg);
+        });
+      }
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? `${err.name}: ${err.message}\n${err.stack?.slice(0, 400) ?? ""}`
+          : String(err);
+      setSubmitThrow(msg);
+    }
   }, [submit, finalScore, state]);
 
   const gameOver = state.status === "gameOver";
@@ -163,6 +186,15 @@ export function Game() {
         </button>
       </div>
 
+      {/* DEBUG: temporary submit-state panel — remove once resolved */}
+      <SubmitDebugPanel
+        submitState={submit.state}
+        submitThrow={submitThrow}
+        address={address}
+        chainId={currentChainId}
+        isConnected={isConnected}
+      />
+
       {gameOver && (
         <GameOverSubmit
           submit={submit.state}
@@ -180,6 +212,54 @@ export function Game() {
           </div>
         </GameOverSubmit>
       )}
+    </div>
+  );
+}
+
+// DEBUG (temporary): exposes the raw useScoreSubmit state + any synchronous
+// throw from handleSubmit. Renders unconditionally above the gameover modal
+// so we can see the failure before (or after) the modal appears.
+function SubmitDebugPanel({
+  submitState,
+  submitThrow,
+  address,
+  chainId,
+  isConnected,
+}: {
+  submitState: ReturnType<typeof useScoreSubmit>["state"];
+  submitThrow: string | null;
+  address?: `0x${string}`;
+  chainId?: number;
+  isConnected: boolean;
+}) {
+  const stateStatus = submitState.status;
+  const stateMsg =
+    submitState.status === "error" ? submitState.message : undefined;
+  return (
+    <div
+      style={{
+        fontFamily: "monospace",
+        fontSize: "10px",
+        opacity: 0.9,
+        padding: "8px",
+        background: "rgba(255,200,0,0.1)",
+        border: "1px solid rgba(255,200,0,0.3)",
+        borderRadius: "4px",
+        wordBreak: "break-all",
+        color: "#FFC72C",
+        lineHeight: "1.45",
+        whiteSpace: "pre-wrap",
+      }}
+    >
+      <div>[submit debug panel — temporary]</div>
+      <div>addr: {address ?? "UNDEFINED"}</div>
+      <div>chainId: {chainId ?? "undefined"}</div>
+      <div>isConnected: {String(isConnected)}</div>
+      <div>submit.status: {stateStatus}</div>
+      <div>submit.error: {stateMsg?.slice(0, 300) ?? "none"}</div>
+      <div>
+        sync throw: {submitThrow ? submitThrow.slice(0, 400) : "none"}
+      </div>
     </div>
   );
 }
