@@ -66,7 +66,10 @@ export function CreateChallengeButton({
 
   if (!enabled) return null;
   if (!address) return null;
-  if (score <= 0) return null;
+  // NOTE: no `score <= 0` guard. Semantically "beat my 0" is a valid 1v1
+  // even if trivially easy — any Bob who scores 1+ wins. The previous guard
+  // hid the button entirely on wordle losses + hillclimb instant-flips.
+  // Backend (challenge/create.ts) already accepts creatorScore >= 0.
 
   const onChallenge = () => setState({ step: "picking" });
 
