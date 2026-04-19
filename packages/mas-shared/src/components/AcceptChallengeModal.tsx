@@ -1,14 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Address, Hex } from "viem";
+import {
+  createPublicClient,
+  http,
+  type Address,
+  type Hex,
+} from "viem";
+import { base, baseSepolia } from "viem/chains";
 import {
   useAccount,
   useConnect,
-  useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { USDC_ABI } from "../contracts/arcade-pool";
+import {
+  CHALLENGE_ESCROW_ABI,
+  USDC_ABI,
+} from "../contracts";
+
+async function waitForTxSuccess(hash: Hex, timeoutMs = 120_000): Promise<void> {
+  const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 84532);
+  const chain = chainId === 8453 ? base : baseSepolia;
+  const rpc = process.env.NEXT_PUBLIC_RPC_URL ?? "https://sepolia.base.org";
+  const client = createPublicClient({ chain, transport: http(rpc) });
+  const receipt = await client.waitForTransactionReceipt({
+    hash,
+    timeout: timeoutMs,
+  });
+  if (receipt.status !== "success") {
+    throw new Error(`tx_reverted:${receipt.status}`);
+  }
+}
 
 export interface AcceptChallengeModalProps {
   challengeId: string;
@@ -29,11 +51,16 @@ type Step =
   | { step: "preparing" }
   | {
       step: "ready";
-      studioWallet: Address;
+      studioWallet: Address; // legacy alias for contractAddress
       stakeUsdcAtomic: bigint;
       usdcAddress: Address;
+      onchainId: Hex;
+      contractAddress: Address;
     }
   | { step: "approving" }
+  | { step: "approve_pending" }
+  | { step: "accepting" }
+  | { step: "accept_pending"; txHash: Hex }
   | { step: "confirming"; txHash: Hex }
   | { step: "accepted" }
   | { step: "error"; message: string };
@@ -52,7 +79,6 @@ export function AcceptChallengeModal({
   const { connect, connectors, status: connectStatus } = useConnect();
   const [state, setState] = useState<Step>({ step: "idle" });
   const writeW = useWriteContract();
-  const rcpt = useWaitForTransactionReceipt({ hash: writeW.data });
 
   // Auto-redirect to the play page once Bob's accept lands on-chain.
   useEffect(() => {
@@ -80,17 +106,28 @@ export function AcceptChallengeModal({
         studioWallet?: string;
         stakeUsdcAtomic?: string;
         usdcAddress?: string;
+        onchainId?: Hex;
+        contractAddress?: Address;
         error?: string;
       };
       if (!res.ok || !data.ok) {
         setState({ step: "error", message: data.error ?? `HTTP ${res.status}` });
         return;
       }
+      if (!data.onchainId || !data.contractAddress) {
+        setState({
+          step: "error",
+          message: "Server missing on-chain fields — old challenge?",
+        });
+        return;
+      }
       setState({
         step: "ready",
-        studioWallet: data.studioWallet as Address,
+        studioWallet: data.contractAddress as Address,
         stakeUsdcAtomic: BigInt(data.stakeUsdcAtomic!),
         usdcAddress: data.usdcAddress as Address,
+        onchainId: data.onchainId,
+        contractAddress: data.contractAddress as Address,
       });
     } catch (e) {
       setState({
@@ -100,29 +137,42 @@ export function AcceptChallengeModal({
     }
   };
 
-  const send = () => {
+  const send = async () => {
     if (state.step !== "ready" || !address) return;
-    setState({ step: "approving" });
-    writeW.writeContract(
-      {
-        address: state.usdcAddress,
+    const { usdcAddress, contractAddress, onchainId, stakeUsdcAtomic } = state;
+    try {
+      // ── 1. USDC approve ─────────────────────────────────────────────
+      setState({ step: "approving" });
+      const approveTx = await writeW.writeContractAsync({
+        address: usdcAddress,
         abi: USDC_ABI,
-        functionName: "transfer",
-        args: [state.studioWallet, state.stakeUsdcAtomic],
-      },
-      {
-        onSuccess: (hash) => {
-          setState({ step: "confirming", txHash: hash });
-          void accept(hash);
-        },
-        onError: (err) => {
-          setState({ step: "error", message: err.message });
-        },
-      },
-    );
+        functionName: "approve",
+        args: [contractAddress, stakeUsdcAtomic],
+      });
+      setState({ step: "approve_pending" });
+      await waitForTxSuccess(approveTx as Hex);
+
+      // ── 2. acceptChallenge on-chain ─────────────────────────────────
+      setState({ step: "accepting" });
+      const acceptTx = await writeW.writeContractAsync({
+        address: contractAddress,
+        abi: CHALLENGE_ESCROW_ABI,
+        functionName: "acceptChallenge",
+        args: [onchainId],
+      });
+      setState({ step: "accept_pending", txHash: acceptTx as Hex });
+      await waitForTxSuccess(acceptTx as Hex);
+
+      // ── 3. Server confirmation ──────────────────────────────────────
+      setState({ step: "confirming", txHash: acceptTx as Hex });
+      await confirmAccept(acceptTx as Hex);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setState({ step: "error", message: msg });
+    }
   };
 
-  const accept = async (txHash: Hex) => {
+  const confirmAccept = async (txHash: Hex) => {
     try {
       const res = await fetch(`/api/challenge/${challengeId}/accept`, {
         method: "POST",
@@ -204,9 +254,15 @@ export function AcceptChallengeModal({
           Stake {stakeUsdc} USDC & Start
         </button>
       ) : state.step === "approving" ? (
-        <Pending label="APPROVE IN WALLET…" />
+        <Pending label="APPROVE USDC IN WALLET…" />
+      ) : state.step === "approve_pending" ? (
+        <Pending label="WAITING FOR APPROVAL TX…" />
+      ) : state.step === "accepting" ? (
+        <Pending label="SIGN acceptChallenge IN WALLET…" />
+      ) : state.step === "accept_pending" ? (
+        <Pending label="WAITING FOR ACCEPT TX…" />
       ) : state.step === "confirming" ? (
-        <Pending label="WAITING FOR TX…" />
+        <Pending label="FINALIZING ON SERVER…" />
       ) : state.step === "accepted" ? (
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 8 }}>

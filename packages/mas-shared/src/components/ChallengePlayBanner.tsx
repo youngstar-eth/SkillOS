@@ -1,7 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAccount } from "wagmi";
+import {
+  createPublicClient,
+  http,
+  type Address,
+  type Hex,
+} from "viem";
+import { base, baseSepolia } from "viem/chains";
+import { useAccount, useWriteContract } from "wagmi";
+import { CHALLENGE_ESCROW_ABI } from "../contracts";
+
+async function waitForTxSuccess(hash: Hex, timeoutMs = 120_000): Promise<void> {
+  const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 84532);
+  const chain = chainId === 8453 ? base : baseSepolia;
+  const rpc = process.env.NEXT_PUBLIC_RPC_URL ?? "https://sepolia.base.org";
+  const client = createPublicClient({ chain, transport: http(rpc) });
+  const receipt = await client.waitForTransactionReceipt({
+    hash,
+    timeout: timeoutMs,
+  });
+  if (receipt.status !== "success") {
+    throw new Error(`tx_reverted:${receipt.status}`);
+  }
+}
 
 export interface ChallengePlayBannerProps {
   challengeId: string;
@@ -33,6 +55,10 @@ interface Challenge {
   payout_tx_hash: string | null;
   winner_address: string | null;
   stake_usdc: number;
+  onchain_id: string | null;
+  contract_address: string | null;
+  onchain_settle_tx_hash: string | null;
+  settle_signature: string | null;
 }
 
 /**
@@ -231,7 +257,16 @@ export function ChallengePlayBanner({
   }
 
   if (mySubmitted && oppSubmitted) {
-    return <Banner label="Both played — settling…" tone="neutral" />;
+    // both_played — on-chain settle flow (non-custodial claim)
+    return (
+      <BothPlayedClaim
+        challenge={challenge}
+        role={role}
+        onSettled={() => {
+          /* polling will pick up the settled state */
+        }}
+      />
+    );
   }
 
   // My turn — need to submit
@@ -321,6 +356,160 @@ function Banner({
           >
             tx {txHash.slice(0, 10)}… on Basescan →
           </a>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── BothPlayedClaim — on-chain settle ───────────────────────────────────
+// Both players submitted. Any participant can trigger settle:
+//   1. POST /settle         → server determines winner + signs attestation
+//   2. contract.settle(...) → on-chain payout to winner, fee to vault
+//   3. POST /confirm-settle → server verifies ChallengeSettled event
+// The flow is trustless: anyone with the signature can call settle, but
+// only a valid signature from trustedSigner is accepted on-chain.
+function BothPlayedClaim({
+  challenge,
+  role,
+  onSettled,
+}: {
+  challenge: Challenge;
+  role: "creator" | "challenger" | "spectator";
+  onSettled: () => void;
+}) {
+  const { writeContractAsync } = useWriteContract();
+  const [phase, setPhase] = useState<
+    | "idle"
+    | "signing"
+    | "settling"
+    | "waiting_tx"
+    | "confirming"
+    | "done"
+    | "error"
+  >("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    try {
+      setError(null);
+      setPhase("signing");
+      const signRes = await fetch(`/api/challenge/${challenge.id}/settle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const signData = (await signRes.json()) as {
+        ok?: boolean;
+        winner?: Address;
+        creatorScore?: number;
+        challengerScore?: number;
+        signature?: Hex;
+        onchainId?: Hex;
+        contractAddress?: Address;
+        error?: string;
+      };
+      if (!signRes.ok || !signData.ok) {
+        throw new Error(signData.error ?? `HTTP ${signRes.status}`);
+      }
+      if (
+        !signData.winner ||
+        !signData.signature ||
+        !signData.onchainId ||
+        !signData.contractAddress ||
+        typeof signData.creatorScore !== "number" ||
+        typeof signData.challengerScore !== "number"
+      ) {
+        throw new Error("incomplete_settle_response");
+      }
+
+      setPhase("settling");
+      const settleTx = await writeContractAsync({
+        address: signData.contractAddress,
+        abi: CHALLENGE_ESCROW_ABI,
+        functionName: "settle",
+        args: [
+          signData.onchainId,
+          signData.winner,
+          BigInt(signData.creatorScore),
+          BigInt(signData.challengerScore),
+          signData.signature,
+        ],
+      });
+      setPhase("waiting_tx");
+      await waitForTxSuccess(settleTx as Hex);
+
+      setPhase("confirming");
+      await fetch(`/api/challenge/${challenge.id}/confirm-settle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txHash: settleTx }),
+      });
+      setPhase("done");
+      onSettled();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPhase("error");
+    }
+  };
+
+  return (
+    <div
+      style={{
+        padding: 14,
+        border: "2px solid #FFC72C",
+        background:
+          "linear-gradient(135deg, rgba(255,199,44,0.08) 0%, rgba(255,199,44,0.2) 100%)",
+        color: "#FFC72C",
+        fontFamily: "monospace",
+        fontSize: 12,
+        textAlign: "center",
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ letterSpacing: "0.2em", marginBottom: 6 }}>
+        BOTH PLAYED · READY TO SETTLE
+      </div>
+      <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 8 }}>
+        Creator: {challenge.creator_score} · Challenger: {challenge.challenger_score}
+      </div>
+      {phase === "idle" || phase === "error" ? (
+        <button
+          type="button"
+          onClick={run}
+          style={{
+            background: "#FFC72C",
+            color: "#0B0B0F",
+            border: "none",
+            padding: "10px 20px",
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            fontFamily: "monospace",
+          }}
+        >
+          {phase === "error" ? "Retry" : role === "spectator" ? "Trigger Settle" : "Claim Payout"}
+        </button>
+      ) : (
+        <div style={{ fontSize: 11, letterSpacing: "0.15em", opacity: 0.8 }}>
+          {phase === "signing" && "ASKING SERVER FOR SIGNATURE…"}
+          {phase === "settling" && "SIGN settle IN WALLET…"}
+          {phase === "waiting_tx" && "WAITING FOR SETTLE TX…"}
+          {phase === "confirming" && "CONFIRMING WITH SERVER…"}
+          {phase === "done" && "DONE — POLLING NEW STATE…"}
+        </div>
+      )}
+      {error ? (
+        <div
+          style={{
+            marginTop: 8,
+            color: "#F55",
+            fontSize: 10,
+            wordBreak: "break-all",
+          }}
+        >
+          {error.slice(0, 200)}
         </div>
       ) : null}
     </div>

@@ -19,15 +19,17 @@ export {
 // Instant payout (Feature 1)
 export { payoutTriggerHandler } from "./handlers/payout-trigger";
 
-// Async challenges (Feature 2)
+// Async challenges (Feature 2b: on-chain ChallengeEscrow)
 export {
   challengeCreateHandler,
+  challengeConfirmCreateHandler,
   challengeConfirmStakeHandler,
   challengePrepareAcceptHandler,
   challengeAcceptHandler,
   challengeGetHandler,
   challengeSubmitScoreHandler,
   challengeSettleHandler,
+  challengeConfirmSettleHandler,
   challengesListHandler,
 } from "./handlers/challenge";
 // ogWinCardRuntime is NOT re-exported: Next.js requires `runtime` to be a

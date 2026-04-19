@@ -4,24 +4,35 @@ import type { Address, Hex } from "viem";
 import {
   createChallenge,
   getChallenge,
-  prepareAcceptChallenge,
-  markAccepted,
-  settleChallenge,
   listOpenChallenges,
-  verifyStakeTx,
-  getStudioWalletAddress,
+  signSettleAttestation,
+  verifyChallengeAcceptedTx,
+  verifyChallengeCreatedTx,
+  verifyChallengeSettledTx,
 } from "../../challenge";
 import type {
-  ChallengeStake,
   ChallengeDuration,
-  ConfirmStakeInput,
+  ChallengeStake,
 } from "../../challenge/types";
+import { CHALLENGE_ESCROW_ADDRESS } from "../../contracts";
 
 /**
- * Challenge handlers. All share the same service-role Supabase client so
- * row-level writes aren't blocked by RLS.
+ * F2b — On-chain ChallengeEscrow integration.
  *
- * Gated behind NEXT_PUBLIC_CHALLENGES=1 so the feature ships dark.
+ *   POST /api/challenge/create
+ *   POST /api/challenge/:id/confirm-create   — verifies ChallengeCreated event
+ *   GET  /api/challenge/:id/prepare-accept   — stake instructions for Bob
+ *   POST /api/challenge/:id/accept           — verifies ChallengeAccepted event
+ *   POST /api/challenge/:id/submit-score     — role-based, no auto-settle
+ *   POST /api/challenge/:id/settle           — signs attestation, returns sig
+ *   POST /api/challenge/:id/confirm-settle   — verifies ChallengeSettled event
+ *   POST /api/challenge/:id/confirm-stake    — legacy shim, routes to confirm-create
+ *   GET  /api/challenge/:id
+ *   GET  /api/challenges?game=<slug>
+ *
+ * Non-custodial: the server never transfers USDC. All transfers happen
+ * inside the ChallengeEscrow contract. The server only signs the winner
+ * attestation that the client submits to settle().
  */
 
 function featureEnabled(): boolean {
@@ -63,10 +74,10 @@ export async function challengeCreateHandler(req: Request) {
     durationSeconds?: number;
   } | null;
 
-  if (!body) return NextResponse.json({ error: "bad_json" }, { status: 400 });
+  if (!body)
+    return NextResponse.json({ error: "bad_json" }, { status: 400 });
   const { gameSlug, creatorAddress, creatorScore, stakeUsdc, durationSeconds } =
     body;
-  // creatorScore is OPTIONAL in the pre-play duel model.
   if (
     !gameSlug ||
     !creatorAddress ||
@@ -94,81 +105,176 @@ export async function challengeCreateHandler(req: Request) {
   return NextResponse.json({ ok: true, ...res.response });
 }
 
-// ─── POST /api/challenge/:id/confirm-stake ─────────────────────────────────
-// Verifies the on-chain USDC.transfer from the staker to the studio wallet,
-// writes the tx hash to the row, and advances state.
-export async function challengeConfirmStakeHandler(
+// ─── POST /api/challenge/:id/confirm-create ────────────────────────────────
+// Client calls after createChallenge() tx mines. We verify the event + flip
+// status: pending_creator_stake → open.
+export async function challengeConfirmCreateHandler(
   req: Request,
   ctx: { params: { id: string } },
 ) {
   const sb = gate();
   if (sb instanceof NextResponse) return sb;
 
-  const body = (await req.json().catch(() => null)) as
-    | Omit<ConfirmStakeInput, "challengeId">
-    | null;
-  if (!body?.role || !body?.txHash) {
+  const body = (await req.json().catch(() => null)) as {
+    creatorAddress?: string;
+    txHash?: Hex;
+  } | null;
+  if (!body?.creatorAddress || !body?.txHash) {
     return NextResponse.json(
-      { error: "missing_fields", need: ["role", "txHash"] },
+      { error: "missing_fields", need: ["creatorAddress", "txHash"] },
       { status: 400 },
     );
   }
 
-  const challengeId = ctx.params.id;
-  const c = await getChallenge(sb, challengeId);
+  const c = await getChallenge(sb, ctx.params.id);
   if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
-
-  const studioWallet = getStudioWalletAddress();
-
-  if (body.role === "creator") {
-    if (c.status !== "pending_creator_stake") {
-      return NextResponse.json(
-        { error: `cannot_confirm_creator_in:${c.status}` },
-        { status: 409 },
-      );
-    }
-    const verify = await verifyStakeTx({
-      txHash: body.txHash,
-      expectedSender: c.creator_address as Address,
-      studioWallet: studioWallet as Address,
-      stakeUsdc: c.stake_usdc,
-    });
-    if (!verify.ok) {
-      return NextResponse.json(
-        { error: "verify_failed", reason: verify.reason },
-        { status: 400 },
-      );
-    }
-    const upd = await sb
-      .from("challenges")
-      .update({
-        status: "open",
-        creator_stake_tx_hash: body.txHash,
-      })
-      .eq("id", challengeId)
-      .eq("status", "pending_creator_stake")
-      .select("id")
-      .maybeSingle();
-    if (upd.error || !upd.data) {
-      return NextResponse.json(
-        { error: upd.error?.message ?? "transition_lost_race" },
-        { status: 409 },
-      );
-    }
-    return NextResponse.json({ ok: true, status: "open" });
+  if (c.status !== "pending_creator_stake") {
+    return NextResponse.json(
+      { error: `already_confirmed_in:${c.status}` },
+      { status: 409 },
+    );
+  }
+  if (c.creator_address.toLowerCase() !== body.creatorAddress.toLowerCase()) {
+    return NextResponse.json({ error: "creator_mismatch" }, { status: 403 });
+  }
+  if (!c.onchain_id || !c.contract_address) {
+    return NextResponse.json(
+      { error: "challenge_missing_onchain_fields" },
+      { status: 500 },
+    );
   }
 
-  // role === 'challenger' — rejected here; use /accept instead (that
-  // endpoint handles verify + state transition in one shot).
-  return NextResponse.json(
-    { error: "use_accept_endpoint" },
-    { status: 400 },
+  const verify = await verifyChallengeCreatedTx(
+    body.txHash,
+    c.onchain_id as Hex,
+    c.creator_address as Address,
+    c.contract_address as Address,
+  );
+  if (!verify.verified) {
+    return NextResponse.json(
+      { error: "verify_failed", reason: verify.reason },
+      { status: 422 },
+    );
+  }
+
+  const upd = await sb
+    .from("challenges")
+    .update({
+      status: "open",
+      creator_stake_tx_hash: body.txHash,
+      onchain_create_tx_hash: body.txHash,
+      // Sync expires_at with what the contract actually recorded (block.timestamp + duration)
+      expires_at: verify.expiresAt
+        ? new Date(Number(verify.expiresAt) * 1000).toISOString()
+        : c.expires_at,
+    })
+    .eq("id", ctx.params.id)
+    .eq("status", "pending_creator_stake")
+    .select("id, status, expires_at")
+    .maybeSingle();
+  if (upd.error || !upd.data) {
+    return NextResponse.json(
+      { error: upd.error?.message ?? "transition_lost_race" },
+      { status: 409 },
+    );
+  }
+  return NextResponse.json({ ok: true, status: "open", expiresAt: upd.data.expires_at });
+}
+
+// Legacy alias — old route path was `/confirm-stake` with role=creator.
+// Keep it as a redirect-equivalent so in-flight deploys don't break.
+export async function challengeConfirmStakeHandler(
+  req: Request,
+  ctx: { params: { id: string } },
+) {
+  const body = (await req.json().catch(() => null)) as {
+    role?: "creator" | "challenger";
+    txHash?: Hex;
+  } | null;
+  if (body?.role !== "creator") {
+    return NextResponse.json(
+      { error: "use_confirm_create_or_accept_endpoint" },
+      { status: 400 },
+    );
+  }
+  // Fetch creator address from the row so legacy clients don't need to send it.
+  const sb = gate();
+  if (sb instanceof NextResponse) return sb;
+  const c = await getChallenge(sb, ctx.params.id);
+  if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  return challengeConfirmCreateHandler(
+    new Request(req.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        creatorAddress: c.creator_address,
+        txHash: body.txHash,
+      }),
+    }),
+    ctx,
   );
 }
 
+// ─── GET /api/challenge/:id/prepare-accept ────────────────────────────────
+// Returns the data Bob needs to sign USDC.approve + acceptChallenge().
+export async function challengePrepareAcceptHandler(
+  req: Request,
+  ctx: { params: { id: string } },
+) {
+  const sb = gate();
+  if (sb instanceof NextResponse) return sb;
+
+  const url = new URL(req.url);
+  const challengerAddress = url.searchParams.get("challenger");
+  if (!challengerAddress) {
+    return NextResponse.json({ error: "missing_challenger" }, { status: 400 });
+  }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(challengerAddress)) {
+    return NextResponse.json(
+      { error: "invalid_challenger_address" },
+      { status: 400 },
+    );
+  }
+
+  const c = await getChallenge(sb, ctx.params.id);
+  if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (c.status !== "open") {
+    return NextResponse.json(
+      { error: `cannot_accept_in_state:${c.status}` },
+      { status: 409 },
+    );
+  }
+  if (c.creator_address.toLowerCase() === challengerAddress.toLowerCase()) {
+    return NextResponse.json(
+      { error: "self_accept_forbidden" },
+      { status: 403 },
+    );
+  }
+  if (new Date(c.expires_at).getTime() < Date.now()) {
+    return NextResponse.json({ error: "expired" }, { status: 410 });
+  }
+  if (!c.onchain_id || !c.contract_address) {
+    return NextResponse.json(
+      { error: "challenge_missing_onchain_fields" },
+      { status: 500 },
+    );
+  }
+
+  const stakeAtomic = BigInt(Math.round(c.stake_usdc * 1_000_000));
+  return NextResponse.json({
+    ok: true,
+    challenge: c,
+    studioWallet: c.contract_address, // legacy field name
+    stakeUsdcAtomic: stakeAtomic.toString(),
+    usdcAddress: process.env.NEXT_PUBLIC_USDC_ADDRESS,
+    onchainId: c.onchain_id,
+    contractAddress: c.contract_address,
+  });
+}
+
 // ─── POST /api/challenge/:id/accept ────────────────────────────────────────
-// Unified accept endpoint: verifies Bob's stake tx AND flips state.
-// Body: { challengerAddress, txHash }
+// Bob already signed USDC.approve + acceptChallenge(). We verify the
+// ChallengeAccepted event and flip status: open → accepted.
 export async function challengeAcceptHandler(
   req: Request,
   ctx: { params: { id: string } },
@@ -186,79 +292,72 @@ export async function challengeAcceptHandler(
       { status: 400 },
     );
   }
-
-  const prep = await prepareAcceptChallenge(sb, {
-    challengeId: ctx.params.id,
-    challengerAddress: body.challengerAddress,
-  });
-  if (!prep.ok) {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(body.challengerAddress)) {
     return NextResponse.json(
-      { error: prep.error },
-      { status: prep.status ?? 400 },
-    );
-  }
-
-  const studioWallet = getStudioWalletAddress();
-  const verify = await verifyStakeTx({
-    txHash: body.txHash,
-    expectedSender: body.challengerAddress as Address,
-    studioWallet: studioWallet as Address,
-    stakeUsdc: prep.response.challenge.stake_usdc,
-  });
-  if (!verify.ok) {
-    return NextResponse.json(
-      { error: "verify_failed", reason: verify.reason },
+      { error: "invalid_challenger_address" },
       { status: 400 },
     );
   }
 
-  const upd = await markAccepted(
-    sb,
-    ctx.params.id,
-    body.challengerAddress,
+  const c = await getChallenge(sb, ctx.params.id);
+  if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (c.status !== "open") {
+    return NextResponse.json(
+      { error: `cannot_accept_in_state:${c.status}` },
+      { status: 409 },
+    );
+  }
+  if (c.creator_address.toLowerCase() === body.challengerAddress.toLowerCase()) {
+    return NextResponse.json({ error: "self_accept_forbidden" }, { status: 403 });
+  }
+  if (!c.onchain_id || !c.contract_address) {
+    return NextResponse.json(
+      { error: "challenge_missing_onchain_fields" },
+      { status: 500 },
+    );
+  }
+
+  const verify = await verifyChallengeAcceptedTx(
     body.txHash,
+    c.onchain_id as Hex,
+    body.challengerAddress as Address,
+    c.contract_address as Address,
   );
-  if (!upd.ok)
-    return NextResponse.json({ error: upd.error }, { status: 409 });
+  if (!verify.verified) {
+    return NextResponse.json(
+      { error: "verify_failed", reason: verify.reason },
+      { status: 422 },
+    );
+  }
+
+  const upd = await sb
+    .from("challenges")
+    .update({
+      status: "accepted",
+      challenger_address: body.challengerAddress.toLowerCase(),
+      challenger_stake_tx_hash: body.txHash,
+      onchain_accept_tx_hash: body.txHash,
+      accepted_at: new Date().toISOString(),
+    })
+    .eq("id", ctx.params.id)
+    .eq("status", "open")
+    .is("challenger_address", null)
+    .select("id")
+    .maybeSingle();
+  if (upd.error || !upd.data) {
+    return NextResponse.json(
+      { error: upd.error?.message ?? "already_accepted_or_expired" },
+      { status: 409 },
+    );
+  }
+
   const latest = await getChallenge(sb, ctx.params.id);
   return NextResponse.json({ ok: true, challenge: latest });
 }
 
-// ─── GET /api/challenge/:id/prepare-accept ─────────────────────────────────
-// Returns the stake instructions (studio wallet + amount) without any state
-// transition. Bob calls this to know where to send the USDC.
-export async function challengePrepareAcceptHandler(
-  req: Request,
-  ctx: { params: { id: string } },
-) {
-  const sb = gate();
-  if (sb instanceof NextResponse) return sb;
-
-  const url = new URL(req.url);
-  const challengerAddress = url.searchParams.get("challenger");
-  if (!challengerAddress) {
-    return NextResponse.json(
-      { error: "missing_challenger" },
-      { status: 400 },
-    );
-  }
-
-  const prep = await prepareAcceptChallenge(sb, {
-    challengeId: ctx.params.id,
-    challengerAddress,
-  });
-  if (!prep.ok) {
-    return NextResponse.json(
-      { error: prep.error },
-      { status: prep.status ?? 400 },
-    );
-  }
-  return NextResponse.json({ ok: true, ...prep.response });
-}
-
 // ─── GET /api/challenge/:id ────────────────────────────────────────────────
 export async function challengeGetHandler(
-  req: Request,
+  _req: Request,
   ctx: { params: { id: string } },
 ) {
   const sb = gate();
@@ -269,8 +368,12 @@ export async function challengeGetHandler(
 }
 
 // ─── POST /api/challenge/:id/submit-score ─────────────────────────────────
-// Thin wrapper: write into game_scores with game_data.challenge_id, so
-// settle() can pick up each player's best score.
+// Off-chain score record. State machine:
+//   accepted         → creator_played / challenger_played
+//   challenger_played → both_played (if creator submits)
+//   creator_played   → both_played (if challenger submits)
+// No auto-settle on both_played — client must call /settle to get the
+// attestation signature, then submit contract.settle() on-chain.
 export async function challengeSubmitScoreHandler(
   req: Request,
   ctx: { params: { id: string } },
@@ -293,10 +396,6 @@ export async function challengeSubmitScoreHandler(
   const c = await getChallenge(sb, ctx.params.id);
   if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  // Pre-play duel: submission allowed from `accepted` onwards, until each
-  // side has already played. Creator can submit on {accepted,
-  // challenger_played}; challenger on {accepted, creator_played}. Any other
-  // state is terminal for submissions.
   const addr = body.userAddress.toLowerCase();
   const isCreator = addr === c.creator_address.toLowerCase();
   const isChallenger =
@@ -306,10 +405,12 @@ export async function challengeSubmitScoreHandler(
     return NextResponse.json({ error: "not_a_player" }, { status: 403 });
   }
 
-  const creatorCanSubmit = isCreator
-    && (c.status === "accepted" || c.status === "challenger_played");
-  const challengerCanSubmit = isChallenger
-    && (c.status === "accepted" || c.status === "creator_played");
+  const creatorCanSubmit =
+    isCreator &&
+    (c.status === "accepted" || c.status === "challenger_played");
+  const challengerCanSubmit =
+    isChallenger &&
+    (c.status === "accepted" || c.status === "creator_played");
   if (!creatorCanSubmit && !challengerCanSubmit) {
     return NextResponse.json(
       { error: `cannot_submit_in:${c.status}` },
@@ -317,8 +418,6 @@ export async function challengeSubmitScoreHandler(
     );
   }
 
-  // 1. Write to game_scores (existing AutoSubmitScore table) with challenge
-  //    id embedded — makes the run visible on the daily leaderboard too.
   const gs = await sb.from("game_scores").insert({
     user_address: addr,
     game_slug: c.game_slug,
@@ -332,12 +431,13 @@ export async function challengeSubmitScoreHandler(
     );
   }
 
-  // 2. Atomic state transition: update the score field AND advance status.
-  //    Guarded by a status=WHERE clause so concurrent submits from the same
-  //    side can't double-advance.
   const nextStatus = isCreator
-    ? c.status === "accepted" ? "creator_played" : "both_played"
-    : c.status === "accepted" ? "challenger_played" : "both_played";
+    ? c.status === "accepted"
+      ? "creator_played"
+      : "both_played"
+    : c.status === "accepted"
+      ? "challenger_played"
+      : "both_played";
 
   const update: Record<string, unknown> = { status: nextStatus };
   if (isCreator) {
@@ -354,7 +454,7 @@ export async function challengeSubmitScoreHandler(
     .from("challenges")
     .update(update)
     .eq("id", c.id)
-    .eq("status", c.status) // guard
+    .eq("status", c.status)
     .select("id, status")
     .maybeSingle();
   if (upd.error) {
@@ -364,35 +464,153 @@ export async function challengeSubmitScoreHandler(
     );
   }
 
-  // 3. If we just hit both_played, trigger settle inline. Settle is
-  //    idempotent and itself guarded against re-entry.
-  let settleResult: Awaited<ReturnType<typeof settleChallenge>> | null = null;
-  if (nextStatus === "both_played") {
-    settleResult = await settleChallenge(sb, c.id);
-  }
-
   return NextResponse.json({
     ok: true,
     score: body.score,
     status: nextStatus,
-    settled: settleResult && settleResult.ok ? true : false,
-    settle: settleResult,
   });
 }
 
-// ─── POST /api/challenge/:id/settle ────────────────────────────────────────
+// ─── POST /api/challenge/:id/settle ───────────────────────────────────────
+// Both sides played. Determine winner, sign attestation, return signature.
+// Client then submits contract.settle(id, winner, cScore, chScore, sig).
 export async function challengeSettleHandler(
   req: Request,
   ctx: { params: { id: string } },
 ) {
   const sb = gate();
   if (sb instanceof NextResponse) return sb;
-  const res = await settleChallenge(sb, ctx.params.id);
-  if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
+
+  const c = await getChallenge(sb, ctx.params.id);
+  if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (c.status !== "both_played") {
+    return NextResponse.json(
+      { error: `cannot_settle_in:${c.status}` },
+      { status: 409 },
+    );
+  }
+  if (
+    !c.onchain_id ||
+    !c.contract_address ||
+    c.creator_score === null ||
+    c.challenger_score === null ||
+    !c.challenger_address
+  ) {
+    return NextResponse.json(
+      { error: "challenge_incomplete_for_settle" },
+      { status: 409 },
+    );
+  }
+
+  const pk = process.env.STUDIO_PRIVATE_KEY as Hex | undefined;
+  if (!pk || !/^0x[0-9a-fA-F]{64}$/.test(pk)) {
+    return NextResponse.json(
+      { error: "signer_not_configured" },
+      { status: 503 },
+    );
+  }
+
+  // Winner: higher score; tie goes to creator. Matches ChallengeEscrow's
+  // on-chain permitted winners (must be creator or challenger).
+  const winner = (c.challenger_score > c.creator_score
+    ? c.challenger_address
+    : c.creator_address) as Address;
+
+  const chainId = BigInt(process.env.NEXT_PUBLIC_CHAIN_ID ?? "84532");
+
+  const { signature } = await signSettleAttestation({
+    challengeId: c.onchain_id as Hex,
+    winner,
+    creatorScore: BigInt(c.creator_score),
+    challengerScore: BigInt(c.challenger_score),
+    contractAddress: c.contract_address as Address,
+    chainId,
+    signerPrivateKey: pk,
+  });
+
+  await sb
+    .from("challenges")
+    .update({ winner_address: winner.toLowerCase(), settle_signature: signature })
+    .eq("id", c.id);
+
   return NextResponse.json({
     ok: true,
-    status: res.status,
-    txHashes: res.txHashes,
+    winner,
+    creatorScore: c.creator_score,
+    challengerScore: c.challenger_score,
+    signature,
+    onchainId: c.onchain_id,
+    contractAddress: c.contract_address,
+  });
+}
+
+// ─── POST /api/challenge/:id/confirm-settle ───────────────────────────────
+// Client submitted contract.settle() — we verify the ChallengeSettled
+// event and flip status to settled.
+export async function challengeConfirmSettleHandler(
+  req: Request,
+  ctx: { params: { id: string } },
+) {
+  const sb = gate();
+  if (sb instanceof NextResponse) return sb;
+
+  const body = (await req.json().catch(() => null)) as {
+    txHash?: Hex;
+  } | null;
+  if (!body?.txHash) {
+    return NextResponse.json({ error: "missing_tx_hash" }, { status: 400 });
+  }
+
+  const c = await getChallenge(sb, ctx.params.id);
+  if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (c.status === "settled") {
+    return NextResponse.json({
+      ok: true,
+      status: "settled",
+      txHash: c.onchain_settle_tx_hash,
+    });
+  }
+  if (c.status !== "both_played") {
+    return NextResponse.json(
+      { error: `cannot_confirm_in:${c.status}` },
+      { status: 409 },
+    );
+  }
+  if (!c.onchain_id || !c.contract_address || !c.winner_address) {
+    return NextResponse.json(
+      { error: "challenge_missing_onchain_fields" },
+      { status: 500 },
+    );
+  }
+
+  const verify = await verifyChallengeSettledTx(
+    body.txHash,
+    c.onchain_id as Hex,
+    c.winner_address as Address,
+    c.contract_address as Address,
+  );
+  if (!verify.verified) {
+    return NextResponse.json(
+      { error: "verify_failed", reason: verify.reason },
+      { status: 422 },
+    );
+  }
+
+  await sb
+    .from("challenges")
+    .update({
+      status: "settled",
+      onchain_settle_tx_hash: body.txHash,
+      payout_tx_hash: body.txHash,
+      settled_at: new Date().toISOString(),
+    })
+    .eq("id", c.id);
+
+  return NextResponse.json({
+    ok: true,
+    status: "settled",
+    txHash: body.txHash,
+    payout: verify.payout?.toString(),
   });
 }
 
@@ -404,7 +622,6 @@ export async function challengesListHandler(req: Request) {
   const gameSlug = url.searchParams.get("game") ?? undefined;
   const limitRaw = url.searchParams.get("limit");
   const limit = limitRaw ? Math.max(1, Math.min(200, Number(limitRaw))) : 50;
-
   try {
     const rows = await listOpenChallenges(sb, { gameSlug, limit });
     return NextResponse.json({ ok: true, challenges: rows });
@@ -416,3 +633,6 @@ export async function challengesListHandler(req: Request) {
   }
 }
 
+// Silence unused-import warning for CHALLENGE_ESCROW_ADDRESS import that
+// future handlers may read; keep the re-export for callers convenience.
+export { CHALLENGE_ESCROW_ADDRESS };

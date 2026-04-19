@@ -32,7 +32,7 @@ export interface Challenge {
    * submits her score post-accept.
    */
   creator_score: number | null;
-  creator_stake_tx_hash: string;
+  creator_stake_tx_hash: string | null;
   challenger_address: string | null;
   challenger_score: number | null;
   challenger_stake_tx_hash: string | null;
@@ -47,6 +47,13 @@ export interface Challenge {
   expires_at: string;
   accepted_at: string | null;
   settled_at: string | null;
+  // F2b on-chain escrow columns
+  onchain_id: string | null;
+  onchain_create_tx_hash: string | null;
+  onchain_accept_tx_hash: string | null;
+  onchain_settle_tx_hash: string | null;
+  contract_address: string | null;
+  settle_signature: string | null;
 }
 
 export interface CreateChallengeInput {
@@ -63,11 +70,20 @@ export interface CreateChallengeInput {
 
 export interface CreateChallengeResponse {
   challengeId: string;
+  /**
+   * @deprecated in F2b — retained as alias for `contractAddress` for clients
+   * still reading the old field name during deploy rollout.
+   */
   studioWallet: `0x${string}`;
-  stakeUsdcAtomic: string; // bigint as string for JSON
+  stakeUsdcAtomic: string;
   usdcAddress: `0x${string}`;
   expiresAt: string;
   seedPreview: ChallengeSeedData;
+  // F2b on-chain escrow
+  onchainId: `0x${string}`;
+  contractAddress: `0x${string}`;
+  gameSlugBytes32: `0x${string}`;
+  durationSeconds: number;
 }
 
 export interface AcceptChallengeInput {
