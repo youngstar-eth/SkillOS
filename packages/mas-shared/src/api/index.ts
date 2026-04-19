@@ -18,10 +18,10 @@ export {
 
 // Instant payout (Feature 1)
 export { payoutTriggerHandler } from "./handlers/payout-trigger";
-export {
-  ogWinCardHandler,
-  ogWinCardRuntime,
-} from "./handlers/og-win-card";
+// ogWinCardRuntime is NOT re-exported: Next.js requires `runtime` to be a
+// static string literal in the route file, so each /og/win route hardcodes
+// `export const runtime = "edge"` instead of reading from a shared const.
+export { ogWinCardHandler } from "./handlers/og-win-card";
 
 // Primitives (for custom routes that don't want the full shared handler).
 export { verifyBearer } from "./quick-auth";

@@ -5,10 +5,10 @@ import { ImageResponse } from "next/og";
  *
  * 1200×630 social preview card for the "I won X USDC" share flow.
  * Rendered at the Edge via next/og — no new deps needed.
+ *
+ * NOTE: route files must set `export const runtime = "edge"` themselves —
+ * Next.js requires a string literal there, not a re-exported identifier.
  */
-
-export const ogWinCardRuntime = "edge";
-
 export async function ogWinCardHandler(req: Request) {
   const { searchParams } = new URL(req.url);
   const addr = searchParams.get("addr") ?? "0x0000000000000000";
