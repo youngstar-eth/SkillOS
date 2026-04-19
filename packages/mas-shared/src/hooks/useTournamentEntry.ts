@@ -115,31 +115,16 @@ export function useTournamentEntry(
     if (enterRcpt.isSuccess) hasEnteredQ.refetch();
   }, [enterRcpt.isSuccess, hasEnteredQ]);
 
-  // Fire onEntered on TWO signals so the UI flips the moment the enter tx
-  // receipt lands, not whenever wagmi's `hasEntered` read finally refreshes
-  // (which can lag — miniapp chainId mismatches + wagmi cache TTLs have
-  // kept users stuck on "Entering…" until they F5'd). The callback is
-  // idempotent at the consumer (setEntered(true)), so double-fire is safe.
-  //   1. enterRcpt.isSuccess — optimistic, fires the moment the tx confirms
-  //   2. hasEnteredQ.data === true — authoritative, fires after the read refreshes
-  useEffect(() => {
-    if (enterRcpt.isSuccess) onEntered?.();
-  }, [enterRcpt.isSuccess, onEntered]);
-
   useEffect(() => {
     if (hasEnteredQ.data === true) onEntered?.();
   }, [hasEnteredQ.data, onEntered]);
 
   const status: TournamentEntryStatus = useMemo(() => {
     if (!isConnected || !address) return "connecting";
-    // Treat the enter tx receipt as authoritative for the entered state.
-    // `hasEnteredQ` is eventual-consistent (wagmi RPC cache + miniapp chainId
-    // mismatches can leave it stale for several seconds), so the UI would
-    // otherwise drop back to `needs_enter` and force the user to F5.
-    if (hasEnteredQ.data === true || enterRcpt.isSuccess) return "entered";
     if (hasEnteredQ.isLoading || allowanceQ.isLoading || balanceQ.isLoading) {
       return "checking";
     }
+    if (hasEnteredQ.data === true) return "entered";
     if (enterW.isPending || enterRcpt.isLoading) return "entering";
     if (approveW.isPending || approveRcpt.isLoading) return "approving";
     if (approveW.error || enterW.error) return "error";
@@ -163,7 +148,6 @@ export function useTournamentEntry(
     enterW.isPending,
     enterW.error,
     enterRcpt.isLoading,
-    enterRcpt.isSuccess,
     entryFee,
   ]);
 
