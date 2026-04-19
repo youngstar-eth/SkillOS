@@ -74,13 +74,41 @@ export function useTournamentEntry(
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
 
+  const approveW = useWriteContract();
+  const enterW = useWriteContract();
+
+  const approveRcpt = useWaitForTransactionReceipt({ hash: approveW.data });
+  const enterRcpt = useWaitForTransactionReceipt({ hash: enterW.data });
+
+  // STRICT 3-guard optimistic gate. All three MUST be true simultaneously,
+  // which is only possible after the user has actually submitted + mined an
+  // enter() tx. This is the only place we let a signal other than the
+  // authoritative on-chain read flip the UI to "entered".
+  //
+  //   1. enterW.data !== undefined  — user clicked Enter and the wallet
+  //                                   returned a tx hash
+  //   2. enterRcpt.data !== undefined — we have a mined receipt for that
+  //                                    hash (not just the wagmi query being
+  //                                    marked "success" while enabled=false)
+  //   3. enterRcpt.data.status === "success" — the tx didn't revert
+  const enteringTxJustConfirmed =
+    enterW.data !== undefined &&
+    enterRcpt.data !== undefined &&
+    enterRcpt.data.status === "success";
+
   const hasEnteredQ = useReadContract({
     address: ARCADE_POOL_ADDRESS,
     abi: ARCADE_POOL_ABI,
     functionName: "hasEntered",
     args: address ? [tournamentId, address] : undefined,
     chainId: READ_CHAIN_ID,
-    query: { enabled: !!address },
+    query: {
+      enabled: !!address,
+      // Once the enter tx confirms, poll every 2s so hasEntered catches up
+      // without waiting for wagmi's default cache TTL. Steady-state: no
+      // polling (refetchInterval: false).
+      refetchInterval: enteringTxJustConfirmed ? 2000 : false,
+    },
   });
 
   const allowanceQ = useReadContract({
@@ -101,12 +129,6 @@ export function useTournamentEntry(
     query: { enabled: !!address },
   });
 
-  const approveW = useWriteContract();
-  const enterW = useWriteContract();
-
-  const approveRcpt = useWaitForTransactionReceipt({ hash: approveW.data });
-  const enterRcpt = useWaitForTransactionReceipt({ hash: enterW.data });
-
   useEffect(() => {
     if (approveRcpt.isSuccess) allowanceQ.refetch();
   }, [approveRcpt.isSuccess, allowanceQ]);
@@ -115,16 +137,27 @@ export function useTournamentEntry(
     if (enterRcpt.isSuccess) hasEnteredQ.refetch();
   }, [enterRcpt.isSuccess, hasEnteredQ]);
 
+  // Fire onEntered from TWO safe signals. Both are consumer-idempotent
+  // (setEntered(true) with stable state) so double-fire is harmless.
+  //   Authoritative: hasEnteredQ.data === true (on-chain truth)
+  //   Optimistic:    enteringTxJustConfirmed (strict 3-guard, see above)
   useEffect(() => {
     if (hasEnteredQ.data === true) onEntered?.();
   }, [hasEnteredQ.data, onEntered]);
 
+  useEffect(() => {
+    if (enteringTxJustConfirmed) onEntered?.();
+  }, [enteringTxJustConfirmed, onEntered]);
+
   const status: TournamentEntryStatus = useMemo(() => {
     if (!isConnected || !address) return "connecting";
+    // Authoritative on-chain OR strict-guard optimistic. The guard forces
+    // enterW.data to exist (user submitted a tx), so a wallet that hasn't
+    // interacted with the page never short-circuits here.
+    if (hasEnteredQ.data === true || enteringTxJustConfirmed) return "entered";
     if (hasEnteredQ.isLoading || allowanceQ.isLoading || balanceQ.isLoading) {
       return "checking";
     }
-    if (hasEnteredQ.data === true) return "entered";
     if (enterW.isPending || enterRcpt.isLoading) return "entering";
     if (approveW.isPending || approveRcpt.isLoading) return "approving";
     if (approveW.error || enterW.error) return "error";
@@ -148,6 +181,7 @@ export function useTournamentEntry(
     enterW.isPending,
     enterW.error,
     enterRcpt.isLoading,
+    enteringTxJustConfirmed,
     entryFee,
   ]);
 
