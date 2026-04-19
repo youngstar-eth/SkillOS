@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Component, type ReactNode, useEffect, useRef, useState } from "react";
 
 export interface PayoutCelebrationProps {
   /** Connected wallet address. If absent, component renders nothing. */
@@ -31,6 +31,7 @@ type State =
   | { status: "error"; message: string };
 
 const DELAY_BEFORE_CHECK_MS = 1200;
+const LOG_PREFIX = "[PayoutCelebration]";
 
 /**
  * Game-over companion: after AutoSubmitScore lands, this component asks the
@@ -41,8 +42,19 @@ const DELAY_BEFORE_CHECK_MS = 1200;
  * The server enforces rank-1; the client is purely a trigger. The shared
  * payout helper's UNIQUE partial index + two-phase INSERT guards against
  * double-pay on duplicate clicks or parallel tabs.
+ *
+ * Wrapped in an ErrorBoundary so a crash inside the payout chain (network,
+ * rendering, etc.) never takes down the surrounding GameOver modal.
  */
-export function PayoutCelebration({
+export function PayoutCelebration(props: PayoutCelebrationProps) {
+  return (
+    <PayoutErrorBoundary>
+      <PayoutCelebrationInner {...props} />
+    </PayoutErrorBoundary>
+  );
+}
+
+function PayoutCelebrationInner({
   userAddress,
   gameSlug,
   score,
@@ -52,15 +64,38 @@ export function PayoutCelebration({
   const [state, setState] = useState<State>({ status: "idle" });
   const ranRef = useRef(false);
 
+  // Hold a ref to the latest score so effect can read it without re-running
+  // every time the parent re-renders (wordle's score recalculates each render
+  // because it includes `Date.now() - startedAt` for the speed bonus).
+  const scoreRef = useRef(score);
   useEffect(() => {
-    if (!enabled) return;
-    if (!userAddress) return;
-    if (score <= 0) return;
-    if (ranRef.current) return;
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    if (!enabled) {
+      console.debug(LOG_PREFIX, "disabled (flag off)");
+      return;
+    }
+    if (!userAddress) {
+      console.debug(LOG_PREFIX, "no userAddress yet");
+      return;
+    }
+    if (scoreRef.current <= 0) {
+      console.debug(LOG_PREFIX, "score <= 0, skipping", {
+        score: scoreRef.current,
+      });
+      return;
+    }
+    if (ranRef.current) {
+      console.debug(LOG_PREFIX, "already ran, skipping duplicate mount");
+      return;
+    }
     ranRef.current = true;
 
     let cancelled = false;
     setState({ status: "checking" });
+    console.debug(LOG_PREFIX, "checking eligibility", { userAddress, gameSlug });
 
     // Let AutoSubmitScore POST /api/submit-score land first so the
     // leaderboard reflects this run before we check rank.
@@ -73,55 +108,54 @@ export function PayoutCelebration({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userAddress, gameSlug }),
           });
-          const data: {
-            ok?: boolean;
-            duplicate?: boolean;
-            amount?: number;
-            txHash?: string;
-            basescanUrl?: string;
-            error?: string;
-            message?: string;
-            status?: string;
-          } = await res.json().catch(() => ({}));
+          let data: Record<string, unknown> = {};
+          try {
+            data = (await res.json()) as Record<string, unknown>;
+          } catch {
+            /* body wasn't JSON */
+          }
+          console.debug(LOG_PREFIX, "trigger response", { status: res.status, data });
 
           if (cancelled) return;
 
           if (!res.ok) {
-            if (data.error === "not_rank_1") {
-              setState({ status: "not_eligible" });
-              return;
-            }
-            if (data.error === "instant_payout_disabled") {
+            const err = data.error;
+            if (err === "not_rank_1" || err === "instant_payout_disabled") {
               setState({ status: "not_eligible" });
               return;
             }
             setState({
               status: "error",
-              message: data.message ?? data.error ?? `HTTP ${res.status}`,
+              message:
+                (typeof data.message === "string" && data.message) ||
+                (typeof data.error === "string" && data.error) ||
+                `HTTP ${res.status}`,
             });
             return;
           }
 
-          if (data.duplicate) {
+          if (data.duplicate === true) {
             setState({
               status: "duplicate",
-              txHash: data.txHash ?? null,
-              basescanUrl: data.basescanUrl ?? null,
+              txHash: (data.txHash as string | undefined) ?? null,
+              basescanUrl: (data.basescanUrl as string | undefined) ?? null,
             });
             return;
           }
 
-          setState({
-            status: "paid",
-            amount: data.amount ?? 0,
-            txHash: data.txHash ?? "",
-            basescanUrl: data.basescanUrl ?? "",
-          });
+          const amount =
+            typeof data.amount === "number" ? data.amount : 0;
+          const txHash =
+            typeof data.txHash === "string" ? data.txHash : "";
+          const basescanUrl =
+            typeof data.basescanUrl === "string" ? data.basescanUrl : "";
 
+          setState({ status: "paid", amount, txHash, basescanUrl });
           fireConfetti();
         } catch (e) {
           if (cancelled) return;
           const msg = e instanceof Error ? e.message : String(e);
+          console.error(LOG_PREFIX, "fetch threw", e);
           setState({ status: "error", message: msg });
         }
       })();
@@ -131,7 +165,10 @@ export function PayoutCelebration({
       cancelled = true;
       window.clearTimeout(delay);
     };
-  }, [enabled, userAddress, gameSlug, score]);
+    // We intentionally omit `score` here — see scoreRef above. The effect
+    // guards against re-entry with ranRef.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, userAddress, gameSlug]);
 
   if (!enabled) return null;
   if (state.status === "idle") return null;
@@ -237,7 +274,7 @@ export function PayoutCelebration({
       <div style={{ marginTop: "12px" }}>
         <ShareWinButton
           gameSlug={gameSlug}
-          score={score}
+          score={scoreRef.current}
           amount={amount ?? 0}
           userAddress={userAddress ?? ""}
         />
@@ -272,7 +309,7 @@ function ShareWinButton({
   const shareText = `I just won ${amount.toFixed(
     2,
   )} USDC playing ${gameSlug} on Skillbase. Beat me →`;
-  const shareUrl = `https://skillbase.games/?game=${gameSlug}&from=${userAddress}`;
+  const shareUrl = `https://skillbase.games/?game=${gameSlug}&from=${userAddress}&score=${score}`;
 
   const onClick = async () => {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -313,6 +350,52 @@ function ShareWinButton({
       {copied ? "Copied!" : "Share Win"}
     </button>
   );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Error boundary — a thrown error in the payout chain MUST NOT take down
+// the GameOver modal. Catches render + lifecycle throws and falls back to
+// a subdued single-line warning, preserving the rest of the UI.
+// ───────────────────────────────────────────────────────────────────────────
+class PayoutErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: { componentStack?: string }) {
+    console.error(
+      LOG_PREFIX,
+      "boundary caught error",
+      error,
+      info.componentStack,
+    );
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div
+          style={{
+            padding: "8px 10px",
+            border: "1px dashed rgba(255,199,44,0.3)",
+            background: "rgba(255,199,44,0.05)",
+            color: "#FFC72C",
+            fontSize: "10px",
+            fontFamily: "monospace",
+            opacity: 0.7,
+          }}
+        >
+          Celebration unavailable — open DevTools console for details.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // Dynamically load canvas-confetti so the component stays lean on apps that
