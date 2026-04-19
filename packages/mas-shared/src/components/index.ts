@@ -30,3 +30,12 @@ export {
   PayoutCelebration,
   type PayoutCelebrationProps,
 } from "./PayoutCelebration";
+export {
+  CreateChallengeButton,
+  type CreateChallengeButtonProps,
+} from "./CreateChallengeButton";
+export {
+  AcceptChallengeModal,
+  type AcceptChallengeModalProps,
+} from "./AcceptChallengeModal";
+export { ChallengeCard, type ChallengeCardProps } from "./ChallengeCard";

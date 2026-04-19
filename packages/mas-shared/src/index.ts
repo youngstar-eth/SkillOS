@@ -15,3 +15,7 @@ export * from "./games";
 export * from "./ai";
 export * from "./leaderboard";
 export * from "./payout";
+// NOTE: challenge/types.ts exports a `Challenge` type that collides with the
+// `Challenge` type in ./ai. Consumers who need challenge types should
+// import from `@mas/shared/challenge` directly.
+// export * from "./challenge";

@@ -29,7 +29,12 @@ import { baseSepolia } from "viem/chains";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { USDC_ABI, USDC_ADDRESS } from "../contracts";
 
-export type PayoutScope = "game" | "category" | "overall" | "instant";
+export type PayoutScope =
+  | "game"
+  | "category"
+  | "overall"
+  | "instant"
+  | "challenge";
 
 export type ChainPublicClient = ReturnType<typeof createPublicClient>;
 export type ChainWalletClient = ReturnType<typeof createWalletClient>;

@@ -14,6 +14,7 @@ import { GameOver, type SubmitState } from "./GameOver";
 import {
   AICoachButton,
   AutoSubmitScore,
+  CreateChallengeButton,
   PayoutCelebration,
 } from "@mas/shared/components";
 import {
@@ -336,6 +337,11 @@ export function Game({ dailyTiles }: GameProps = {}) {
                 enabled={
                   process.env.NEXT_PUBLIC_INSTANT_PAYOUT === "1"
                 }
+              />
+              <CreateChallengeButton
+                gameSlug="2048"
+                score={score}
+                enabled={process.env.NEXT_PUBLIC_CHALLENGES === "1"}
               />
               {address ? (
                 <AICoachButton

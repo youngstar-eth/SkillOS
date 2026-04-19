@@ -15,6 +15,7 @@ import { GameOver, type SubmitState } from "./GameOver";
 import {
   AICoachButton,
   AutoSubmitScore,
+  CreateChallengeButton,
   PayoutCelebration,
 } from "@mas/shared/components";
 import {
@@ -386,6 +387,11 @@ export function Game({ dailyWord }: GameProps = {}) {
                 enabled={
                   process.env.NEXT_PUBLIC_INSTANT_PAYOUT === "1"
                 }
+              />
+              <CreateChallengeButton
+                gameSlug="wordle"
+                score={score}
+                enabled={process.env.NEXT_PUBLIC_CHALLENGES === "1"}
               />
               {address && guesses.length > 0 ? (
                 <AICoachButton

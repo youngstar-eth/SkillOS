@@ -18,7 +18,8 @@
     "./games": "./src/games/index.ts",
     "./ai": "./src/ai/index.ts",
     "./leaderboard": "./src/leaderboard/index.ts",
-    "./payout": "./src/payout/index.ts"
+    "./payout": "./src/payout/index.ts",
+    "./challenge": "./src/challenge/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

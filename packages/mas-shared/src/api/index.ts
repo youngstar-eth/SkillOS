@@ -18,6 +18,18 @@ export {
 
 // Instant payout (Feature 1)
 export { payoutTriggerHandler } from "./handlers/payout-trigger";
+
+// Async challenges (Feature 2)
+export {
+  challengeCreateHandler,
+  challengeConfirmStakeHandler,
+  challengePrepareAcceptHandler,
+  challengeAcceptHandler,
+  challengeGetHandler,
+  challengeSubmitScoreHandler,
+  challengeSettleHandler,
+  challengesListHandler,
+} from "./handlers/challenge";
 // ogWinCardRuntime is NOT re-exported: Next.js requires `runtime` to be a
 // static string literal in the route file, so each /og/win route hardcodes
 // `export const runtime = "edge"` instead of reading from a shared const.
