@@ -5,7 +5,6 @@ import { useAccount, useChainId } from "wagmi";
 import {
   AICoachButton,
   AutoSubmitScore,
-  CreateChallengeButton,
   GameOverSubmit,
   PayoutCelebration,
 } from "@mas/shared/components";
@@ -238,11 +237,6 @@ export function Game({ dailySeed }: GameProps = {}) {
                 enabled={
                   process.env.NEXT_PUBLIC_INSTANT_PAYOUT === "1"
                 }
-              />
-              <CreateChallengeButton
-                gameSlug="hillclimb"
-                score={finalScore}
-                enabled={process.env.NEXT_PUBLIC_CHALLENGES === "1"}
               />
               {address ? (
                 <AICoachButton

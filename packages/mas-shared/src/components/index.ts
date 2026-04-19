@@ -30,10 +30,10 @@ export {
   PayoutCelebration,
   type PayoutCelebrationProps,
 } from "./PayoutCelebration";
-export {
-  CreateChallengeButton,
-  type CreateChallengeButtonProps,
-} from "./CreateChallengeButton";
+// CreateChallengeButton removed — it used the legacy off-chain studio-wallet
+// escrow flow (USDC.transfer to studio), which is incompatible with the new
+// on-chain ChallengeEscrow verify-event pipeline. Replaced by ChallengeEntryButton
+// (pre-play, on-chain, mounted on the game's home page, NOT post-game-over).
 export {
   ChallengeEntryButton,
   type ChallengeEntryButtonProps,
