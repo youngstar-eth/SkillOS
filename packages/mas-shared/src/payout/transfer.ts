@@ -98,16 +98,31 @@ export async function transferUSDCWithLog(
   const stalePendingMs = opts.stalePendingMs ?? 10 * 60 * 1000;
   const userAddr = opts.userAddress.toLowerCase();
 
-  if (deps.dryRun) {
-    // Check-only path: peek at the payouts table and report.
-    const { data: existing } = await deps.supabase
+  // Scoped lookup — exactly mirrors the composite UNIQUE partial index
+  // uniq_payouts_active_slot. MUST include game_slug, category, rank, else
+  // a retry for one (user,game) can surface another (user,different-game)
+  // payout's tx_hash by accident.
+  const findExisting = () => {
+    let q = deps.supabase
       .from("payouts")
-      .select("id, status, tx_hash")
+      .select("id, status, tx_hash, created_at")
       .eq("user_address", userAddr)
       .eq("scope", opts.scope)
       .eq("day", opts.day)
       .in("status", ["pending", "sent"])
+      .order("created_at", { ascending: false })
       .limit(1);
+    // coalesce(x, '') in the index → we match NULLs with .is(null) and
+    // non-NULLs with .eq(...). Supabase's .eq(null) silently returns empty.
+    q = opts.gameSlug === null ? q.is("game_slug", null) : q.eq("game_slug", opts.gameSlug);
+    q = opts.category === null ? q.is("category", null) : q.eq("category", opts.category);
+    q = opts.rank === null ? q.is("rank", null) : q.eq("rank", opts.rank);
+    return q;
+  };
+
+  if (deps.dryRun) {
+    // Check-only path: peek at the payouts table and report.
+    const { data: existing } = await findExisting();
     const row = existing?.[0];
     if (row) {
       return {
@@ -144,16 +159,7 @@ export async function transferUSDCWithLog(
       reservation.error.message?.includes("uniq_payouts_active_slot"));
 
   if (conflict) {
-    const { data: existing } = await deps.supabase
-      .from("payouts")
-      .select("id, status, tx_hash, created_at")
-      .eq("user_address", userAddr)
-      .eq("scope", opts.scope)
-      .eq("day", opts.day)
-      .in("status", ["pending", "sent"])
-      .order("created_at", { ascending: false })
-      .limit(1);
-
+    const { data: existing } = await findExisting();
     const row = existing?.[0];
     if (
       row &&
