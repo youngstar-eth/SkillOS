@@ -2,8 +2,13 @@ export type ChallengeStatus =
   | "pending_creator_stake"
   | "open"
   | "accepted"
+  | "creator_played"
+  | "challenger_played"
+  | "both_played"
   | "settled"
   | "expired_refunded"
+  | "walkover_creator"
+  | "walkover_challenger"
   | "cancelled";
 
 export type ChallengeStake = 0.5 | 1 | 5;
@@ -22,7 +27,11 @@ export interface Challenge {
   id: string;
   game_slug: string;
   creator_address: string;
-  creator_score: number;
+  /**
+   * Pre-play duel: creator_score starts NULL and is filled when Alice
+   * submits her score post-accept.
+   */
+  creator_score: number | null;
   creator_stake_tx_hash: string;
   challenger_address: string | null;
   challenger_score: number | null;
@@ -43,7 +52,11 @@ export interface Challenge {
 export interface CreateChallengeInput {
   gameSlug: string;
   creatorAddress: string;
-  creatorScore: number;
+  /**
+   * Pre-play duel model: creator doesn't need a score to create. Optional
+   * for back-compat with any callers still passing one.
+   */
+  creatorScore?: number;
   stakeUsdc: ChallengeStake;
   durationSeconds: ChallengeDuration;
 }

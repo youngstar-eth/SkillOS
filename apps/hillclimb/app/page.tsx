@@ -5,6 +5,7 @@ import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import {
+  ChallengeEntryButton,
   ConnectHeader,
   TournamentEntry,
   DailyChallengeBanner,
@@ -104,6 +105,34 @@ export default function HomePage() {
           gameLabel="hillclimb"
           onEntered={onEntered}
         />
+      )}
+
+      {!entered && !demo && (
+        <section
+          style={{
+            borderTop: "1px solid rgba(255,199,44,0.25)",
+            paddingTop: 12,
+            marginTop: 4,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.2em",
+              opacity: 0.55,
+              color: "#FFC72C",
+              fontFamily: "monospace",
+              marginBottom: 8,
+              textAlign: "center",
+            }}
+          >
+            OR · 1v1 DUEL
+          </div>
+          <ChallengeEntryButton
+            gameSlug="hillclimb"
+            enabled={process.env.NEXT_PUBLIC_CHALLENGES === "1"}
+          />
+        </section>
       )}
 
       {(demo || (isConnected && !wrongChain && entered)) && (

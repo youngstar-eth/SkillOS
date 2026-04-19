@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Address, Hex } from "viem";
 import {
   useAccount,
+  useConnect,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
@@ -13,11 +14,14 @@ export interface AcceptChallengeModalProps {
   challengeId: string;
   gameSlug: string;
   creatorAddress: string;
-  creatorScore: number;
+  /** Nullable in the pre-play duel model — Alice hasn't played yet. */
+  creatorScore: number | null;
   stakeUsdc: number;
   expiresAt: string;
   /** Where Bob goes to actually play after accepting. */
   playHref: string;
+  /** Auto-redirect to playHref N ms after `accepted`. Default 1500. */
+  autoRedirectMs?: number;
 }
 
 type Step =
@@ -42,11 +46,23 @@ export function AcceptChallengeModal({
   stakeUsdc,
   expiresAt,
   playHref,
+  autoRedirectMs = 1500,
 }: AcceptChallengeModalProps) {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, status: connectStatus } = useConnect();
   const [state, setState] = useState<Step>({ step: "idle" });
   const writeW = useWriteContract();
   const rcpt = useWaitForTransactionReceipt({ hash: writeW.data });
+
+  // Auto-redirect to the play page once Bob's accept lands on-chain.
+  useEffect(() => {
+    if (state.step !== "accepted") return;
+    if (typeof window === "undefined") return;
+    const t = window.setTimeout(() => {
+      window.location.href = playHref;
+    }, autoRedirectMs);
+    return () => window.clearTimeout(t);
+  }, [state.step, playHref, autoRedirectMs]);
 
   const isSelf =
     address && address.toLowerCase() === creatorAddress.toLowerCase();
@@ -147,16 +163,32 @@ export function AcceptChallengeModal({
         CHALLENGE · {gameSlug.toUpperCase()}
       </div>
       <div style={{ fontSize: 16, marginBottom: 10 }}>
-        {creatorAddress.slice(0, 6)}…{creatorAddress.slice(-4)} scored{" "}
-        <b>{creatorScore}</b>. Beat it.
+        {creatorAddress.slice(0, 6)}…{creatorAddress.slice(-4)}
+        {creatorScore !== null ? (
+          <>
+            {" "}scored <b>{creatorScore}</b>. Beat it.
+          </>
+        ) : (
+          <>{" "}is ready to duel.</>
+        )}
       </div>
       <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 14 }}>
         Stake: {stakeUsdc} USDC · Winner takes 2x (−10% fee) · Expires{" "}
         {new Date(expiresAt).toLocaleString()}
       </div>
 
-      {!address ? (
-        <div style={{ opacity: 0.7 }}>Connect wallet to accept.</div>
+      {!address || !isConnected ? (
+        <button
+          type="button"
+          onClick={() => {
+            const c = connectors[0];
+            if (c) connect({ connector: c });
+          }}
+          disabled={connectStatus === "pending"}
+          style={primary()}
+        >
+          {connectStatus === "pending" ? "Connecting…" : "Connect Wallet"}
+        </button>
       ) : isSelf ? (
         <div style={{ opacity: 0.7 }}>You created this challenge.</div>
       ) : expired ? (
@@ -176,9 +208,14 @@ export function AcceptChallengeModal({
       ) : state.step === "confirming" ? (
         <Pending label="WAITING FOR TX…" />
       ) : state.step === "accepted" ? (
-        <a href={playHref} style={{ ...primary(), textDecoration: "none", display: "inline-block" }}>
-          Play Now →
-        </a>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 8 }}>
+            ✓ Accepted — redirecting to play…
+          </div>
+          <a href={playHref} style={{ ...primary(), textDecoration: "none", display: "inline-block" }}>
+            Play Now →
+          </a>
+        </div>
       ) : (
         <div style={{ color: "#F55", wordBreak: "break-all" }}>
           Error: {state.message.slice(0, 200)}

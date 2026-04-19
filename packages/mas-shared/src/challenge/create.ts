@@ -42,7 +42,11 @@ export async function createChallenge(
   if (!/^0x[0-9a-fA-F]{40}$/.test(input.creatorAddress)) {
     return { ok: false, error: "invalid_creator_address" };
   }
-  if (!Number.isFinite(input.creatorScore) || input.creatorScore < 0) {
+  // Pre-play duel: creatorScore is optional. If present, must be non-negative.
+  if (
+    input.creatorScore !== undefined &&
+    (!Number.isFinite(input.creatorScore) || input.creatorScore < 0)
+  ) {
     return { ok: false, error: "invalid_creator_score" };
   }
 
@@ -60,7 +64,7 @@ export async function createChallenge(
     .insert({
       game_slug: input.gameSlug,
       creator_address: input.creatorAddress.toLowerCase(),
-      creator_score: input.creatorScore,
+      creator_score: input.creatorScore ?? null,
       creator_stake_tx_hash: "", // filled in on confirm-stake
       seed_data: {}, // placeholder
       stake_usdc: input.stakeUsdc,

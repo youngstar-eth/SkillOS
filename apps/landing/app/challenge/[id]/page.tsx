@@ -9,7 +9,7 @@ type Challenge = {
   id: string;
   game_slug: string;
   creator_address: string;
-  creator_score: number;
+  creator_score: number | null;
   stake_usdc: number;
   expires_at: string;
   status: string;

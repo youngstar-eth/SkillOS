@@ -39,10 +39,14 @@ export async function settleChallenge(
   if (!c) return { ok: false, error: "not_found" };
 
   // Already terminal — idempotent return
-  if (c.status === "settled") {
+  if (
+    c.status === "settled" ||
+    c.status === "walkover_creator" ||
+    c.status === "walkover_challenger"
+  ) {
     return {
       ok: true,
-      status: "settled",
+      status: c.status,
       txHashes: c.payout_tx_hash ? [c.payout_tx_hash] : [],
     };
   }
@@ -56,11 +60,9 @@ export async function settleChallenge(
 
   const now = Date.now();
   const expired = new Date(c.expires_at).getTime() < now;
-  const bothSubmitted =
-    c.challenger_score !== null && c.challenger_address !== null;
 
-  // Case A: both submitted — pay the winner
-  if (c.status === "accepted" && bothSubmitted) {
+  // Case A: both_played — both submitted cleanly, pay winner.
+  if (c.status === "both_played") {
     const winner = pickWinner(c);
     const totalPool = c.stake_usdc * 2;
     const feeAtomic = (BigInt(Math.round(totalPool * 1_000_000)) * PLATFORM_FEE_BPS) / 10000n;
@@ -104,36 +106,58 @@ export async function settleChallenge(
     return { ok: false, error: `unexpected_transfer_result` };
   }
 
-  // Case B: open but expired → refund Alice
+  // Case B: open but expired → refund Alice.
   if (c.status === "open" && expired) {
     return refundSingle(supabase, c, c.creator_address, "open_expired");
   }
 
-  // Case C: accepted + expired + neither submitted → refund both, no fee
-  if (c.status === "accepted" && expired && !bothSubmitted) {
-    // Neither submitted (Alice's score is in the DB pre-stake but that's
-    // the bar score, not an in-challenge submit). Treat as both-refund if
-    // we want to be strict — per plan, refund both.
+  // Case C: accepted + expired + neither submitted → refund both, no fee.
+  if (c.status === "accepted" && expired) {
     return refundBoth(supabase, c);
   }
 
-  // Case D: accepted + expired + only one submitted → that one wins
-  if (c.status === "accepted" && expired && c.challenger_score !== null) {
-    const winner = pickWinner(c);
-    return payWinner(supabase, c, winner);
+  // Case D: one side played, the other timed out → walkover.
+  // creator_played + expired = challenger no-show, creator wins.
+  if (c.status === "creator_played" && expired) {
+    const res = await payWinner(supabase, c, c.creator_address);
+    // payWinner marks status='settled'; flip it to the walkover-specific
+    // state for observability while keeping the payout row as-is.
+    if (res.ok) {
+      await supabase
+        .from("challenges")
+        .update({ status: "walkover_creator" })
+        .eq("id", c.id);
+      return { ok: true, status: "walkover_creator", txHashes: res.txHashes };
+    }
+    return res;
+  }
+  if (c.status === "challenger_played" && expired) {
+    const bob = c.challenger_address;
+    if (!bob) return { ok: false, error: "missing_challenger_address" };
+    const res = await payWinner(supabase, c, bob);
+    if (res.ok) {
+      await supabase
+        .from("challenges")
+        .update({ status: "walkover_challenger" })
+        .eq("id", c.id);
+      return { ok: true, status: "walkover_challenger", txHashes: res.txHashes };
+    }
+    return res;
   }
 
   // Not ready to settle yet
   return {
     ok: false,
-    error: `not_settleable status=${c.status} expired=${expired} bothSubmitted=${bothSubmitted}`,
+    error: `not_settleable status=${c.status} expired=${expired}`,
   };
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 function pickWinner(c: Challenge): string {
-  const alice = c.creator_score;
+  // In both_played, both scores are non-null (guaranteed by the state
+  // machine in submit-score handler). Walkover paths don't call this.
+  const alice = c.creator_score ?? -1;
   const bob = c.challenger_score ?? -1;
   if (bob > alice) return c.challenger_address as string;
   if (alice > bob) return c.creator_address;

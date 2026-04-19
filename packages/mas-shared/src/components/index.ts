@@ -35,6 +35,14 @@ export {
   type CreateChallengeButtonProps,
 } from "./CreateChallengeButton";
 export {
+  ChallengeEntryButton,
+  type ChallengeEntryButtonProps,
+} from "./ChallengeEntryButton";
+export {
+  ChallengePlayBanner,
+  type ChallengePlayBannerProps,
+} from "./ChallengePlayBanner";
+export {
   AcceptChallengeModal,
   type AcceptChallengeModalProps,
 } from "./AcceptChallengeModal";

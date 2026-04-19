@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { ChallengePlayBanner } from "@mas/shared/components";
 import { Game } from "@/components/game/Game";
 
 export const runtime = "nodejs";
@@ -45,9 +46,7 @@ export default async function ChallengePlayPage({
 
   return (
     <main style={{ padding: 20 }}>
-      <div style={{ marginBottom: 20, color: "#FFC72C", fontFamily: "monospace", fontSize: 12 }}>
-        CHALLENGE MODE · id {c.id.slice(0, 8)}… · status: {c.status}
-      </div>
+      <ChallengePlayBanner challengeId={c.id} gameSlug="2048" />
       <Game dailyTiles={c.seed_data.startingTiles} />
     </main>
   );

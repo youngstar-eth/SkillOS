@@ -66,23 +66,17 @@ export async function challengeCreateHandler(req: Request) {
   if (!body) return NextResponse.json({ error: "bad_json" }, { status: 400 });
   const { gameSlug, creatorAddress, creatorScore, stakeUsdc, durationSeconds } =
     body;
+  // creatorScore is OPTIONAL in the pre-play duel model.
   if (
     !gameSlug ||
     !creatorAddress ||
-    typeof creatorScore !== "number" ||
     typeof stakeUsdc !== "number" ||
     typeof durationSeconds !== "number"
   ) {
     return NextResponse.json(
       {
         error: "missing_fields",
-        need: [
-          "gameSlug",
-          "creatorAddress",
-          "creatorScore",
-          "stakeUsdc",
-          "durationSeconds",
-        ],
+        need: ["gameSlug", "creatorAddress", "stakeUsdc", "durationSeconds"],
       },
       { status: 400 },
     );
@@ -91,7 +85,8 @@ export async function challengeCreateHandler(req: Request) {
   const res = await createChallenge(sb, {
     gameSlug,
     creatorAddress,
-    creatorScore,
+    creatorScore:
+      typeof creatorScore === "number" ? creatorScore : undefined,
     stakeUsdc: stakeUsdc as ChallengeStake,
     durationSeconds: durationSeconds as ChallengeDuration,
   });
@@ -297,13 +292,11 @@ export async function challengeSubmitScoreHandler(
 
   const c = await getChallenge(sb, ctx.params.id);
   if (!c) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (c.status !== "accepted") {
-    return NextResponse.json(
-      { error: `cannot_submit_in:${c.status}` },
-      { status: 409 },
-    );
-  }
 
+  // Pre-play duel: submission allowed from `accepted` onwards, until each
+  // side has already played. Creator can submit on {accepted,
+  // challenger_played}; challenger on {accepted, creator_played}. Any other
+  // state is terminal for submissions.
   const addr = body.userAddress.toLowerCase();
   const isCreator = addr === c.creator_address.toLowerCase();
   const isChallenger =
@@ -313,8 +306,19 @@ export async function challengeSubmitScoreHandler(
     return NextResponse.json({ error: "not_a_player" }, { status: 403 });
   }
 
-  // Write to game_scores (existing AutoSubmitScore table) with challenge id
-  // embedded — makes the run visible on the leaderboard too.
+  const creatorCanSubmit = isCreator
+    && (c.status === "accepted" || c.status === "challenger_played");
+  const challengerCanSubmit = isChallenger
+    && (c.status === "accepted" || c.status === "creator_played");
+  if (!creatorCanSubmit && !challengerCanSubmit) {
+    return NextResponse.json(
+      { error: `cannot_submit_in:${c.status}` },
+      { status: 409 },
+    );
+  }
+
+  // 1. Write to game_scores (existing AutoSubmitScore table) with challenge
+  //    id embedded — makes the run visible on the daily leaderboard too.
   const gs = await sb.from("game_scores").insert({
     user_address: addr,
     game_slug: c.game_slug,
@@ -328,22 +332,52 @@ export async function challengeSubmitScoreHandler(
     );
   }
 
-  // Update the challenge row with this player's best score for settle.
-  const update =
-    isCreator && body.score > c.creator_score
-      ? { creator_score: body.score }
-      : isChallenger &&
-        (c.challenger_score === null || body.score > c.challenger_score)
-      ? { challenger_score: body.score }
-      : null;
-  if (update) {
-    await sb
-      .from("challenges")
-      .update(update)
-      .eq("id", c.id);
+  // 2. Atomic state transition: update the score field AND advance status.
+  //    Guarded by a status=WHERE clause so concurrent submits from the same
+  //    side can't double-advance.
+  const nextStatus = isCreator
+    ? c.status === "accepted" ? "creator_played" : "both_played"
+    : c.status === "accepted" ? "challenger_played" : "both_played";
+
+  const update: Record<string, unknown> = { status: nextStatus };
+  if (isCreator) {
+    if (c.creator_score === null || body.score > c.creator_score) {
+      update.creator_score = body.score;
+    }
+  } else {
+    if (c.challenger_score === null || body.score > c.challenger_score) {
+      update.challenger_score = body.score;
+    }
   }
 
-  return NextResponse.json({ ok: true, score: body.score });
+  const upd = await sb
+    .from("challenges")
+    .update(update)
+    .eq("id", c.id)
+    .eq("status", c.status) // guard
+    .select("id, status")
+    .maybeSingle();
+  if (upd.error) {
+    return NextResponse.json(
+      { error: `state_update_failed: ${upd.error.message}` },
+      { status: 500 },
+    );
+  }
+
+  // 3. If we just hit both_played, trigger settle inline. Settle is
+  //    idempotent and itself guarded against re-entry.
+  let settleResult: Awaited<ReturnType<typeof settleChallenge>> | null = null;
+  if (nextStatus === "both_played") {
+    settleResult = await settleChallenge(sb, c.id);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    score: body.score,
+    status: nextStatus,
+    settled: settleResult && settleResult.ok ? true : false,
+    settle: settleResult,
+  });
 }
 
 // ─── POST /api/challenge/:id/settle ────────────────────────────────────────
