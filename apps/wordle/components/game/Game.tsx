@@ -37,7 +37,7 @@ import {
   type LetterState,
 } from "@/lib/game/types";
 
-export const WORDLE_TOURNAMENT_ID = 1n;
+export const WORDLE_TOURNAMENT_ID = 21n;
 
 export interface GameProps {
   /** When present, overrides the deterministic daily word. */

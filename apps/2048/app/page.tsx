@@ -13,7 +13,7 @@ import {
 } from "@mas/shared/components";
 import { Game } from "@/components/game/Game";
 
-const TOURNAMENT_ID = 0n;
+const TOURNAMENT_ID = 22n;
 
 const REQUIRED_CHAIN = baseSepolia.id;
 

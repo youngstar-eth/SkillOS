@@ -32,7 +32,7 @@ import {
 import type { Direction, Grid } from "@/lib/game/types";
 
 const BEST_KEY = "2048:best";
-export const TOURNAMENT_ID = 0n;
+export const TOURNAMENT_ID = 22n;
 const SWIPE_THRESHOLD = 50;
 
 export interface GameProps {

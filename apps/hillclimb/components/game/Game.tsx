@@ -18,7 +18,7 @@ import {
 } from "@/lib/game/engine";
 import type { HillState } from "@/lib/game/types";
 
-export const TOURNAMENT_ID = 17n;
+export const TOURNAMENT_ID = 23n;
 
 export interface GameProps {
   /** Fixed terrain seed from the AI daily challenge. */
