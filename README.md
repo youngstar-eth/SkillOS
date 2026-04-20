@@ -1,86 +1,81 @@
-# Mini App Studio (MAS)
+# Skillbase
 
-On-chain arcade for Base Batches — a monorepo of mini apps built with Next.js, Farcaster MiniKit, Supabase, and Foundry.
+**On-chain skill competition infrastructure on Base.**
 
-## Structure
+A non-custodial arcade where players stake USDC, compete in 20 HTML5 skill games,
+and earn payouts on-chain via audited escrow contracts. Built as a Farcaster
+MiniKit monorepo on Next.js 14, deployed on Base Sepolia.
+
+## Overview
+
+Skillbase is a platform for skill-based competitions where results settle
+on-chain. Players enter daily tournaments (F1) or head-to-head challenges (F2)
+with a USDC stake; EIP-712 signed score oracles settle winners through two
+on-chain contracts — `ArcadePool` (daily leaderboard tournaments) and
+`ChallengeEscrow` (non-custodial 1v1 challenges). 20 games ship on a shared
+scoring protocol, unified design system, and AI coach layer.
+
+## Architecture
 
 ```
-MAS/
-├── apps/
-│   └── 2048/          # Next.js 14 · Base MiniKit · Supabase · Bauhaus design
-├── contracts/         # Foundry — ArcadePool.sol
-├── designs/           # Design token outputs (skillui, 20 games)
-├── package.json       # npm workspaces root
-└── .gitignore
+skillbase/
+├── apps/                   # 20 Next.js 14 mini-apps + landing
+│   ├── 2048/ wordle/ snake/ ...  # each: MiniKit + Supabase + shared scoring
+│   └── landing/            # skillbase.games marketing site
+├── contracts/              # Foundry — ArcadePool.sol, ChallengeEscrow.sol
+├── packages/               # Shared scoring/signing/types
+├── designs/                # Design-token source (20 games + skillui)
+├── supabase/               # Migrations + RLS policies
+├── scripts/                # Tournament setup, daily payout cron, meta generators
+└── prompts/                # AI coach + daily challenge prompts
 ```
 
-## Apps
+Each game is an independent Next.js deployment. Shared logic (EIP-712 scoring,
+session auth, design tokens) lives in `packages/` and is consumed via workspace
+symlinks.
 
-| App | Description | Status |
-|-----|-------------|--------|
-| [2048](./apps/2048) | Classic 2048 with on-chain score submission | ✅ Live |
-
-## Contracts
-
-| Contract | Network | Address |
-|----------|---------|---------|
-| ArcadePool | Base Sepolia (84532) | see `NEXT_PUBLIC_ARCADE_POOL_ADDRESS` in `.env.local` |
-
-## Setup
+## Getting Started
 
 ### Prerequisites
-
-- Node.js 18+
-- npm 8+ (workspaces support)
+- Node.js 18+, npm 8+ (workspaces)
 - Foundry (`curl -L https://foundry.paradigm.xyz | bash`)
+- Supabase project + Base Sepolia RPC
 
 ### Install
-
 ```bash
-# Root — installs all workspace dependencies
-npm install
-
-# Copy env template and fill in secrets
-cp apps/2048/.env.example apps/2048/.env.local
+npm install                                      # all 20 apps + packages
+cp apps/2048/.env.example apps/2048/.env.local   # fill in secrets per app
 ```
 
 ### Dev
-
 ```bash
-# From root
-npm run dev:2048
-
-# Or directly
-cd apps/2048 && npm run dev
+npm run dev:2048          # single app
+cd contracts && forge build && forge test
 ```
 
-### Build & Type-check
+## Project Status
 
-```bash
-npm run build:2048
-npm run typecheck:2048
-```
+Submission to **Base Batches 003 — Student Track** (April 2026).
 
-### Contracts
+Focus areas:
+- **F1:** Daily tournaments + 3-tier leaderboard payout cron — shipped
+- **F2:** Non-custodial `ChallengeEscrow` (1v1 async duels) — shipped
+- **F3:** Cross-game season pass + Farcaster social layer — in progress
 
-```bash
-cd contracts
-forge build
-forge test
-```
+## Contracts (Base Sepolia · chainId 84532)
 
-## Env vars (apps/2048)
+| Contract | Address |
+|----------|---------|
+| `ChallengeEscrow` | `0x52e5E45456DeC882048b430a968Cda6061575be0` |
+| `ArcadePool`      | `0xe3f93950F97e1698DC14d5D79324E3c2BA9ACcec` |
+| USDC (testnet)    | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
-| Variable | Scope | Description |
-|----------|-------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | browser | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser | Supabase anon key (RLS enforced) |
-| `NEXT_PUBLIC_ARCADE_POOL_ADDRESS` | browser | Deployed ArcadePool contract |
-| `NEXT_PUBLIC_CHAIN_ID` | browser | `84532` = Base Sepolia |
-| `SUPABASE_SERVICE_ROLE_KEY` | server-only | Bypasses RLS — never expose |
-| `SCORE_SIGNER_PRIVATE_KEY` | server-only | EIP-712 oracle signer |
-| `QUICK_AUTH_DOMAIN` | server-only | Farcaster Quick Auth domain |
+Mainnet deployment pending audit + Base Batches review.
 
-## Roadmap
+## License
 
-20 mini apps planned for MAS. Next: Wordle, Snake, Tetris.
+MIT — see [LICENSE](./LICENSE).
+
+## Built By
+
+[Simpl3 Inc.](https://simpl3.xyz) — 2025.

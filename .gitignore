@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development.local
 
 # Next.js build output
 .next/
@@ -35,3 +37,17 @@ designs/*/
 
 # Logs
 *.log
+
+# Vercel
+.vercel/
+
+# Test coverage
+coverage/
+
+# Turborepo
+.turbo/
+
+# Dev scan artifacts (historical, now removed from tree)
+scan_log.txt
+retry_log.txt
+retry2_log.txt
