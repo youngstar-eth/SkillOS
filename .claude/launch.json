@@ -2,112 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "2048-dev",
+      "name": "skillbase-dev",
       "runtimeExecutable": "/bin/bash",
       "runtimeArgs": [
         "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/2048 && exec npm run dev"
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS && exec npm run dev"
       ],
       "port": 3000
-    },
-    {
-      "name": "wordle-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/wordle && exec npm run dev"
-      ],
-      "port": 3001
-    },
-    {
-      "name": "snake-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/snake && exec npm run dev"
-      ],
-      "port": 3002
-    },
-    {
-      "name": "minesweeper-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/minesweeper && exec npm run dev"
-      ],
-      "port": 3003
-    },
-    {
-      "name": "sudoku-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/sudoku && exec npm run dev"
-      ],
-      "port": 3004
-    },
-    {
-      "name": "pong-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/pong && exec npm run dev"
-      ],
-      "port": 3005
-    },
-    {
-      "name": "clicker-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/clicker && exec npm run dev"
-      ],
-      "port": 3006
-    },
-    {
-      "name": "breakout-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/breakout && exec npm run dev"
-      ],
-      "port": 3007
-    },
-    {
-      "name": "bubble-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/bubble && exec npm run dev"
-      ],
-      "port": 3008
-    },
-    {
-      "name": "solitaire-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/solitaire && exec npm run dev"
-      ],
-      "port": 3009
-    },
-    {
-      "name": "landing-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/landing && exec npm run dev -- --port 3020"
-      ],
-      "port": 3020
-    },
-    {
-      "name": "hillclimb-dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/hillclimb && exec npm run dev -- --port 3021"
-      ],
-      "port": 3021
     }
   ]
 }

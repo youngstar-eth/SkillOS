@@ -1,53 +1,42 @@
-# Dependencies
-node_modules/
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
 
-# Environment — NEVER commit secrets
-.env
-.env.local
-.env.*.local
-.env.production
-.env.development.local
+# testing
+/coverage
 
-# Next.js build output
-.next/
-out/
-dist/
+# next.js
+/.next/
+/out/
 
-# TypeScript incremental build
-*.tsbuildinfo
+# production
+/build
 
-# Foundry artifacts
-contracts/out/
-contracts/cache/
-contracts/broadcast/
-
-# Supabase CLI working dir (linked-project.json contains project ref + tokens)
-supabase/.temp/
-
-# Design token outputs (generated — keep only source)
-designs/*/
-!designs/.gitkeep
-
-# OS / editors
+# misc
 .DS_Store
-*.swp
-*.swo
-.idea/
-.vscode/settings.json
+*.pem
 
-# Logs
-*.log
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Vercel
-.vercel/
+# env files (keep example)
+.env*.local
+.env
+!.env.example
+!.env.local.example
 
-# Test coverage
-coverage/
+# vercel
+.vercel
 
-# Turborepo
-.turbo/
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 
-# Dev scan artifacts (historical, now removed from tree)
-scan_log.txt
-retry_log.txt
-retry2_log.txt
+# contracts build artifacts (tracked in contracts/ only as needed)
+contracts/out
+contracts/cache
+contracts/broadcast/**/dry-run
