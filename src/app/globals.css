@@ -11,3 +11,18 @@ body {
   background: #0a0a0a;
   color: #ededed;
 }
+
+/* Keyboard-only focus rings — mouse users don't see them. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #ffc72c;
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Remove tap highlight on mobile — we handle feedback with classes */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}

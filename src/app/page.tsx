@@ -27,14 +27,13 @@ export default function HomePage() {
             Base Batches 003 · Student Track
           </p>
 
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-6xl">
-            On-chain skill duels{" "}
-            <span className="text-skill">on Base</span>
+          <h1 className="text-5xl font-semibold tracking-tight sm:text-7xl">
+            Bet on <span className="text-skill">yourself.</span>
           </h1>
 
           <p className="mx-auto max-w-lg text-base text-neutral-400 sm:text-lg">
-            Stake 1 USDC, match a player, play 2048 for 2 minutes. Higher
-            score wins the pool.
+            On-chain skill duels on Base. Stake 1 USDC, match a player, play
+            2048. Higher score wins.
           </p>
 
           <div className="flex flex-col items-center gap-3 pt-2">

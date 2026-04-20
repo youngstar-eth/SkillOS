@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   BOARD_SIZE,
   type Board,
@@ -85,12 +85,28 @@ export function Game2048({
   const [state, dispatch] = useReducer(reduce, seed, init);
   const boardRef = useRef<HTMLDivElement>(null);
   const overFired = useRef(false);
+  const milestoneFired = useRef(false);
+  const [showMilestone, setShowMilestone] = useState(false);
 
   // Reset when seed changes
   useEffect(() => {
     dispatch({ type: "reset", seed });
     overFired.current = false;
+    milestoneFired.current = false;
+    setShowMilestone(false);
   }, [seed]);
+
+  // Detect first time 2048 tile appears — one-shot, auto-dismisses after 2s.
+  useEffect(() => {
+    if (milestoneFired.current) return;
+    const max = Math.max(...state.board.flat());
+    if (max >= 2048) {
+      milestoneFired.current = true;
+      setShowMilestone(true);
+      const t = setTimeout(() => setShowMilestone(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [state.board]);
 
   // Emit score changes
   useEffect(() => {
@@ -188,7 +204,7 @@ export function Game2048({
   }, [frozen, state.over]);
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="relative flex flex-col items-center gap-3">
       <div
         ref={boardRef}
         className="grid aspect-square w-full max-w-[420px] select-none grid-cols-4 gap-2 rounded-xl border border-border bg-bg-elev p-2 touch-none"
@@ -199,6 +215,10 @@ export function Game2048({
           row.map((value, c) => (
             <div
               key={`${r}-${c}`}
+              role="gridcell"
+              aria-label={
+                value === 0 ? `row ${r + 1} column ${c + 1} empty` : `${value}`
+              }
               className={`flex aspect-square items-center justify-center rounded-lg text-lg font-bold sm:text-2xl ${TILE_CLASSES[value] ?? "bg-fuchsia-700 text-white"}`}
             >
               {value !== 0 ? value : ""}
@@ -206,6 +226,18 @@ export function Game2048({
           )),
         )}
       </div>
+
+      {/* 2048 milestone toast — one-shot, 2s auto-dismiss */}
+      {showMilestone && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 rounded-full border border-skill/60 bg-skill/15 px-4 py-1.5 text-sm font-semibold text-skill shadow-lg backdrop-blur animate-tilePop"
+        >
+          You hit 2048! Keep going.
+        </div>
+      )}
+
       <p className="text-xs text-neutral-500 sm:hidden">Swipe to move</p>
       <p className="hidden text-xs text-neutral-500 sm:block">
         Arrow keys or WASD to move
