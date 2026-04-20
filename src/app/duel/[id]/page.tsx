@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount } from "wagmi";
 import { Game2048 } from "@/components/Game2048";
 import { Timer } from "@/components/Timer";
 import { getMatchStatus, submitScore, type MatchObject } from "@/lib/api";
+import { PLAY_WINDOW_MS } from "@/lib/contracts";
 import { parseWalletError, truncateAddress } from "@/lib/utils";
 
 type PageProps = { params: { id: string } };
@@ -15,7 +16,6 @@ export default function DuelPage({ params }: PageProps) {
   const matchId = params.id;
   const router = useRouter();
   const { address } = useAccount();
-  const { signMessageAsync } = useSignMessage();
 
   const [liveScore, setLiveScore] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -24,33 +24,36 @@ export default function DuelPage({ params }: PageProps) {
   const [error, setError] = useState<string | null>(null);
   const submitGuard = useRef(false);
 
-  // Fetch + poll match state
-  const { data: matchRaw } = useQuery({
+  const { data: match } = useQuery<MatchObject>({
     queryKey: ["match", matchId],
     queryFn: () => getMatchStatus(matchId),
     refetchInterval: 3000,
   });
 
-  const match = (matchRaw && "seed" in matchRaw ? matchRaw : null) as
-    | MatchObject
-    | null;
-
-  // Redirect to result when settled / refunded
+  // Route to result when the match closes.
   useEffect(() => {
     if (!match) return;
-    if (
-      match.status === "settled" ||
-      match.status === "refunded" ||
-      match.status === "cancelled"
-    ) {
+    if (match.status === "settled" || match.status === "refunded") {
       router.replace(`/duel/${matchId}/result`);
     }
   }, [match, matchId, router]);
 
-  const isP1 = address && match?.player1_address?.toLowerCase() === address.toLowerCase();
-  const myScore = isP1 ? match?.player1_score : match?.player2_score;
-  const oppScore = isP1 ? match?.player2_score : match?.player1_score;
-  const oppAddress = isP1 ? match?.player2_address : match?.player1_address;
+  const me = address?.toLowerCase();
+  const isP1 = Boolean(
+    me && match && match.player1.address.toLowerCase() === me,
+  );
+
+  const myScore = isP1 ? match?.player1.score : match?.player2?.score;
+  const oppScore = isP1 ? match?.player2?.score : match?.player1.score;
+  const oppAddress = isP1 ? match?.player2?.address : match?.player1.address;
+
+  // Compute the play deadline from matchedAt + PLAY_WINDOW_MS on the client.
+  const deadlineIso = useMemo(() => {
+    if (!match?.matchedAt) return null;
+    return new Date(
+      new Date(match.matchedAt).getTime() + PLAY_WINDOW_MS,
+    ).toISOString();
+  }, [match?.matchedAt]);
 
   const submit = useCallback(
     async (score: number) => {
@@ -59,20 +62,17 @@ export default function DuelPage({ params }: PageProps) {
       setSubmitting(true);
       setFrozen(true);
       try {
-        // Sign the score attestation so the backend can verify authenticity.
-        const message = `Skillbase duel ${match.id} score ${score}`;
-        const signature = await signMessageAsync({ message });
-        await submitScore({ matchId: match.id, score, signature });
+        await submitScore({ matchId: match.matchId, address, score });
         setSubmitted(true);
       } catch (e) {
         setError(parseWalletError(e).message);
-        submitGuard.current = false; // allow retry
-        setFrozen(false); // allow continued play / resubmit path
+        submitGuard.current = false;
+        setFrozen(false);
       } finally {
         setSubmitting(false);
       }
     },
-    [match, address, signMessageAsync],
+    [match, address],
   );
 
   const handleGameOver = useCallback(
@@ -86,6 +86,18 @@ export default function DuelPage({ params }: PageProps) {
     submit(liveScore);
   }, [submit, liveScore]);
 
+  // Auto-submit if the user's slot is already filled (e.g., they reloaded
+  // after submitting) so the score panel re-hydrates correctly.
+  useEffect(() => {
+    if (!match) return;
+    const mine = isP1 ? match.player1.score : match.player2?.score;
+    if (mine != null && !submitted) {
+      submitGuard.current = true;
+      setSubmitted(true);
+      setFrozen(true);
+    }
+  }, [match, isP1, submitted]);
+
   if (!match) {
     return (
       <main className="flex min-h-[calc(100vh-56px)] flex-col items-center justify-center px-4 py-10">
@@ -96,30 +108,24 @@ export default function DuelPage({ params }: PageProps) {
 
   return (
     <main className="flex min-h-[calc(100vh-56px)] flex-col items-center px-4 py-6">
-      {/* Top bar: timer + opponent */}
       <div className="mb-4 flex w-full max-w-md items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-            You
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-neutral-500">You</p>
           <p className="font-mono text-xs text-neutral-300">
             {address ? truncateAddress(address) : "—"}
           </p>
         </div>
 
-        <Timer deadline={match.ends_at} onExpire={handleTimerExpire} />
+        <Timer deadline={deadlineIso} onExpire={handleTimerExpire} />
 
         <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-            Opponent
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-neutral-500">Opponent</p>
           <p className="font-mono text-xs text-neutral-300">
             {oppAddress ? truncateAddress(oppAddress) : "—"}
           </p>
         </div>
       </div>
 
-      {/* Score strip */}
       <div className="mb-4 grid w-full max-w-md grid-cols-2 gap-2">
         <ScoreCard
           label="Your score"
@@ -133,7 +139,6 @@ export default function DuelPage({ params }: PageProps) {
         />
       </div>
 
-      {/* Game */}
       <Game2048
         seed={match.seed}
         onGameOver={handleGameOver}
@@ -141,13 +146,10 @@ export default function DuelPage({ params }: PageProps) {
         frozen={frozen}
       />
 
-      {/* Post-submit state */}
       {(submitting || submitted) && (
         <div className="mt-6 w-full max-w-md rounded-xl border border-border bg-bg-elev p-4 text-center">
           {submitting && (
-            <p className="text-sm text-neutral-300">
-              Submitting your score… sign the attestation in your wallet.
-            </p>
+            <p className="text-sm text-neutral-300">Submitting your score…</p>
           )}
           {submitted && !submitting && (
             <>
@@ -155,7 +157,7 @@ export default function DuelPage({ params }: PageProps) {
               <p className="mt-1 text-xs text-neutral-400">
                 {oppScore == null
                   ? "Waiting for opponent to finish…"
-                  : "Settling match…"}
+                  : "Settling match on-chain…"}
               </p>
             </>
           )}
@@ -195,14 +197,10 @@ function ScoreCard({
     <div
       className={
         "rounded-xl border p-3 " +
-        (highlight
-          ? "border-skill/50 bg-skill/5"
-          : "border-border bg-bg-elev")
+        (highlight ? "border-skill/50 bg-skill/5" : "border-border bg-bg-elev")
       }
     >
-      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-        {label}
-      </p>
+      <p className="text-[10px] uppercase tracking-wider text-neutral-500">{label}</p>
       <p
         className={
           "mt-0.5 text-2xl font-bold tabular-nums " +

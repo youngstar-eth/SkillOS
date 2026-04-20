@@ -62,7 +62,41 @@ export function parseWalletError(err: unknown): FriendlyError {
     return { message: "Transaction cancelled. Try again.", kind: "rejected" };
   }
 
-  // Contract reverted on-chain
+  // Contract reverted on-chain — translate ChallengeEscrow custom errors
+  // into user-friendly copy.
+  const raw = e.shortMessage ?? e.message ?? "";
+  const revertName =
+    (e as { cause?: { data?: { errorName?: string } } }).cause?.data?.errorName;
+  const errName =
+    revertName ??
+    (raw.match(/\b(SelfChallenge|AlreadyAccepted|ChallengeNotOpen|ChallengeHasExpired|ChallengeAlreadyExists|ChallengeNotAccepted|ChallengeNotExpired|InvalidWinner|BadSignature|ZeroStake|ZeroDuration)\b/)?.[1]);
+  if (errName) {
+    const copy: Record<string, string> = {
+      SelfChallenge:
+        "You can't match yourself. Try with a different wallet, or wait for another player.",
+      AlreadyAccepted:
+        "Someone else already accepted this challenge. Refresh to find a new match.",
+      ChallengeNotOpen:
+        "This challenge is no longer open. Refresh to find another.",
+      ChallengeHasExpired:
+        "This challenge expired before you accepted. Refresh to find another.",
+      ChallengeAlreadyExists:
+        "A challenge with this id already exists. Refresh the page to generate a new one.",
+      ChallengeNotAccepted:
+        "This challenge hasn't been accepted yet — can't settle.",
+      ChallengeNotExpired:
+        "Challenge isn't expired yet — you can't reclaim your stake.",
+      InvalidWinner: "Settle rejected: winner must be one of the players.",
+      BadSignature: "Settle rejected: signature didn't verify.",
+      ZeroStake: "Stake must be greater than zero.",
+      ZeroDuration: "Challenge duration must be greater than zero.",
+    };
+    return {
+      message: copy[errName] ?? `Transaction failed: ${errName}`,
+      kind: "reverted",
+      txHash: e.transactionHash,
+    };
+  }
   if (
     e.name === "ContractFunctionRevertedError" ||
     e.cause?.name === "ContractFunctionRevertedError"

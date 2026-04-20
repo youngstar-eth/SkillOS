@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
+import { formatUnits } from "viem";
 import { getMatchStatus, type MatchObject } from "@/lib/api";
 import { basescanTx, truncateAddress } from "@/lib/utils";
 
@@ -11,44 +12,58 @@ type PageProps = { params: { id: string } };
 
 type Outcome = "win" | "lose" | "tie" | "pending";
 
+// 10% platform fee in basis points — mirrors ChallengeEscrow.FEE_BPS.
+const FEE_BPS = 1000n;
+const BPS_DENOMINATOR = 10_000n;
+
 export default function ResultPage({ params }: PageProps) {
   const matchId = params.id;
   const { address } = useAccount();
 
-  const { data: raw, isLoading } = useQuery({
+  const { data: match, isLoading } = useQuery<MatchObject>({
     queryKey: ["match", matchId],
     queryFn: () => getMatchStatus(matchId),
-    // Keep polling briefly in case the settle tx is still confirming.
     refetchInterval: (q) => {
       const d = q.state.data;
-      if (d && "status" in d && d.status === "settled") return false;
+      // Stop polling once the match is finalised.
+      if (d && (d.status === "settled" || d.status === "refunded")) return false;
       return 3000;
     },
   });
 
-  const match = (raw && "seed" in raw ? raw : null) as MatchObject | null;
-
-  const { outcome, myScore, oppScore, payout } = useMemo(() => {
+  const { outcome, myScore, oppScore, payoutUsdc } = useMemo(() => {
     if (!match || !address) {
-      return { outcome: "pending" as Outcome, myScore: 0, oppScore: 0, payout: "0" };
+      return {
+        outcome: "pending" as Outcome,
+        myScore: 0,
+        oppScore: 0,
+        payoutUsdc: "0",
+      };
     }
-    const isP1 = match.player1_address.toLowerCase() === address.toLowerCase();
-    const myScore = (isP1 ? match.player1_score : match.player2_score) ?? 0;
-    const oppScore = (isP1 ? match.player2_score : match.player1_score) ?? 0;
+    const me = address.toLowerCase();
+    const isP1 = match.player1.address.toLowerCase() === me;
+    const myScore = (isP1 ? match.player1.score : match.player2?.score) ?? 0;
+    const oppScore = (isP1 ? match.player2?.score : match.player1.score) ?? 0;
+
     let outcome: Outcome = "pending";
-    if (match.status === "settled" && match.winner_address) {
-      if (match.winner_address.toLowerCase() === address.toLowerCase())
-        outcome = "win";
-      else if (match.winner_address === match.player1_address || match.winner_address === match.player2_address)
-        outcome = "lose";
-    } else if (match.status === "settled" && !match.winner_address) {
+    if (match.status === "settled" && match.winnerAddress) {
+      outcome = match.winnerAddress.toLowerCase() === me ? "win" : "lose";
+    } else if (match.status === "settled") {
+      // Settled with no winner shouldn't happen under the current contract,
+      // but guard anyway.
+      outcome = "tie";
+    } else if (match.status === "refunded") {
       outcome = "tie";
     }
-    // Pool = 2 * stake, minus any fees the backend applies. For the MVP we
-    // just show 2 × stake_amount_usdc.
-    const stakeStr = match.stake_amount_usdc ?? "0";
-    const payout = outcome === "win" ? (Number(stakeStr) * 2).toString() : "0";
-    return { outcome, myScore, oppScore, payout };
+
+    // Payout math mirrors the contract: pool = 2 × stake, fee = pool × 10%.
+    const stake = BigInt(match.stakeAmount);
+    const pool = stake * 2n;
+    const fee = (pool * FEE_BPS) / BPS_DENOMINATOR;
+    const winnerPayout = pool - fee;
+    const payoutUsdc =
+      outcome === "win" ? formatUnits(winnerPayout, 6) : "0";
+    return { outcome, myScore, oppScore, payoutUsdc };
   }, [match, address]);
 
   if (isLoading || !match) {
@@ -65,7 +80,7 @@ export default function ResultPage({ params }: PageProps) {
       : outcome === "lose"
         ? "You lost"
         : outcome === "tie"
-          ? "It's a tie"
+          ? "Tie / refund"
           : "Settling…";
 
   const headlineColor =
@@ -77,53 +92,53 @@ export default function ResultPage({ params }: PageProps) {
           ? "text-neutral-300"
           : "text-neutral-400";
 
+  const p1 = match.player1.address;
+  const p2 = match.player2?.address ?? null;
+  const winner = match.winnerAddress;
+
   return (
     <main className="flex min-h-[calc(100vh-56px)] flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-md space-y-6">
         <div className="rounded-2xl border border-border bg-bg-elev p-6 text-center">
           <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            Match #{match.id.slice(0, 6)}
+            Match #{match.matchId.slice(0, 6)}
           </p>
           <h1 className={`mt-2 text-4xl font-bold tracking-tight ${headlineColor}`}>
             {headline}
           </h1>
           {outcome === "win" && (
             <p className="mt-3 text-lg font-semibold text-neutral-100">
-              Payout: {payout} USDC
+              Payout: {payoutUsdc} USDC
             </p>
           )}
 
-          {/* Scores */}
           <div className="mt-6 grid grid-cols-2 gap-3">
             <ScoreBlock label="You" score={myScore} isMe />
             <ScoreBlock label="Opponent" score={oppScore} />
           </div>
 
-          {/* Players */}
           <div className="mt-5 space-y-1 text-xs text-neutral-500">
             <p>
-              P1: {truncateAddress(match.player1_address)}
-              {match.winner_address?.toLowerCase() ===
-                match.player1_address.toLowerCase() && (
-                <span className="ml-2 rounded bg-skill/20 px-1.5 py-0.5 text-skill">winner</span>
+              P1: {truncateAddress(p1)}
+              {winner && winner.toLowerCase() === p1.toLowerCase() && (
+                <span className="ml-2 rounded bg-skill/20 px-1.5 py-0.5 text-skill">
+                  winner
+                </span>
               )}
             </p>
             <p>
-              P2:{" "}
-              {match.player2_address
-                ? truncateAddress(match.player2_address)
-                : "—"}
-              {match.player2_address &&
-                match.winner_address?.toLowerCase() ===
-                  match.player2_address.toLowerCase() && (
-                  <span className="ml-2 rounded bg-skill/20 px-1.5 py-0.5 text-skill">winner</span>
-                )}
+              P2: {p2 ? truncateAddress(p2) : "—"}
+              {p2 && winner && winner.toLowerCase() === p2.toLowerCase() && (
+                <span className="ml-2 rounded bg-skill/20 px-1.5 py-0.5 text-skill">
+                  winner
+                </span>
+              )}
             </p>
           </div>
 
-          {match.settle_tx_hash && (
+          {match.settleTxHash && (
             <a
-              href={basescanTx(match.settle_tx_hash)}
+              href={basescanTx(match.settleTxHash)}
               target="_blank"
               rel="noreferrer"
               className="mt-5 inline-block text-xs text-neutral-400 underline hover:text-neutral-200"
@@ -168,9 +183,7 @@ function ScoreBlock({
         (isMe ? "border-skill/50 bg-skill/5" : "border-border bg-bg-elev2")
       }
     >
-      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-        {label}
-      </p>
+      <p className="text-[10px] uppercase tracking-wider text-neutral-500">{label}</p>
       <p className="mt-1 text-3xl font-bold tabular-nums">{score}</p>
     </div>
   );
