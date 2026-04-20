@@ -19,13 +19,7 @@ import {
   STAKE_AMOUNT,
   USDC_ADDRESS,
 } from "@/lib/contracts";
-import {
-  cancelDuel,
-  getMatchStatus,
-  queueDuel,
-  roleFromQueueResponse,
-  type Role,
-} from "@/lib/api";
+import { cancelDuel, getMatchStatus, queueDuel } from "@/lib/api";
 import { parseWalletError, truncateAddress } from "@/lib/utils";
 
 /** After this long in the queue, offer a refund/claim path. */
@@ -53,11 +47,6 @@ export default function WaitingPage() {
   // seed (used by Game2048) will be derived server-side and returned via
   // GET /api/duel/status once the match is active.
   const [challengeId] = useState<`0x${string}`>(() => randomBytes32());
-  // Role is null until the queue API returns — Agent 2's next drop adds
-  // the `opponent` field that lets us decide. Today it stays null and all
-  // players funnel through the P1 path (create-challenge).
-  const [role, setRole] = useState<Role | null>(null);
-  const [opponent, setOpponent] = useState<`0x${string}` | null>(null);
   const [queuedAt, setQueuedAt] = useState<number | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());
   const timedOut =
@@ -139,8 +128,6 @@ export default function WaitingPage() {
       try {
         const res = await queueDuel({ address, txHash: stakeHash });
         setMatchId(res.matchId);
-        setRole(roleFromQueueResponse(res));
-        if (res.opponent) setOpponent(res.opponent);
         if (res.status === "matched") setStep("matched");
         else {
           setStep("queued");
@@ -233,14 +220,8 @@ export default function WaitingPage() {
         };
       case "queued":
         return {
-          title:
-            role === "p2"
-              ? "Joining existing challenge…"
-              : "Looking for opponent…",
-          sub:
-            role === "p2"
-              ? "Your accept tx is confirming. We'll start the duel once it's on-chain."
-              : "You're in the queue. We'll match you with the next player who stakes.",
+          title: "Looking for opponent…",
+          sub: "You're in the queue. We'll match you with the next player who stakes.",
           button: null,
           onClick: null,
           disabled: false,
@@ -248,23 +229,13 @@ export default function WaitingPage() {
       case "matched":
         return {
           title: "Match found!",
-          sub: opponent
-            ? `Opponent: ${truncateAddress(opponent)} · starting duel…`
-            : "Redirecting to your duel…",
+          sub: "Redirecting to your duel…",
           button: null,
           onClick: null,
           disabled: false,
         };
     }
-  }, [
-    step,
-    role,
-    opponent,
-    approvePending,
-    approveMining,
-    stakePending,
-    stakeMining,
-  ]);
+  }, [step, approvePending, approveMining, stakePending, stakeMining]);
 
   const liveErrorRaw = error ?? approveError ?? stakeError ?? null;
   const liveError = liveErrorRaw ? parseWalletError(liveErrorRaw) : null;

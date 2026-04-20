@@ -32,32 +32,10 @@ export type MatchObject = {
   ends_at?: string | null;
 };
 
-/**
- * Queue response. Fields marked `?` are landing in Agent 2's next drop —
- * treat them as optional until integration, then tighten to required.
- *
- * Role derivation:
- *   - `opponent` present → we are P2 (matched against an existing challenge)
- *   - otherwise         → we are P1 (created a new challenge, waiting to be
- *                                     accepted)
- */
 export type QueueResponse = {
   matchId: string;
   status: MatchStatus;
-
-  // Future Agent 2 fields (currently absent from mock endpoint):
-  challengeId?: `0x${string}`; // bytes32 on-chain id
-  seed?: `0x${string}`; // 64 hex chars — passed to Game2048
-  stakeAmount?: string; // atomic units, e.g. "1000000" for 1 USDC
-  opponent?: `0x${string}`; // P2-only — address of the challenge creator
 };
-
-export type Role = "p1" | "p2";
-
-/** Derive role from the queue response. */
-export function roleFromQueueResponse(res: QueueResponse): Role {
-  return res.opponent ? "p2" : "p1";
-}
 
 /** Post the stake tx to the backend and join the queue. */
 export async function queueDuel(body: {
