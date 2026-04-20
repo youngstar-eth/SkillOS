@@ -169,7 +169,7 @@ export function Game2048({
       const dy = t.clientY - start.y;
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
-      const THRESHOLD = 24;
+      const THRESHOLD = 30;
       if (Math.max(absX, absY) < THRESHOLD) return;
       let dir: Direction;
       if (absX > absY) dir = dx > 0 ? "right" : "left";

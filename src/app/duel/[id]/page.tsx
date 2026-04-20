@@ -7,7 +7,7 @@ import { useAccount, useSignMessage } from "wagmi";
 import { Game2048 } from "@/components/Game2048";
 import { Timer } from "@/components/Timer";
 import { getMatchStatus, submitScore, type MatchObject } from "@/lib/api";
-import { truncateAddress } from "@/lib/utils";
+import { parseWalletError, truncateAddress } from "@/lib/utils";
 
 type PageProps = { params: { id: string } };
 
@@ -65,8 +65,9 @@ export default function DuelPage({ params }: PageProps) {
         await submitScore({ matchId: match.id, score, signature });
         setSubmitted(true);
       } catch (e) {
-        setError((e as Error).message);
+        setError(parseWalletError(e).message);
         submitGuard.current = false; // allow retry
+        setFrozen(false); // allow continued play / resubmit path
       } finally {
         setSubmitting(false);
       }

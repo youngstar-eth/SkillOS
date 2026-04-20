@@ -17,7 +17,10 @@ import {
   USDC_ADDRESS,
 } from "@/lib/contracts";
 import { cancelDuel, getMatchStatus, queueDuel } from "@/lib/api";
-import { truncateAddress } from "@/lib/utils";
+import { parseWalletError, truncateAddress } from "@/lib/utils";
+
+/** After this long in the queue, offer a refund/claim path. */
+const QUEUE_TIMEOUT_MS = 5 * 60 * 1000;
 
 const STAKE_USDC = "1";
 const STAKE_AMOUNT = parseUnits(STAKE_USDC, 6); // USDC has 6 decimals
@@ -38,6 +41,17 @@ export default function WaitingPage() {
   const [matchId, setMatchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [seed] = useState<`0x${string}`>(() => randomBytes32());
+  const [queuedAt, setQueuedAt] = useState<number | null>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
+  const timedOut =
+    step === "queued" && queuedAt !== null && now - queuedAt > QUEUE_TIMEOUT_MS;
+
+  // Tick the timeout clock every 15s once queued.
+  useEffect(() => {
+    if (step !== "queued") return;
+    const id = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, [step]);
 
   // Redirect to home if not connected
   useEffect(() => {
@@ -109,10 +123,13 @@ export default function WaitingPage() {
         const res = await queueDuel({ address, txHash: stakeHash });
         setMatchId(res.matchId);
         if (res.status === "matched") setStep("matched");
-        else setStep("queued");
+        else {
+          setStep("queued");
+          setQueuedAt(Date.now());
+        }
         resetStake();
       } catch (e) {
-        setError((e as Error).message);
+        setError(parseWalletError(e).message);
       }
     }
     joinQueue();
@@ -217,8 +234,8 @@ export default function WaitingPage() {
     stakeMining,
   ]);
 
-  const liveError =
-    error ?? approveError?.message ?? stakeError?.message ?? null;
+  const liveErrorRaw = error ?? approveError ?? stakeError ?? null;
+  const liveError = liveErrorRaw ? parseWalletError(liveErrorRaw) : null;
 
   return (
     <main className="flex min-h-[calc(100vh-56px)] flex-col items-center justify-center px-4 py-10">
@@ -258,8 +275,44 @@ export default function WaitingPage() {
         </div>
 
         {liveError && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
-            {liveError}
+          <div
+            className={
+              "rounded-lg border p-3 text-xs " +
+              (liveError.kind === "rejected"
+                ? "border-neutral-600 bg-bg-elev2 text-neutral-300"
+                : "border-red-500/40 bg-red-500/10 text-red-300")
+            }
+          >
+            {liveError.message}
+            {liveError.txHash && (
+              <>
+                {" · "}
+                <a
+                  className="underline"
+                  href={`https://sepolia.basescan.org/tx/${liveError.txHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View on Basescan ↗
+                </a>
+              </>
+            )}
+          </div>
+        )}
+
+        {timedOut && (
+          <div className="rounded-xl border border-skill/40 bg-skill/5 p-4 text-center">
+            <p className="text-sm font-semibold">No opponent found yet</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              Your stake has been in the queue for over 5 minutes. You can
+              reclaim it now.
+            </p>
+            <button
+              onClick={handleCancel}
+              className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-skill px-4 text-sm font-semibold text-black hover:bg-yellow-400"
+            >
+              Claim refund
+            </button>
           </div>
         )}
 
@@ -268,7 +321,11 @@ export default function WaitingPage() {
             onClick={handleCancel}
             className="text-xs text-neutral-500 hover:text-neutral-300"
           >
-            {step === "queued" ? "Cancel & refund" : "Back"}
+            {step === "queued" && !timedOut
+              ? "Cancel & refund"
+              : timedOut
+                ? "Back to home"
+                : "Back"}
           </button>
         </div>
       </div>
