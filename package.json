@@ -1,30 +1,25 @@
 {
-  "name": "skillbase-duel",
-  "version": "0.1.0",
+  "name": "skillbase",
+  "version": "0.3.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "@coinbase/wallet-sdk": "^4.3.7",
-    "@supabase/supabase-js": "^2.104.0",
-    "@tanstack/react-query": "^5.99.2",
-    "ethers": "^6.16.0",
-    "next": "^14.2.35",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "viem": "^2.48.1",
-    "wagmi": "^3.6.3"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev:2048": "npm run dev --workspace @skillbase/app-2048",
+    "build:2048": "npm run build --workspace @skillbase/app-2048"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.13",
+    "turbo": "^2.3.3",
     "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   }
 }
