@@ -26,3 +26,33 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ─── Clicker tap animations ────────────────────────────────────────────
+ * Score digits bump and emoji pops on every tap. React's `key` is bumped
+ * each click so the animation re-fires from the start — no delay/debounce.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+@keyframes clicker-score-bump {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
+}
+.clicker-score {
+  animation: clicker-score-bump 120ms ease-out;
+  display: inline-block;
+}
+
+@keyframes clicker-emoji-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.clicker-emoji {
+  animation: clicker-emoji-pop 150ms ease-out;
+  display: inline-block;
+}
+
+/* Kill iOS double-tap zoom on the big target button. */
+.clicker-button {
+  touch-action: manipulation;
+}

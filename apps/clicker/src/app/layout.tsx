@@ -4,9 +4,9 @@ import { Providers, WalletButton } from "@skillbase/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase Clicker — Coming soon",
+  title: "Skillbase Clicker — On-chain tap duels on Base",
   description:
-    "Clicker duels on Base — coming soon. Tap to score for 2 minutes; highest count wins the pool.",
+    "Stake 1 USDC, match a player, tap as fast as you can for 2 minutes. Most taps wins the pool.",
 };
 
 export const viewport = {
