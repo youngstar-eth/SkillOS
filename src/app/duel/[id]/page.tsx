@@ -43,9 +43,26 @@ export default function DuelPage({ params }: PageProps) {
     me && match && match.player1.address.toLowerCase() === me,
   );
 
+  // My own score is fine to show at any time.
   const myScore = isP1 ? match?.player1.score : match?.player2?.score;
-  const oppScore = isP1 ? match?.player2?.score : match?.player1.score;
   const oppAddress = isP1 ? match?.player2?.address : match?.player1.address;
+
+  // Competitive-integrity rule: NEVER read `player.score` for the opponent
+  // while either player is still playing. We derive submission state from
+  // `submittedAt` timestamps (or equivalently the status enum) — these
+  // reveal *that* a submission happened, not the *value* of the score.
+  const mySubmittedAt = isP1
+    ? match?.player1.submittedAt
+    : match?.player2?.submittedAt;
+  const oppSubmittedAt = isP1
+    ? match?.player2?.submittedAt
+    : match?.player1.submittedAt;
+
+  // Local React state (`submitted`) fires instantly on successful submit;
+  // server state arrives on the next 3s poll. OR them so the UI feels snappy
+  // and survives a page refresh.
+  const iHaveSubmitted = submitted || Boolean(mySubmittedAt);
+  const opponentHasSubmitted = Boolean(oppSubmittedAt);
 
   // Compute the play deadline from matchedAt + PLAY_WINDOW_MS on the client.
   const deadlineIso = useMemo(() => {
@@ -86,12 +103,16 @@ export default function DuelPage({ params }: PageProps) {
     submit(liveScore);
   }, [submit, liveScore]);
 
-  // Auto-submit if the user's slot is already filled (e.g., they reloaded
-  // after submitting) so the score panel re-hydrates correctly.
+  // Auto-hydrate the submitted panel on refresh: if the server already has a
+  // submission for this player, flip local state so the UI matches. We read
+  // `submittedAt` (boolean-ish) rather than `score` to keep this component
+  // strictly score-leak-free — the opponent branch reuses the same pattern.
   useEffect(() => {
     if (!match) return;
-    const mine = isP1 ? match.player1.score : match.player2?.score;
-    if (mine != null && !submitted) {
+    const mineAt = isP1
+      ? match.player1.submittedAt
+      : match.player2?.submittedAt;
+    if (mineAt && !submitted) {
       submitGuard.current = true;
       setSubmitted(true);
       setFrozen(true);
@@ -129,13 +150,23 @@ export default function DuelPage({ params }: PageProps) {
       <div className="mb-4 grid w-full max-w-md grid-cols-2 gap-2">
         <ScoreCard
           label="Your score"
-          value={submitted ? (myScore ?? liveScore) : liveScore}
+          value={iHaveSubmitted ? (myScore ?? liveScore) : liveScore}
           highlight
         />
+        {/*
+          Opponent score is hidden until the match settles — then we redirect
+          to the result page. So during play we only surface *whether* the
+          opponent has submitted, never *what* they scored.
+        */}
         <ScoreCard
           label="Opponent"
-          value={oppScore ?? "—"}
-          pending={oppScore == null}
+          value="?"
+          pending
+          caption={
+            opponentHasSubmitted
+              ? "submitted ✓"
+              : "still playing…"
+          }
         />
       </div>
 
@@ -146,18 +177,20 @@ export default function DuelPage({ params }: PageProps) {
         frozen={frozen}
       />
 
-      {(submitting || submitted) && (
+      {(submitting || iHaveSubmitted) && (
         <div className="mt-6 w-full max-w-md rounded-xl border border-border bg-bg-elev p-4 text-center">
           {submitting && (
             <p className="text-sm text-neutral-300">Submitting your score…</p>
           )}
-          {submitted && !submitting && (
+          {iHaveSubmitted && !submitting && (
             <>
-              <p className="text-sm font-semibold">Score submitted ✓</p>
+              <p className="text-sm font-semibold">
+                Score submitted ✓ {myScore ?? liveScore} points
+              </p>
               <p className="mt-1 text-xs text-neutral-400">
-                {oppScore == null
-                  ? "Waiting for opponent to finish…"
-                  : "Settling match on-chain…"}
+                {opponentHasSubmitted
+                  ? "Settling match on-chain…"
+                  : "Waiting for opponent to finish…"}
               </p>
             </>
           )}
@@ -187,11 +220,13 @@ function ScoreCard({
   value,
   highlight,
   pending,
+  caption,
 }: {
   label: string;
   value: number | string;
   highlight?: boolean;
   pending?: boolean;
+  caption?: string;
 }) {
   return (
     <div
@@ -209,6 +244,9 @@ function ScoreCard({
       >
         {value}
       </p>
+      {caption && (
+        <p className="mt-1 text-[10px] text-neutral-500">{caption}</p>
+      )}
     </div>
   );
 }
