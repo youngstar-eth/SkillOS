@@ -26,3 +26,82 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ─── Sudoku board — dark theme ────────────────────────────────────────
+ * Port of the legacy Stripe-style board styling, recolored for Skillbase
+ * dark. Preserved semantics:
+ *   - Thick border around the whole board
+ *   - 2px separators between 3×3 boxes (cells where col/row % 3 == 2)
+ *   - Hairline borders elsewhere
+ *   - Cell variants: given / user-placed / selected / peer / same-number /
+ *     conflict / solved
+ * Dark-mode color map (previous → now):
+ *   #ffffff  bg         →  #141414 (bg-elev)
+ *   #061b31  fg/border  →  #262626 (border)
+ *   #635bff  accent     →  #ffc72c (skill)
+ *   #ece9ff  highlight  →  rgba(255,199,44,.12)
+ *   #fee2e2  conflict   →  rgba(239,68,68,.15)
+ * ────────────────────────────────────────────────────────────────────── */
+
+.sudoku-board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  border: 2px solid #404040;
+  border-radius: 12px;
+  background: #141414;
+  overflow: hidden;
+}
+
+.sudoku-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-right: 1px solid #262626;
+  border-bottom: 1px solid #262626;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(16px, 4.2vw, 22px);
+  font-weight: 500;
+  cursor: pointer;
+  background: #141414;
+  color: #ededed;
+  transition: background 150ms ease, color 150ms ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+/* Kill the outer-edge hairlines — the board's own border handles those. */
+.sudoku-cell[data-col="8"] { border-right: none; }
+.sudoku-cell[data-row="8"] { border-bottom: none; }
+
+/* 3×3 box separators: thick line after every third column/row. */
+.sudoku-cell[data-col="2"],
+.sudoku-cell[data-col="5"] { border-right: 2px solid #404040; }
+.sudoku-cell[data-row="2"],
+.sudoku-cell[data-row="5"] { border-bottom: 2px solid #404040; }
+
+.sudoku-cell.given { font-weight: 700; color: #ededed; }
+.sudoku-cell.user  { color: #ffc72c; font-weight: 600; }
+
+.sudoku-cell.peer        { background: #1c1c1c; }
+.sudoku-cell.same-number { background: rgba(255, 199, 44, 0.12); }
+.sudoku-cell.selected {
+  background: rgba(255, 199, 44, 0.18);
+  box-shadow: inset 0 0 0 2px #ffc72c;
+  z-index: 1;
+}
+.sudoku-cell.conflict {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.sudoku-cell.solved {
+  animation: sudoku-solved-pulse 600ms ease;
+}
+
+@keyframes sudoku-solved-pulse {
+  0%   { background: #141414; }
+  50%  { background: rgba(52, 211, 153, 0.25); }
+  100% { background: #141414; }
+}

@@ -4,9 +4,9 @@ import { Providers, WalletButton } from "@skillbase/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase Sudoku — Coming soon",
+  title: "Skillbase Sudoku — On-chain Sudoku duels on Base",
   description:
-    "Sudoku duels on Base — coming soon. Race to solve the same puzzle, fastest wins the pool.",
+    "Stake 1 USDC, match a player, race to solve the same puzzle. Most cells correct in 2 minutes wins the pool.",
 };
 
 export const viewport = {
