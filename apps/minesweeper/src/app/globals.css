@@ -26,3 +26,77 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ─── Minesweeper board ─────────────────────────────────────────────────
+ * 9×9 grid, cell size scales with container width. Three visual states:
+ *   .hidden  — raised button look (hover responds)
+ *   .revealed — flat, number text colored by adjacency count
+ *   .flagged — ochre bg with 🚩 glyph; clicking toggles off when in flag mode
+ *   .mine.revealed — red bg + 💣 (lose state) or just 💣 if flagged+won
+ * Number colors mirror classic Windows Minesweeper for familiarity.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.ms-board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 2px;
+  padding: 6px;
+  background: #262626;
+  border: 2px solid #404040;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.ms-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(14px, 4vw, 20px);
+  font-weight: 700;
+  border-radius: 4px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms ease;
+  cursor: pointer;
+  border: none;
+}
+
+.ms-cell.hidden {
+  background: linear-gradient(180deg, #1c1c1c, #141414);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.ms-cell.hidden:hover:not(:disabled) {
+  background: linear-gradient(180deg, #262626, #1c1c1c);
+}
+
+.ms-cell.revealed {
+  background: #0a0a0a;
+}
+
+.ms-cell.flagged {
+  background: rgba(255, 199, 44, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 199, 44, 0.4);
+}
+
+.ms-cell.mine.revealed {
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.6);
+}
+
+/* Adjacency number colors — classic Windows Minesweeper palette,
+ * tuned for dark background. */
+.ms-cell.n-1 { color: #60a5fa; }
+.ms-cell.n-2 { color: #34d399; }
+.ms-cell.n-3 { color: #f87171; }
+.ms-cell.n-4 { color: #a78bfa; }
+.ms-cell.n-5 { color: #fb923c; }
+.ms-cell.n-6 { color: #22d3ee; }
+.ms-cell.n-7 { color: #e5e7eb; }
+.ms-cell.n-8 { color: #9ca3af; }
+
+.ms-cell:disabled {
+  cursor: default;
+}

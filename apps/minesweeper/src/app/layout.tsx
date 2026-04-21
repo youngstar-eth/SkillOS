@@ -4,9 +4,9 @@ import { Providers, WalletButton } from "@skillbase/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase Minesweeper — Coming soon",
+  title: "Skillbase Minesweeper — On-chain Minesweeper duels on Base",
   description:
-    "Minesweeper duels on Base — coming soon. Clear the board without hitting a mine; higher score in 2 minutes wins the pool.",
+    "Stake 1 USDC, match a player, clear the same 9×9 board. Most safe cells revealed in 2 minutes wins the pool.",
 };
 
 export const viewport = {
