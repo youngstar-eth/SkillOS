@@ -9,6 +9,51 @@
         "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/2048 && exec npx next dev -p 3000"
       ],
       "port": 3000
+    },
+    {
+      "name": "skillbase-wordle",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/wordle && exec npx next dev -p 3001"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "skillbase-sudoku",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/sudoku && exec npx next dev -p 3002"
+      ],
+      "port": 3002
+    },
+    {
+      "name": "skillbase-minesweeper",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/minesweeper && exec npx next dev -p 3003"
+      ],
+      "port": 3003
+    },
+    {
+      "name": "skillbase-clicker",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/clicker && exec npx next dev -p 3004"
+      ],
+      "port": 3004
+    },
+    {
+      "name": "skillbase-match3",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/match3 && exec npx next dev -p 3005"
+      ],
+      "port": 3005
     }
   ]
 }

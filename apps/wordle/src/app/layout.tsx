@@ -4,9 +4,9 @@ import { Providers, WalletButton } from "@skillbase/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase Wordle — Coming soon",
+  title: "Skillbase Wordle — On-chain word duels on Base",
   description:
-    "Wordle duels on Base — coming soon. Same target word, best score wins the pool.",
+    "Stake 1 USDC, match a player, guess the same 5-letter target in 6 tries. Best score wins the pool.",
 };
 
 export const viewport = {
