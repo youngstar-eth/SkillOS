@@ -26,3 +26,69 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ─── Match-3 board ────────────────────────────────────────────────────
+ * 8×8 gem grid. Each gem is a rounded rectangle with a gradient fill —
+ * no external assets, no emoji dependency. Six distinct hues picked to
+ * stay distinguishable on a dark background.
+ * ────────────────────────────────────────────────────────────────────── */
+
+.m3-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  padding: 6px;
+  background: #262626;
+  border: 2px solid #404040;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.m3-gem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  border: none;
+  padding: 0;
+}
+
+.m3-gem.red    { background: linear-gradient(180deg, #ff6b6b, #d63030); }
+.m3-gem.yellow { background: linear-gradient(180deg, #ffd43b, #e09b00); }
+.m3-gem.green  { background: linear-gradient(180deg, #51cf66, #248e36); }
+.m3-gem.blue   { background: linear-gradient(180deg, #4dabf7, #1864ab); }
+.m3-gem.purple { background: linear-gradient(180deg, #b197fc, #6741d9); }
+.m3-gem.pink   { background: linear-gradient(180deg, #f783ac, #c2255c); }
+
+.m3-gem.empty {
+  background: transparent;
+}
+
+.m3-gem.selected {
+  box-shadow: 0 0 0 3px #ffc72c, 0 0 12px rgba(255, 199, 44, 0.4);
+  transform: scale(1.05);
+}
+
+.m3-gem.invalid {
+  animation: m3-gem-invalid 280ms ease-in-out;
+}
+
+@keyframes m3-gem-invalid {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-4px); }
+  75%       { transform: translateX(4px); }
+}
+
+.m3-gem:hover:not(:disabled) {
+  transform: scale(1.04);
+}
+
+.m3-gem:disabled {
+  cursor: default;
+}

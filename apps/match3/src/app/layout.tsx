@@ -4,9 +4,9 @@ import { Providers, WalletButton } from "@skillbase/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase Match 3 — Coming soon",
+  title: "Skillbase Match 3 — On-chain gem duels on Base",
   description:
-    "Match 3 duels on Base — coming soon. Match 3 tiles to score; higher score in 2 minutes wins the pool.",
+    "Stake 1 USDC, match a player, swap gems for 2 minutes. Deepest cascades + highest score wins the pool.",
 };
 
 export const viewport = {
