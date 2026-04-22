@@ -1,0 +1,36 @@
+-- ───────────────────────────────────────────────────────────────────────────
+-- Phase-1 AI Anti-Cheat plausibility cache column on v2_duels.
+-- Idempotent: safe to re-run.
+-- Target project: clizuqvtkekzxiflbsyr (shared across all 6 Phase-1 apps).
+--
+-- Schema:
+--   plausibility_check jsonb (nullable, no default)
+--
+-- Nullability semantics (same rationale as recap_cache — load-bearing):
+--   NULL     → check has not run yet (match just settled, async call
+--              still in flight, or anti-cheat temporarily disabled).
+--              Public endpoint maps this to { status: "pending" }.
+--   non-NULL → check completed; public endpoint maps to
+--              { status: "reviewed", reviewedAt: ... }, admin endpoint
+--              returns the full row.
+--
+-- Expected shape at rest (written by packages/duel-backend/src/settle.ts
+-- fire-and-forget call to @skillbase/ai-coach checkPlausibility):
+--   {
+--     "verdict": "plausible" | "suspicious" | "implausible",
+--     "confidence": 0.0..1.0,
+--     "reasoning": "1-2 sentences citing concrete numbers",
+--     "flags": ["speedrun-anomaly", "sustained-high-cps", ...],
+--     "reviewedAt": "ISO-8601 timestamp",
+--     "modelVersion": "claude-haiku-4-5"
+--   }
+--
+-- No index for Phase 1 — reads are PK-bound on duel id, and the column is
+-- write-once per match (settle hook fires exactly one UPDATE). A partial
+-- "verdict in (suspicious, implausible)" index would help the
+-- /api/admin/flags endpoint if admin queries become frequent; deferred
+-- to Phase 2 housekeeping.
+-- ───────────────────────────────────────────────────────────────────────────
+
+alter table v2_duels
+  add column if not exists plausibility_check jsonb;
