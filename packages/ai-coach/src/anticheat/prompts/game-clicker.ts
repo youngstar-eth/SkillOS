@@ -24,15 +24,29 @@ export function buildClickerAnticheatPrompt(
 ): { system: string; user: string } {
   const guidance = `GAME CONTEXT — clicker:
 - Score grows roughly with click count, boosted by late-game upgrades.
-- Compute avg CPS = winner score / duration. Treat it as an upper bound on true clicking
-  (upgrades inflate the ratio; a 15 avg could be 8 clicks/sec with a 2x multiplier).
 - Human sustainable CPS: 8–12. Jitter-click burst: 15–20 for seconds only.
 - Autoclickers typically produce flat 20+ CPS for the full duration.
 
-Plausibility bands:
-- avg CPS ≤ 12 → plausible
-- avg CPS 12–20 → suspicious (possible with heavy upgrades, glance)
-- avg CPS > 20 sustained > 30s → implausible (cite the computed CPS)
+CPS evaluation depends on what's present in the summary:
+
+CASE A — gameSpecificData includes rawClickCount or rawClickTimestamps:
+- peakCps = rawClickCount / durationSeconds
+- If peakCps > 25 sustained: implausible
+- If peakCps > 15 sustained with zero idle gaps: suspicious
+- Cite the raw metric by name in reasoning.
+
+CASE B — only score + duration available (today's default, no game_data column):
+- Score/second is NOT click rate — upgrade multipliers inflate it.
+- Bias toward plausible. Set confidence 0.3–0.5.
+- Reasoning: "Raw click metrics not logged; verdict limited to score/duration sanity only."
+- Do NOT flag as suspicious or implausible on score alone — except for the carve-out below.
+
+EXCEPTION (CASE B carve-out — OVERRIDES the base bias-toward-plausible):
+If computed winnerScore/durationSeconds ≥ 20, verdict MUST be "suspicious". This is a numeric threshold violation, NOT a borderline case — the base bias rule does not apply. Do not revert to "plausible" by invoking upgrade-multiplier narratives.
+
+Required reasoning template: "winnerScore/durationSeconds = X.X, crossing the 20-point/sec threshold for clicker. Raw click count not logged; cannot distinguish upgrade inflation from autoclicker, so flagging for admin review rather than dismissing."
+
+Required flags: at least "sustained-high-cps".
 
 Flags to consider: "sustained-high-cps", "autoclicker-signature".`;
 

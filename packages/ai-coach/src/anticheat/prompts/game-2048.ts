@@ -36,7 +36,9 @@ Plausibility bands (duration-only; no move-count signal available today):
 - duration ≥ 60s  → lean plausible regardless of score
 - duration 30–60s AND score > 4096 → suspicious
 - duration < 30s  AND score > 2048 → suspicious
-- duration < 30s  AND score > 8192 → implausible (cite swipe-rate math)
+- duration < 30s  AND score > 8192 → implausible (cite the duration gap vs. the multi-minute floor for honest 8192+ play; do NOT cite invented swipe counts or swipe-rate math)
+
+Required reasoning shape for implausible here: "Score X in Ys falls below the typical N-minute floor for any honest 8192+ play; move count not logged." Do not supply any swipe/move figure.
 
 Flags to consider: "score-duration-ratio", "speedrun-anomaly".`;
 
