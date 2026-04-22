@@ -12,6 +12,7 @@ import {
   type MatchObject,
 } from "@skillbase/ui";
 import { AICoach } from "@/components/AICoach";
+import { AIRecap } from "@/components/AIRecap";
 
 type PageProps = { params: { id: string } };
 
@@ -152,6 +153,10 @@ export default function ResultPage({ params }: PageProps) {
             </a>
           )}
         </div>
+
+        {match.status === "settled" && (
+          <AIRecap matchId={match.matchId} />
+        )}
 
         {match.status === "settled" && address && (
           <AICoach matchId={match.matchId} player={address} />
