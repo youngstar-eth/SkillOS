@@ -12,6 +12,7 @@ import {
   type MatchObject,
 } from "@skillbase/ui";
 import { AICoach } from "@/components/AICoach";
+import { AIRecap } from "@/components/AIRecap";
 
 type PageProps = { params: { id: string } };
 
@@ -152,6 +153,16 @@ export default function ResultPage({ params }: PageProps) {
             </a>
           )}
         </div>
+
+        {/*
+         * Recap is shown to any viewer of a settled match — it's match-wide,
+         * not per-player. Placed ABOVE AICoach because recap is the hero
+         * (the story of the match), coach is the detail (tactical advice).
+         * Silently hides on error; see AIRecap component.
+         */}
+        {match.status === "settled" && (
+          <AIRecap matchId={match.matchId} />
+        )}
 
         {/*
          * Only render AICoach once the match is fully settled. A "pending"
