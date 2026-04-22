@@ -1,3 +1,5 @@
-export { plausibilityHandler as GET } from "@skillbase/duel-backend";
+import { plausibilityHandler } from "@skillbase/duel-backend";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const GET = plausibilityHandler;
