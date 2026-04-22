@@ -11,6 +11,7 @@ import {
   truncateAddress,
   type MatchObject,
 } from "@skillbase/ui";
+import { AICoach } from "@/components/AICoach";
 
 type PageProps = { params: { id: string } };
 
@@ -151,6 +152,10 @@ export default function ResultPage({ params }: PageProps) {
             </a>
           )}
         </div>
+
+        {match.status === "settled" && address && (
+          <AICoach matchId={match.matchId} player={address} />
+        )}
 
         <div className="flex flex-col gap-2">
           <Link
