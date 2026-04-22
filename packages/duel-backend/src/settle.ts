@@ -39,13 +39,32 @@ import {
   signSettleAttestation,
   signWalkoverAttestation,
 } from "@skillbase/lib-shared";
+import {
+  readChallengeGuard,
+  type SettleGuardReason,
+} from "./settle-guard";
 
 export interface SettleResult {
   settled: boolean;
   winner: Address | null;
   settleTxHash: Hex | null;
-  /** "settle" | "walkover" | "noop" | "skip-already-settled" */
-  kind: "settle" | "walkover" | "noop" | "skip-already-settled";
+  /**
+   * Outcome kind:
+   *   "settle"               — happy-path settle broadcast this call
+   *   "walkover"             — walkover broadcast this call
+   *   "noop"                 — nothing to do yet (scores still outstanding)
+   *   "skip-already-settled" — DB or chain already reflects a prior settle
+   *   "cannot_settle"        — on-chain guard rejected (see guardReason);
+   *                            DB NOT mutated; admin reconcile required
+   */
+  kind:
+    | "settle"
+    | "walkover"
+    | "noop"
+    | "skip-already-settled"
+    | "cannot_settle";
+  /** Populated only when kind === "cannot_settle". */
+  guardReason?: SettleGuardReason;
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -193,6 +212,27 @@ export async function triggerSettle(
     return { settled: false, winner: null, settleTxHash: null, kind: "noop" };
   }
 
+  // Pre-check on-chain state BEFORE claiming the DB row. If the challenge
+  // is not Accepted, settle() would revert and leave the DB in "lie state"
+  // (status='settled' ∧ winner_address IS NULL). See settle-guard.ts.
+  const guard = await readChallengeGuard(
+    getPublicClient(),
+    challengeIdFor(current),
+  );
+  if (!guard.ok) {
+    console.warn(
+      "[settle] on-chain guard rejected; skipping claim to preserve DB state",
+      { matchId, reason: guard.reason, onChainStatus: guard.status },
+    );
+    return {
+      settled: false,
+      winner: null,
+      settleTxHash: null,
+      kind: "cannot_settle",
+      guardReason: guard.reason,
+    };
+  }
+
   const claimed = await claimForSettle(matchId);
   if (!claimed) {
     // Lost the race. Re-read to surface the winning caller's tx hash.
@@ -316,6 +356,26 @@ export async function checkAndTriggerWalkover(
   const elapsed = Date.now() - new Date(current.matched_at).getTime();
   if (elapsed < WALKOVER_THRESHOLD_MS) {
     return { settled: false, winner: null, settleTxHash: null, kind: "noop" };
+  }
+
+  // Pre-check on-chain state BEFORE claiming. Same lie-state class of bug
+  // as triggerSettle — walkover() also requires Accepted status on-chain.
+  const guard = await readChallengeGuard(
+    getPublicClient(),
+    challengeIdFor(current),
+  );
+  if (!guard.ok) {
+    console.warn(
+      "[walkover] on-chain guard rejected; skipping claim to preserve DB state",
+      { matchId, reason: guard.reason, onChainStatus: guard.status },
+    );
+    return {
+      settled: false,
+      winner: null,
+      settleTxHash: null,
+      kind: "cannot_settle",
+      guardReason: guard.reason,
+    };
   }
 
   // CAS: only proceed if no one else has flipped us past the submitted state.
