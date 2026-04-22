@@ -29,6 +29,7 @@ import {
   PLAY_WINDOW_MS,
   SUBMIT_GRACE_MS,
 } from "@skillbase/contracts";
+import { checkPlausibility, type GameType } from "@skillbase/ai-coach";
 import type { Duel } from "@skillbase/game-types";
 import {
   bytes32FromUuid,
@@ -118,9 +119,60 @@ async function claimForSettle(matchId: string): Promise<Duel | null> {
   return (data as Duel | null) ?? null;
 }
 
+// ─── anti-cheat fire-and-forget hook ──────────────────────────────────────
+
+const PLAUSIBILITY_TIMEOUT_MS = 10_000;
+
+/**
+ * Fire-and-forget plausibility audit. Must NEVER affect the settle path:
+ *   - caller does not await this function (return type is void, not Promise)
+ *   - no thrown error escapes; all failures are logged and swallowed
+ *   - a 10s timeout ensures a hung Haiku call cannot stall background work
+ *     indefinitely — settle's own return already fired by then
+ *
+ * On success, writes the full PlausibilityResponse to
+ * v2_duels.plausibility_check. On any failure (Haiku down, timeout, DB
+ * write fails), the column stays NULL and the public endpoint maps that
+ * to { status: "pending" } — graceful degradation.
+ */
+function firePlausibilityCheckAsync(input: {
+  duelId: string;
+  gameType: GameType;
+  winnerScore: number;
+  loserScore: number;
+  durationSeconds: number;
+}): void {
+  const checkPromise = checkPlausibility(input);
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(
+      () => reject(new Error("anticheat_timeout")),
+      PLAUSIBILITY_TIMEOUT_MS,
+    );
+  });
+
+  Promise.race([checkPromise, timeoutPromise])
+    .then(async (result) => {
+      try {
+        await getSupabaseService()
+          .from("v2_duels")
+          .update({ plausibility_check: result })
+          .eq("id", input.duelId);
+      } catch (err) {
+        console.warn("[anticheat] db write failed", input.duelId, err);
+      }
+    })
+    .catch((err) => {
+      console.warn("[anticheat] check failed", input.duelId, err);
+    });
+  // Deliberately no return value — fire-and-forget.
+}
+
 // ─── public: triggerSettle ─────────────────────────────────────────────────
 
-export async function triggerSettle(matchId: string): Promise<SettleResult> {
+export async function triggerSettle(
+  matchId: string,
+  opts?: { gameType?: GameType },
+): Promise<SettleResult> {
   const current = await readDuel(matchId);
   if (!current) throw new Error(`triggerSettle: match ${matchId} not found`);
 
@@ -190,6 +242,32 @@ export async function triggerSettle(matchId: string): Promise<SettleResult> {
     })
     .eq("id", matchId);
 
+  // Fire-and-forget anti-cheat audit. No await, no throw — see
+  // firePlausibilityCheckAsync for the error-containment contract.
+  // Skipped when caller didn't provide gameType (callers that have not
+  // been updated to flow gameType through remain backward-compatible).
+  if (opts?.gameType && claimed.matched_at) {
+    const durationSeconds = Math.max(
+      0,
+      Math.round(
+        (Date.now() - new Date(claimed.matched_at).getTime()) / 1000,
+      ),
+    );
+    const winnerIsP1 =
+      winner === normalizeAddress(claimed.player1_address);
+    firePlausibilityCheckAsync({
+      duelId: matchId,
+      gameType: opts.gameType,
+      winnerScore: winnerIsP1
+        ? (claimed.player1_score ?? 0)
+        : (claimed.player2_score ?? 0),
+      loserScore: winnerIsP1
+        ? (claimed.player2_score ?? 0)
+        : (claimed.player1_score ?? 0),
+      durationSeconds,
+    });
+  }
+
   return { settled: true, winner, settleTxHash: hash, kind: "settle" };
 }
 
@@ -208,6 +286,7 @@ const WALKOVER_THRESHOLD_MS = PLAY_WINDOW_MS + SUBMIT_GRACE_MS;
  */
 export async function checkAndTriggerWalkover(
   matchId: string,
+  opts?: { gameType?: GameType },
 ): Promise<SettleResult> {
   const current = await readDuel(matchId);
   if (!current) return { settled: false, winner: null, settleTxHash: null, kind: "noop" };
@@ -284,6 +363,31 @@ export async function checkAndTriggerWalkover(
       settled_at: new Date().toISOString(),
     })
     .eq("id", matchId);
+
+  // Fire-and-forget anti-cheat audit. Walkovers still get audited — the
+  // submitter's score can be inflated even when the opponent never shows.
+  // loserScore falls to 0 naturally via ?? 0 on the null abandoner row.
+  if (opts?.gameType && claimed.matched_at) {
+    const durationSeconds = Math.max(
+      0,
+      Math.round(
+        (Date.now() - new Date(claimed.matched_at).getTime()) / 1000,
+      ),
+    );
+    const winnerIsP1 =
+      winner === normalizeAddress(claimed.player1_address);
+    firePlausibilityCheckAsync({
+      duelId: matchId,
+      gameType: opts.gameType,
+      winnerScore: winnerIsP1
+        ? (claimed.player1_score ?? 0)
+        : (claimed.player2_score ?? 0),
+      loserScore: winnerIsP1
+        ? (claimed.player2_score ?? 0)
+        : (claimed.player1_score ?? 0),
+      durationSeconds,
+    });
+  }
 
   return { settled: true, winner, settleTxHash: hash, kind: "walkover" };
 }
