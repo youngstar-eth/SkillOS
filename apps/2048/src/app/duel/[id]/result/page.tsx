@@ -11,6 +11,7 @@ import {
   truncateAddress,
   type MatchObject,
 } from "@skillbase/ui";
+import { AICoach } from "@/components/AICoach";
 
 type PageProps = { params: { id: string } };
 
@@ -151,6 +152,17 @@ export default function ResultPage({ params }: PageProps) {
             </a>
           )}
         </div>
+
+        {/*
+         * Only render AICoach once the match is fully settled. A "pending"
+         * or mid-submission state would 409 from the coach endpoint — we
+         * could show it anyway and rely on the error fallback, but hiding
+         * the card until it can actually produce a response keeps the UX
+         * cleaner.
+         */}
+        {match.status === "settled" && address && (
+          <AICoach matchId={match.matchId} player={address} />
+        )}
 
         <div className="flex flex-col gap-2">
           <Link
