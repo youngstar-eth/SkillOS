@@ -18,6 +18,7 @@ import type { NextRequest } from "next/server";
 import { getAddress, type Hex } from "viem";
 import { PLAY_WINDOW_MS, STAKE_AMOUNT, SUBMIT_GRACE_MS } from "@skillbase/contracts";
 import type { Duel } from "@skillbase/game-types";
+import type { GameType } from "@skillbase/ai-coach";
 import {
   bytes32FromUuid,
   generateSeed,
@@ -40,6 +41,12 @@ import { checkAndTriggerWalkover, triggerSettle } from "./settle";
 export interface DuelHandlerConfig {
   /** bytes32 hex (keccak256 of the game name). See @skillbase/contracts. */
   gameSlug: Hex;
+  /**
+   * Optional game-type literal forwarded into settle/walkover hooks for
+   * the fire-and-forget anti-cheat audit. Omit on handlers that don't
+   * touch settle (queue, accept-tx).
+   */
+  gameType?: GameType;
 }
 
 // ─── queue ─────────────────────────────────────────────────────────────────
@@ -267,7 +274,7 @@ export function createAcceptTxHandler(_config: DuelHandlerConfig) {
  * window + grace has elapsed, this endpoint triggers walkover() on-chain
  * before returning. Polling the status is itself the trigger — no cron.
  */
-export function createStatusHandler(_config: DuelHandlerConfig) {
+export function createStatusHandler(config: DuelHandlerConfig) {
   return async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const matchId = searchParams.get("matchId");
@@ -285,7 +292,7 @@ export function createStatusHandler(_config: DuelHandlerConfig) {
       // reflects any freshly-flipped state. Errors here are non-fatal — if
       // the on-chain call is flaky, we still serve a status.
       try {
-        await checkAndTriggerWalkover(matchId);
+        await checkAndTriggerWalkover(matchId, { gameType: config.gameType });
       } catch (err) {
         console.error("[status] walkover check failed", matchId, err);
       }
@@ -351,7 +358,7 @@ const SCORE_MAX = 50_000;
  * V1 trust-client: we do not replay the game server-side. V2 roadmap:
  * submit a verifiable game log + seed proof.
  */
-export function createSubmitHandler(_config: DuelHandlerConfig) {
+export function createSubmitHandler(config: DuelHandlerConfig) {
   return async function POST(req: NextRequest) {
     let body: unknown;
     try {
@@ -482,7 +489,7 @@ export function createSubmitHandler(_config: DuelHandlerConfig) {
     // Both scores in — fire the settle. Errors bubble up as 500 so the
     // client can retry via the status endpoint.
     try {
-      const result = await triggerSettle(matchId);
+      const result = await triggerSettle(matchId, { gameType: config.gameType });
       return jsonOk({
         submitted: true,
         settled: result.settled,
