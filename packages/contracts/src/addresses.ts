@@ -26,6 +26,12 @@ export const CHALLENGE_ESCROW_ADDRESS = (process.env
   .NEXT_PUBLIC_CHALLENGE_ESCROW_ADDRESS ??
   "0x52e5E45456DeC882048b430a968Cda6061575be0") as Address;
 
+// F4 TournamentPool — Base Sepolia. Mainnet entry will be added after
+// sweepstakes legal review; until then this is testnet-only.
+export const TOURNAMENT_POOL_ADDRESS = (process.env
+  .NEXT_PUBLIC_TOURNAMENT_POOL_ADDRESS ??
+  "0xc5d13168908E29496B7C5072b08d06C2c65290F8") as Address;
+
 export const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ??
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e") as Address;
 

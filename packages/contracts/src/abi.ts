@@ -149,6 +149,167 @@ export const CHALLENGE_ESCROW_ABI = [
   { type: "error", name: "ZeroDuration", inputs: [] },
 ] as const;
 
+// ─── TournamentPool ABI (backend subset) ──────────────────────────────────
+//
+// Surface kept minimal: only the functions the backend cron + submit endpoint
+// call, plus the events and errors needed for receipt decoding.
+// Extracted from contracts/out/TournamentPool.sol/TournamentPool.json.
+
+export const TOURNAMENT_POOL_ABI = [
+  {
+    type: "function",
+    name: "createTournament",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "game", type: "bytes32" },
+      { name: "cycleType", type: "uint8" },
+      { name: "startsAt", type: "uint64" },
+      { name: "endsAt", type: "uint64" },
+      { name: "prizePool", type: "uint256" },
+      { name: "participationBonus", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "submitScore",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "player", type: "address" },
+      { name: "score", type: "uint256" },
+      { name: "matchCountDelta", type: "uint256" },
+      { name: "nonce", type: "bytes32" },
+      { name: "signature", type: "bytes" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "flagScore",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "player", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "settle",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "sortedRanking", type: "address[]" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getParticipants",
+    stateMutability: "view",
+    inputs: [{ name: "id", type: "bytes32" }],
+    outputs: [{ name: "", type: "address[]" }],
+  },
+  {
+    type: "function",
+    name: "effectiveScoreOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "player", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "isParticipant",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "bytes32" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "bestScore",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "bytes32" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "matchCount",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "bytes32" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "TournamentCreated",
+    inputs: [
+      { name: "id", type: "bytes32", indexed: true },
+      { name: "sponsor", type: "address", indexed: true },
+      { name: "game", type: "bytes32", indexed: true },
+      { name: "cycleType", type: "uint8", indexed: false },
+      { name: "startsAt", type: "uint64", indexed: false },
+      { name: "endsAt", type: "uint64", indexed: false },
+      { name: "prizePool", type: "uint256", indexed: false },
+      { name: "participationBonus", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "ScoreSubmitted",
+    inputs: [
+      { name: "id", type: "bytes32", indexed: true },
+      { name: "player", type: "address", indexed: true },
+      { name: "score", type: "uint256", indexed: false },
+      { name: "matchCountDelta", type: "uint256", indexed: false },
+      { name: "nonce", type: "bytes32", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "TournamentSettled",
+    inputs: [
+      { name: "id", type: "bytes32", indexed: true },
+      { name: "totalDistributed", type: "uint256", indexed: false },
+      { name: "refunded", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+
+  // ─── Custom errors ────────────────────────────────────────────────────
+  { type: "error", name: "TournamentNotFound", inputs: [] },
+  { type: "error", name: "TournamentAlreadyExists", inputs: [] },
+  { type: "error", name: "TournamentAlreadySettled", inputs: [] },
+  { type: "error", name: "TournamentNotEnded", inputs: [] },
+  { type: "error", name: "TournamentAlreadyEnded", inputs: [] },
+  { type: "error", name: "TournamentNotStarted", inputs: [] },
+  { type: "error", name: "InvalidWindow", inputs: [] },
+  { type: "error", name: "ZeroPrize", inputs: [] },
+  { type: "error", name: "ZeroAddress", inputs: [] },
+  { type: "error", name: "BadSignature", inputs: [] },
+  { type: "error", name: "NonceUsed", inputs: [] },
+  { type: "error", name: "PlayerNotInTournament", inputs: [] },
+  { type: "error", name: "InvalidRankingLength", inputs: [] },
+  { type: "error", name: "InvalidRankingOrder", inputs: [] },
+  { type: "error", name: "NotParticipant", inputs: [] },
+  { type: "error", name: "PlayerExcluded", inputs: [] },
+  { type: "error", name: "DuplicateInRanking", inputs: [] },
+] as const;
+
 // ─── ERC20 (USDC) ABI — approve / balanceOf / allowance ────────────────────
 
 export const ERC20_ABI = [
