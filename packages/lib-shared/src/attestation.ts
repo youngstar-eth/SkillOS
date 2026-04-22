@@ -20,7 +20,11 @@ import {
   keccak256,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { CHAIN_ID, CHALLENGE_ESCROW_ADDRESS } from "@skillbase/contracts";
+import {
+  CHAIN_ID,
+  CHALLENGE_ESCROW_ADDRESS,
+  TOURNAMENT_POOL_ADDRESS,
+} from "@skillbase/contracts";
 
 function requireSignerAccount() {
   const key = process.env.STUDIO_PRIVATE_KEY;
@@ -117,4 +121,52 @@ export async function signWalkoverAttestation(params: {
   winner: Address;
 }): Promise<Hex> {
   return signDigest(buildWalkoverDigest(params));
+}
+
+/**
+ * Build the tournament submit digest.
+ * Mirrors: keccak256(abi.encode(id, player, score, matchCountDelta, nonce,
+ *                               address(this), block.chainid))
+ * in TournamentPool._verifySubmitSignature. Any field drift and submitScore
+ * reverts with BadSignature.
+ */
+export function buildTournamentSubmitDigest(params: {
+  tournamentId: Hex;
+  player: Address;
+  score: bigint;
+  matchCountDelta: bigint;
+  nonce: Hex;
+}): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: "bytes32" },
+        { type: "address" },
+        { type: "uint256" },
+        { type: "uint256" },
+        { type: "bytes32" },
+        { type: "address" },
+        { type: "uint256" },
+      ],
+      [
+        params.tournamentId,
+        params.player,
+        params.score,
+        params.matchCountDelta,
+        params.nonce,
+        TOURNAMENT_POOL_ADDRESS,
+        BigInt(CHAIN_ID),
+      ],
+    ),
+  );
+}
+
+export async function signTournamentSubmitAttestation(params: {
+  tournamentId: Hex;
+  player: Address;
+  score: bigint;
+  matchCountDelta: bigint;
+  nonce: Hex;
+}): Promise<Hex> {
+  return signDigest(buildTournamentSubmitDigest(params));
 }
