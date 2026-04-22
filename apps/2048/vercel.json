@@ -3,11 +3,12 @@
   "crons": [
     {
       "path": "/api/cron/create-tournaments",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/settle-tournaments",
-      "schedule": "*/5 * * * *"
+      "schedule": "5 0 * * *"
     }
   ]
 }
+
