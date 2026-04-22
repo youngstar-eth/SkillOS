@@ -12,6 +12,7 @@ import {
   type MatchObject,
 } from "@skillbase/ui";
 import { AICoach } from "@/components/AICoach";
+import { TournamentInvite } from "@/components/TournamentInvite";
 import { AIRecap } from "@/components/AIRecap";
 import { AIReviewedBadge } from "@/components/AIReviewedBadge";
 
@@ -167,6 +168,21 @@ export default function ResultPage({ params }: PageProps) {
 
         {match.status === "settled" && address && (
           <AICoach matchId={match.matchId} player={address} />
+        )}
+
+
+        {/*
+         * Tournament invite — only for winners of settled matches. Component
+         * self-gates on "active daily tournament exists" (returns null
+         * otherwise). Placed below Coach so the tournament pitch comes as
+         * the last card, right above the "Play again" CTA.
+         */}
+        {match.status === "settled" && outcome === "win" && address && (
+          <TournamentInvite
+            matchId={match.matchId}
+            player={address}
+            score={myScore}
+          />
         )}
 
         <div className="flex flex-col gap-2">

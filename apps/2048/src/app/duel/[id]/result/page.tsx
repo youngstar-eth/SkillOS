@@ -14,6 +14,7 @@ import {
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";
 import { AIReviewedBadge } from "@/components/AIReviewedBadge";
+import { TournamentInvite } from "@/components/TournamentInvite";
 
 type PageProps = { params: { id: string } };
 
@@ -186,6 +187,20 @@ export default function ResultPage({ params }: PageProps) {
          */}
         {match.status === "settled" && address && (
           <AICoach matchId={match.matchId} player={address} />
+        )}
+
+        {/*
+         * Tournament invite — only for winners of settled matches. Component
+         * self-gates on "active daily tournament exists" (returns null
+         * otherwise). Placed below Coach so the tournament pitch comes as
+         * the last card, right above the "Play again" CTA.
+         */}
+        {match.status === "settled" && outcome === "win" && address && (
+          <TournamentInvite
+            matchId={match.matchId}
+            player={address}
+            score={myScore}
+          />
         )}
 
         <div className="flex flex-col gap-2">
