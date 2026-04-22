@@ -4,6 +4,7 @@ export * from "./api/coach";
 export * from "./api/recap";
 export * from "./api/plausibility";
 export * from "./api/admin/flags";
+export * from "./api/admin/reconcile";
 export * from "./api/tournaments/submit";
 export * from "./api/tournaments/list";
 export * from "./cron/tournaments";
