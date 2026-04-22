@@ -13,6 +13,7 @@ import {
 } from "@skillbase/ui";
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";
+import { AIReviewedBadge } from "@/components/AIReviewedBadge";
 
 type PageProps = { params: { id: string } };
 
@@ -151,6 +152,12 @@ export default function ResultPage({ params }: PageProps) {
             >
               View settle tx on Basescan ↗
             </a>
+          )}
+
+          {match.status === "settled" && (
+            <div className="mt-5">
+              <AIReviewedBadge matchId={match.matchId} />
+            </div>
           )}
         </div>
 
