@@ -13,6 +13,7 @@ import {
 } from "@skillbase/ui";
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";
+import { AIReviewedBadge } from "@/components/AIReviewedBadge";
 
 type PageProps = { params: { id: string } };
 
@@ -151,6 +152,18 @@ export default function ResultPage({ params }: PageProps) {
             >
               View settle tx on Basescan ↗
             </a>
+          )}
+
+          {/*
+           * Trust signal pill — anti-cheat audit verdict (user-safe).
+           * Lives INSIDE the score card so the verification is visually
+           * attached to the final result, not mixed with the narrative
+           * cards (recap/coach) below. Hidden entirely on fetch error.
+           */}
+          {match.status === "settled" && (
+            <div className="mt-5">
+              <AIReviewedBadge matchId={match.matchId} />
+            </div>
           )}
         </div>
 
