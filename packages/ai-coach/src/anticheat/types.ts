@@ -53,4 +53,6 @@ export interface PlausibilityResponse {
   reviewedAt: string;
   /** Pinned so the admin audit path can tell which model judged. */
   modelVersion: string;
+  /** Echoed from the request so the admin endpoint can filter by game. */
+  gameType: GameType;
 }

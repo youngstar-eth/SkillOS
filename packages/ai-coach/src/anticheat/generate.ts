@@ -160,5 +160,6 @@ export async function checkPlausibility(
     ...parsed,
     reviewedAt: new Date().toISOString(),
     modelVersion: MODEL,
+    gameType: req.gameType,
   };
 }
