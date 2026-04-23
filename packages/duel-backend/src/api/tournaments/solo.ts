@@ -75,6 +75,7 @@ import {
   TOURNAMENT_POOL_V2_ADDRESS,
 } from "@skillbase/contracts";
 import { checkPlausibility, type GameType } from "@skillbase/ai-coach";
+import { waitUntil } from "@vercel/functions";
 import {
   getPublicClient,
   getSupabaseService,
@@ -152,6 +153,10 @@ function toGameType(game: TournamentGame): GameType {
  *   - caller does not await (return type void)
  *   - no thrown error escapes; all failures logged and swallowed
  *   - 10s timeout ensures a hung Haiku call doesn't hang the event loop
+ *   - registered with Vercel `waitUntil` so the serverless container is kept
+ *     alive past the response until this work completes — without it, fast
+ *     solo submits (~500ms response) may be cut short by container freeze
+ *     before the 3-5s Haiku call lands, orphaning plausibility_check=NULL
  *
  * On success, writes the full PlausibilityResponse to
  * v2_tournament_solo_runs.plausibility_check. On any failure (Haiku down,
@@ -180,7 +185,7 @@ function firePlausibilityCheckAsync(input: {
     );
   });
 
-  Promise.race([checkPromise, timeoutPromise])
+  const job = Promise.race([checkPromise, timeoutPromise])
     .then(async (result) => {
       try {
         await getSupabaseService()
@@ -198,6 +203,10 @@ function firePlausibilityCheckAsync(input: {
     .catch((err) => {
       console.warn("[solo-anticheat] check failed", input.soloRunId, err);
     });
+
+  // Hand the job to Vercel's container-lifetime manager so it survives past
+  // response-send. No-op in local dev (`waitUntil` returns undefined).
+  waitUntil(job);
 }
 
 export function createTournamentSoloHandler(

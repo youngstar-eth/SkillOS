@@ -30,6 +30,7 @@ import {
   SUBMIT_GRACE_MS,
 } from "@skillbase/contracts";
 import { checkPlausibility, type GameType } from "@skillbase/ai-coach";
+import { waitUntil } from "@vercel/functions";
 import type { Duel } from "@skillbase/game-types";
 import {
   bytes32FromUuid,
@@ -148,6 +149,12 @@ const PLAUSIBILITY_TIMEOUT_MS = 10_000;
  *   - no thrown error escapes; all failures are logged and swallowed
  *   - a 10s timeout ensures a hung Haiku call cannot stall background work
  *     indefinitely — settle's own return already fired by then
+ *   - registered with Vercel `waitUntil` so the serverless container is kept
+ *     alive past the response until this work completes. Historically this
+ *     has worked in production because settle's own receipt-await keeps the
+ *     container alive long enough naturally, but we don't want to rely on
+ *     that coincidence — the solo submit path (~500ms response) revealed it
+ *     as a real risk, so we apply the same discipline here.
  *
  * On success, writes the full PlausibilityResponse to
  * v2_duels.plausibility_check. On any failure (Haiku down, timeout, DB
@@ -169,7 +176,7 @@ function firePlausibilityCheckAsync(input: {
     );
   });
 
-  Promise.race([checkPromise, timeoutPromise])
+  const job = Promise.race([checkPromise, timeoutPromise])
     .then(async (result) => {
       try {
         await getSupabaseService()
@@ -183,7 +190,11 @@ function firePlausibilityCheckAsync(input: {
     .catch((err) => {
       console.warn("[anticheat] check failed", input.duelId, err);
     });
-  // Deliberately no return value — fire-and-forget.
+
+  // Hand the job to Vercel's container-lifetime manager so it survives past
+  // response-send. No-op in local dev (`waitUntil` returns undefined).
+  waitUntil(job);
+  // Deliberately no return value — fire-and-forget from the caller's POV.
 }
 
 // ─── public: triggerSettle ─────────────────────────────────────────────────
