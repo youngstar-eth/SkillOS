@@ -36,7 +36,7 @@ import {
 import {
   ERC20_ABI,
   TOURNAMENT_POOL_ABI,
-  TOURNAMENT_POOL_ADDRESS,
+  TOURNAMENT_POOL_V2_ADDRESS,
   USDC_ADDRESS,
 } from "@skillbase/contracts";
 import {
@@ -131,7 +131,7 @@ async function ensureUsdcAllowance(sponsor: Address, need: bigint): Promise<void
     address: USDC_ADDRESS,
     abi: ERC20_ABI,
     functionName: "allowance",
-    args: [sponsor, TOURNAMENT_POOL_ADDRESS],
+    args: [sponsor, TOURNAMENT_POOL_V2_ADDRESS],
   })) as bigint;
   if (current >= need) return;
 
@@ -142,7 +142,7 @@ async function ensureUsdcAllowance(sponsor: Address, need: bigint): Promise<void
     functionName: "approve",
     // Max allowance — one approval covers all future createTournament calls
     // from this sponsor wallet.
-    args: [TOURNAMENT_POOL_ADDRESS, 2n ** 256n - 1n],
+    args: [TOURNAMENT_POOL_V2_ADDRESS, 2n ** 256n - 1n],
     account: walletClient.account ?? null,
     chain: walletClient.chain,
   });
@@ -252,7 +252,7 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
     let txHash: Hex;
     try {
       txHash = await walletClient.writeContract({
-        address: TOURNAMENT_POOL_ADDRESS,
+        address: TOURNAMENT_POOL_V2_ADDRESS,
         abi: TOURNAMENT_POOL_ABI,
         functionName: "createTournament",
         args: [
@@ -415,7 +415,7 @@ export async function runSettleTournaments(): Promise<SettleTournamentsResult> {
         const player = getAddress(e.player_address);
         try {
           const flagHash = await walletClient.writeContract({
-            address: TOURNAMENT_POOL_ADDRESS,
+            address: TOURNAMENT_POOL_V2_ADDRESS,
             abi: TOURNAMENT_POOL_ABI,
             functionName: "flagScore",
             args: [onChainId, player],
@@ -458,7 +458,7 @@ export async function runSettleTournaments(): Promise<SettleTournamentsResult> {
       let settleHash: Hex;
       try {
         settleHash = await walletClient.writeContract({
-          address: TOURNAMENT_POOL_ADDRESS,
+          address: TOURNAMENT_POOL_V2_ADDRESS,
           abi: TOURNAMENT_POOL_ABI,
           functionName: "settle",
           args: [onChainId, ranking],

@@ -23,7 +23,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import {
   CHAIN_ID,
   CHALLENGE_ESCROW_ADDRESS,
-  TOURNAMENT_POOL_ADDRESS,
+  TOURNAMENT_POOL_V2_ADDRESS,
 } from "@skillbase/contracts";
 
 function requireSignerAccount() {
@@ -129,6 +129,10 @@ export async function signWalkoverAttestation(params: {
  *                               address(this), block.chainid))
  * in TournamentPool._verifySubmitSignature. Any field drift and submitScore
  * reverts with BadSignature.
+ *
+ * Targets V2 pool address. V1 at TOURNAMENT_POOL_ADDRESS is rollback-only;
+ * any active duel-path submission post-v2-cutover writes to V2, so the
+ * digest must include the V2 contract address.
  */
 export function buildTournamentSubmitDigest(params: {
   tournamentId: Hex;
@@ -154,7 +158,7 @@ export function buildTournamentSubmitDigest(params: {
         params.score,
         params.matchCountDelta,
         params.nonce,
-        TOURNAMENT_POOL_ADDRESS,
+        TOURNAMENT_POOL_V2_ADDRESS,
         BigInt(CHAIN_ID),
       ],
     ),
@@ -169,4 +173,57 @@ export async function signTournamentSubmitAttestation(params: {
   nonce: Hex;
 }): Promise<Hex> {
   return signDigest(buildTournamentSubmitDigest(params));
+}
+
+/**
+ * Build the tournament solo-submit digest (v2).
+ * Mirrors: keccak256(abi.encode(id, player, score, soloRunId, matchCountDelta,
+ *                               nonce, address(this), block.chainid))
+ * in TournamentPool._verifySoloSubmitSignature. Extra soloRunId field vs the
+ * duel digest means signatures cannot collide across functions even with the
+ * shared usedNonces map. Targets V2 contract — v1 has no submitSoloScore.
+ */
+export function buildTournamentSoloSubmitDigest(params: {
+  tournamentId: Hex;
+  player: Address;
+  score: bigint;
+  soloRunId: Hex;
+  matchCountDelta: bigint;
+  nonce: Hex;
+}): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: "bytes32" },
+        { type: "address" },
+        { type: "uint256" },
+        { type: "bytes32" },
+        { type: "uint256" },
+        { type: "bytes32" },
+        { type: "address" },
+        { type: "uint256" },
+      ],
+      [
+        params.tournamentId,
+        params.player,
+        params.score,
+        params.soloRunId,
+        params.matchCountDelta,
+        params.nonce,
+        TOURNAMENT_POOL_V2_ADDRESS,
+        BigInt(CHAIN_ID),
+      ],
+    ),
+  );
+}
+
+export async function signTournamentSoloSubmitAttestation(params: {
+  tournamentId: Hex;
+  player: Address;
+  score: bigint;
+  soloRunId: Hex;
+  matchCountDelta: bigint;
+  nonce: Hex;
+}): Promise<Hex> {
+  return signDigest(buildTournamentSoloSubmitDigest(params));
 }

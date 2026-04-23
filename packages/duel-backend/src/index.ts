@@ -6,5 +6,6 @@ export * from "./api/plausibility";
 export * from "./api/admin/flags";
 export * from "./api/admin/reconcile";
 export * from "./api/tournaments/submit";
+export * from "./api/tournaments/solo";
 export * from "./api/tournaments/list";
 export * from "./cron/tournaments";

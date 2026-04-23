@@ -275,12 +275,44 @@ function TournamentSection({ tournament }: { tournament: Tournament }) {
 
       <PrizeCurve points={curve} />
 
+      {/* Solo CTA — primary path into the tournament.
+          Sits between the "why play" (prize pool + curve) and "who's winning"
+          (leaderboard) sections; the middle slot frames it as the action
+          that connects the two. Uses the same fee-transparency language as
+          /tournament/solo so the sweepstakes-safe posture is consistent
+          wherever the player encounters the decision point. */}
+      {!tournament.settledAt && <SoloCTA />}
+
       {/* Leaderboard */}
       <Leaderboard
         entries={leaderboard}
         tournamentSettled={!!tournament.settledAt}
       />
     </section>
+  );
+}
+
+// ─── Solo CTA ─────────────────────────────────────────────────────────────
+
+function SoloCTA() {
+  return (
+    <div className="mt-6 flex flex-col items-center gap-3 rounded-xl border border-skill/40 bg-skill/5 p-5 sm:flex-row sm:justify-between">
+      <div>
+        <p className="text-sm font-semibold text-neutral-100">
+          Play solo to enter
+        </p>
+        <p className="mt-1 text-xs text-neutral-400">
+          First entry free. Retries cost 1.00 USDC and fund platform
+          operations — they don't touch the prize pool.
+        </p>
+      </div>
+      <Link
+        href="/tournament/solo"
+        className="whitespace-nowrap rounded-lg bg-skill px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
+      >
+        Play solo →
+      </Link>
+    </div>
   );
 }
 

@@ -41,8 +41,9 @@ import { randomBytes } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { type Hex, getAddress } from "viem";
 import {
+  MATCH_COUNT_CAP,
   TOURNAMENT_POOL_ABI,
-  TOURNAMENT_POOL_ADDRESS,
+  TOURNAMENT_POOL_V2_ADDRESS,
 } from "@skillbase/contracts";
 import type { Duel } from "@skillbase/game-types";
 import {
@@ -97,13 +98,21 @@ type DuelWithPlausibility = Duel & {
   plausibility_check: { verdict?: string } | null;
 };
 
-/** Stored effective rank = best_score*85 + match_count*bonus*15 (matches contract integer math). */
+/**
+ * Stored effective rank score — mirrors v2 contract's _computeEffectiveScore:
+ *   best * 85 + min(match_count, MATCH_COUNT_CAP) * bonus * 15
+ * Cap was added in v2 to keep paid retries from dominating skill signal. For
+ * duel-path entries that never paid retries, this has no observable effect
+ * (players rarely win 10+ duels in a single tournament cycle) but keeps DB
+ * ranking in lockstep with on-chain ranking for settle verification.
+ */
 function computeEffectiveRankScore(
   bestScore: number,
   matchCount: number,
   bonus: number,
 ): number {
-  return bestScore * 85 + matchCount * bonus * 15;
+  const capped = Math.min(matchCount, Number(MATCH_COUNT_CAP));
+  return bestScore * 85 + capped * bonus * 15;
 }
 
 /** Generate a 32-byte random nonce hex, unique per submission attempt. */
@@ -292,7 +301,7 @@ export function createTournamentSubmitHandler(
     try {
       const walletClient = getWalletClient();
       txHash = await walletClient.writeContract({
-        address: TOURNAMENT_POOL_ADDRESS,
+        address: TOURNAMENT_POOL_V2_ADDRESS,
         abi: TOURNAMENT_POOL_ABI,
         functionName: "submitScore",
         args: [
@@ -364,6 +373,16 @@ export function createTournamentSubmitHandler(
       match_count: nextMatchCount,
       effective_rank_score: nextEffective,
       source_duel_ids: nextSourceDuelIds,
+      // v2: tag the duel path explicitly + zero the fee tracking.
+      // `source` reflects the most recent submission's origin; a player with
+      // prior solo retries still gets their entry flipped to 'duel' here on
+      // their next duel win (subjective but consistent — see solo.ts).
+      // `paid_retries_count` + `total_fee_paid_usdc` carry over unchanged
+      // (duel never increments them). We omit them from the upsert rather
+      // than reading+writing-same, since UPSERT INSERT path starts at 0
+      // (DB defaults) and UPDATE path preserves existing values when the
+      // column isn't in the payload.
+      source: "duel" as const,
     };
 
     const { error: upsertErr } = await supabase
@@ -394,7 +413,7 @@ export function createTournamentSubmitHandler(
     }
     const rank = (higher ?? 0) + 1;
 
-    return jsonOk({
+    const response = jsonOk({
       submitted: true,
       rank,
       signature,
@@ -402,6 +421,11 @@ export function createTournamentSubmitHandler(
       bestScore: nextBest,
       matchCount: nextMatchCount,
       effectiveRankScore: nextEffective,
+      source: "duel" as const,
     });
+    // Telemetry header so downstream logs / proxies can distinguish duel vs
+    // solo paths at the edge without parsing the body.
+    response.headers.set("X-Tournament-Submit-Source", "duel");
+    return response;
   };
 }
