@@ -52,10 +52,12 @@ contract DeployTournamentPool is Script {
 
         vm.stopBroadcast();
 
-        console2.log("=== Deployed ===");
+        console2.log("=== Deployed (v2 - solo + retry fee) ===");
         console2.log("TournamentPool:", address(pool));
         console2.log("Owner:         ", pool.owner());
         console2.log("SCORE_WEIGHT:         ", pool.SCORE_WEIGHT());
         console2.log("PARTICIPATION_WEIGHT: ", pool.PARTICIPATION_WEIGHT());
+        console2.log("MATCH_COUNT_CAP:      ", pool.MATCH_COUNT_CAP());
+        console2.log("RETRY_FEE (USDC atoms):", pool.RETRY_FEE());
     }
 }

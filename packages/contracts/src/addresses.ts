@@ -26,11 +26,20 @@ export const CHALLENGE_ESCROW_ADDRESS = (process.env
   .NEXT_PUBLIC_CHALLENGE_ESCROW_ADDRESS ??
   "0x52e5E45456DeC882048b430a968Cda6061575be0") as Address;
 
-// F4 TournamentPool — Base Sepolia. Mainnet entry will be added after
-// sweepstakes legal review; until then this is testnet-only.
+// F4 TournamentPool v1 (duel-gated submit) — Base Sepolia.
+// Preserved for rollback only; no new code paths should route here.
+// All active flows target TOURNAMENT_POOL_V2_ADDRESS.
 export const TOURNAMENT_POOL_ADDRESS = (process.env
   .NEXT_PUBLIC_TOURNAMENT_POOL_ADDRESS ??
   "0xc5d13168908E29496B7C5072b08d06C2c65290F8") as Address;
+
+// F4 TournamentPool v2 (solo submit primary + paid retry) — Base Sepolia, deployed 2026-04-23.
+// Basescan: https://sepolia.basescan.org/address/0x5CadD5557B7e5182216E4d7c50B35495D93aA9d1
+// Architectural invariant: retry fees (feeCollected) isolated from prize pool.
+// submitSoloScore() enforces feePaidByPlayer ≥ priorSoloCount·RETRY_FEE on-chain.
+export const TOURNAMENT_POOL_V2_ADDRESS = (process.env
+  .NEXT_PUBLIC_TOURNAMENT_POOL_V2_ADDRESS ??
+  "0x5CadD5557B7e5182216E4d7c50B35495D93aA9d1") as Address;
 
 export const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ??
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e") as Address;
@@ -51,3 +60,14 @@ export const PLAY_WINDOW_MS = 2 * 60 * 1000;
 
 /** Extra server-side grace after PLAY_WINDOW_MS before walkover is legal. */
 export const SUBMIT_GRACE_MS = 30 * 1000;
+
+// ─── Tournaments v2 constants ──────────────────────────────────────────────
+
+/** Retry fee per paid solo submission — 1 USDC (6 decimals). Matches contract RETRY_FEE. */
+export const RETRY_FEE = 1_000_000n;
+
+/** Match-count cap applied in on-chain effective score. Matches contract MATCH_COUNT_CAP. */
+export const MATCH_COUNT_CAP = 10n;
+
+/** Rate limit between solo submissions from a single player on a single tournament. */
+export const SOLO_SUBMIT_COOLDOWN_MS = 60 * 1000;

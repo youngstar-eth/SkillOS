@@ -8,14 +8,24 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /// @title TournamentPool
-/// @notice Sponsored sweepstakes tournaments — free entry, sponsor-funded prizes.
+/// @notice Sponsored sweepstakes tournaments — free entry + paid retry on solo path.
 /// @author ceos.run (Simpl3 Inc.)
 /// @dev Flow:
 ///   1. Sponsor calls createTournament() — deposits prize pool in USDC.
-///   2. Backend signs EIP-191 attestations; anyone relays submitScore().
+///   2a. Duel path (legacy): backend signs EIP-191 attestations; anyone relays submitScore().
+///   2b. Solo path (v2): first solo submission is free. For 2+ solo submissions, the
+///       player must first call chargeRetryFee() (pays RETRY_FEE USDC). submitSoloScore()
+///       enforces on-chain: N-th solo submission (N≥2) requires (N-1)·RETRY_FEE paid.
 ///   3. Backend flags implausible scores via flagScore() before settle.
 ///   4. After endsAt, anyone calls settle(id, sortedRanking) — contract verifies
 ///      the caller-supplied ordering and distributes per the top-50% curve.
+///   5. Owner calls withdrawFees(id, to) at any time to pull collected retry fees
+///      to the team wallet — completely separate from prize allocation.
+///
+/// Architectural invariant (sweepstakes posture):
+///   Retry fees flow into feeCollected[id]; prize pool flows from createTournament's
+///   deposit. These two buckets NEVER mix. withdrawFees() can only draw from
+///   feeCollected. settle() can only draw from the prize pool. Tested explicitly.
 ///
 /// Prize curve (top 50% = ceil(N/2), applied in bps of prizePool):
 ///   place 1 — 2500 bps
@@ -29,8 +39,10 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 /// dust in the tier-5 split) refunds to the sponsor. This preserves the spec's
 /// literal breakdown without inflating top-place shares.
 ///
-/// Effective ranking score (integer math, no division on-chain):
-///   effective(p) = bestScore(p) * 85 + matchCount(p) * participationBonus * 15
+/// Effective ranking score (integer math, no division on-chain, match count capped
+/// at MATCH_COUNT_CAP so paid retries don't dominate skill signal):
+///   cappedMc = min(matchCount(p), MATCH_COUNT_CAP)
+///   effective(p) = bestScore(p) * 85 + cappedMc * participationBonus * 15
 /// Ties are resolved by caller-supplied order — the contract only verifies
 /// monotonic-descending effective scores, not that the order is canonical.
 contract TournamentPool is Ownable, ReentrancyGuard {
@@ -55,12 +67,20 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     error NotParticipant();
     error PlayerExcluded();
     error DuplicateInRanking();
+    error InsufficientFeePaid();
+    error PlayerMismatch();
 
     // ─── Types ─────────────────────────────────────────────────────────────────
 
     enum CycleType {
         Daily,
         Weekly
+    }
+
+    /// @notice Submission origin — Duel (legacy submitScore) or Solo (submitSoloScore).
+    enum SubmissionSource {
+        Duel,
+        Solo
     }
 
     struct Tournament {
@@ -80,6 +100,16 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         uint256 effectiveScore;
     }
 
+    /// @notice Per-submission audit trail entry (solo or duel).
+    /// @dev    `runId` is duel id for Duel source (zero for legacy submitScore pre-runId),
+    ///         or `soloRunId` passed to submitSoloScore for Solo source.
+    struct Submission {
+        uint256 score;
+        uint256 timestamp;
+        SubmissionSource source;
+        bytes32 runId;
+    }
+
     // ─── Constants ─────────────────────────────────────────────────────────────
 
     uint256 private constant BPS_DENOMINATOR = 10_000;
@@ -89,6 +119,13 @@ contract TournamentPool is Ownable, ReentrancyGuard {
 
     /// @notice Participation weight (x15 in effective score integer math).
     uint256 public constant PARTICIPATION_WEIGHT = 15;
+
+    /// @notice Match-count cap in effective score — paid retries beyond this don't
+    ///         increase the participation component. Prevents fee-for-rank behavior.
+    uint256 public constant MATCH_COUNT_CAP = 10;
+
+    /// @notice Flat retry fee per paid solo submission — 1 USDC (6 decimals).
+    uint256 public constant RETRY_FEE = 1_000_000;
 
     // Prize curve in basis points of prizePool.
     uint256 private constant BPS_PLACE_1 = 2500;
@@ -128,6 +165,21 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     ///         success because a settled tournament can never be settled again.
     mapping(bytes32 => mapping(address => bool)) private _seenInRanking;
 
+    /// @notice Per-tournament, per-player audit trail of submissions (solo + duel).
+    mapping(bytes32 => mapping(address => Submission[])) internal _submissionHistory;
+
+    /// @notice Per-tournament, per-player count of Solo submissions. First solo is free;
+    ///         submitSoloScore enforces priorSolo·RETRY_FEE ≤ feePaidByPlayer before accepting N+1.
+    mapping(bytes32 => mapping(address => uint256)) public soloSubmissionCount;
+
+    /// @notice Per-tournament, per-player cumulative retry fees paid (in USDC atoms).
+    ///         Informational + basis for on-chain enforcement in submitSoloScore.
+    mapping(bytes32 => mapping(address => uint256)) public feePaidByPlayer;
+
+    /// @notice Per-tournament cumulative retry fees collected. Decrements on withdrawFees.
+    ///         MUST NEVER flow into prizePool — architectural invariant (sweepstakes posture).
+    mapping(bytes32 => uint256) public feeCollected;
+
     // ─── Events ────────────────────────────────────────────────────────────────
 
     event TournamentCreated(
@@ -147,6 +199,17 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         uint256 matchCountDelta,
         bytes32 nonce
     );
+    event SoloScoreSubmitted(
+        bytes32 indexed id,
+        address indexed player,
+        uint256 score,
+        uint256 matchCountDelta,
+        bytes32 nonce,
+        bytes32 soloRunId,
+        uint256 priorSoloCount
+    );
+    event RetryFeePaid(bytes32 indexed id, address indexed player, uint256 amount);
+    event FeesWithdrawn(bytes32 indexed id, address indexed to, uint256 amount);
     event ScoreFlagged(bytes32 indexed id, address indexed player);
     event TournamentSettled(bytes32 indexed id, uint256 totalDistributed, uint256 refunded);
     event PrizePaid(bytes32 indexed id, address indexed player, uint256 place, uint256 amount);
@@ -242,7 +305,103 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         }
         matchCount[id][player] += matchCountDelta;
 
+        _submissionHistory[id][player].push(Submission({
+            score: score,
+            timestamp: block.timestamp,
+            source: SubmissionSource.Duel,
+            runId: bytes32(0)
+        }));
+
         emit ScoreSubmitted(id, player, score, matchCountDelta, nonce);
+    }
+
+    /// @notice Submit a solo score via backend-signed attestation.
+    /// @dev    First solo submission per player is free. For N≥2, the player must have
+    ///         already called chargeRetryFee() priorSolo times (i.e. feePaidByPlayer ≥
+    ///         priorSolo·RETRY_FEE). Enforcement is on-chain — even if the backend signer
+    ///         is compromised, fees cannot be skipped without a prior chargeRetryFee tx.
+    ///
+    ///         Digest: keccak256(abi.encode(id, player, score, soloRunId, matchCountDelta,
+    ///                                      nonce, address(this), block.chainid))
+    ///         Uses the global usedNonces map shared with submitScore — digest layouts
+    ///         differ (Solo has extra soloRunId field) so signatures cannot collide.
+    /// @param  id               Tournament identifier.
+    /// @param  player           Player whose solo score is being recorded.
+    /// @param  score            Raw game score.
+    /// @param  soloRunId        Backend-assigned identifier for this solo run (audit trail).
+    /// @param  matchCountDelta  Added to the player's matchCount (typically 1).
+    /// @param  nonce            Unique per-submission nonce (shared nonce space with submitScore).
+    /// @param  signature        ECDSA signature from trustedSigner over the digest.
+    function submitSoloScore(
+        bytes32 id,
+        address player,
+        uint256 score,
+        bytes32 soloRunId,
+        uint256 matchCountDelta,
+        bytes32 nonce,
+        bytes calldata signature
+    )
+        external
+    {
+        Tournament storage t = _tournaments[id];
+        if (t.sponsor == address(0)) revert TournamentNotFound();
+        if (t.settled) revert TournamentAlreadySettled();
+        if (block.timestamp < t.startsAt) revert TournamentNotStarted();
+        if (block.timestamp >= t.endsAt) revert TournamentAlreadyEnded();
+        if (usedNonces[nonce]) revert NonceUsed();
+        if (player == address(0)) revert ZeroAddress();
+
+        _verifySoloSubmitSignature(id, player, score, soloRunId, matchCountDelta, nonce, signature);
+
+        usedNonces[nonce] = true;
+
+        // Retry fee invariant: first solo free; N-th solo (N≥2) requires (N-1)·RETRY_FEE paid.
+        uint256 priorSolo = soloSubmissionCount[id][player];
+        if (priorSolo >= 1 && feePaidByPlayer[id][player] < priorSolo * RETRY_FEE) {
+            revert InsufficientFeePaid();
+        }
+        soloSubmissionCount[id][player] = priorSolo + 1;
+
+        if (!isParticipant[id][player]) {
+            isParticipant[id][player] = true;
+            t.participants.push(player);
+        }
+
+        if (score > bestScore[id][player]) {
+            bestScore[id][player] = score;
+        }
+        matchCount[id][player] += matchCountDelta;
+
+        _submissionHistory[id][player].push(Submission({
+            score: score,
+            timestamp: block.timestamp,
+            source: SubmissionSource.Solo,
+            runId: soloRunId
+        }));
+
+        emit SoloScoreSubmitted(id, player, score, matchCountDelta, nonce, soloRunId, priorSolo);
+    }
+
+    /// @notice Player-initiated retry fee payment — pulls RETRY_FEE USDC from msg.sender.
+    /// @dev    Must be called by the player themselves (msg.sender == player). Separated
+    ///         from submitSoloScore so the two concerns — payment accounting and score
+    ///         submission — have independent state. Each call increments feePaidByPlayer
+    ///         and feeCollected; does NOT touch prizePool under any code path.
+    /// @param  id      Tournament identifier.
+    /// @param  player  Player paying the fee (must equal msg.sender).
+    function chargeRetryFee(bytes32 id, address player) external nonReentrant {
+        if (msg.sender != player) revert PlayerMismatch();
+        Tournament storage t = _tournaments[id];
+        if (t.sponsor == address(0)) revert TournamentNotFound();
+        if (t.settled) revert TournamentAlreadySettled();
+        if (block.timestamp < t.startsAt) revert TournamentNotStarted();
+        if (block.timestamp >= t.endsAt) revert TournamentAlreadyEnded();
+
+        USDC.safeTransferFrom(player, address(this), RETRY_FEE);
+        feePaidByPlayer[id][player] += RETRY_FEE;
+        feeCollected[id] += RETRY_FEE;
+
+        emit RetryFeePaid(id, player, RETRY_FEE);
     }
 
     /// @notice Mark a player as excluded (anti-cheat veto). Must be called before settle.
@@ -296,6 +455,22 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         if (newSigner == address(0)) revert ZeroAddress();
         trustedSigner = newSigner;
         emit TrustedSignerUpdated(newSigner);
+    }
+
+    /// @notice Withdraw collected retry fees for a tournament to the team wallet.
+    /// @dev    Draws strictly from feeCollected[id]; cannot access prizePool. Can be
+    ///         called at any time (before/during/after tournament) — retry fees are
+    ///         independent of prize lifecycle. Uses CEI ordering (state zeroed before
+    ///         transfer) to eliminate reentrancy surface.
+    /// @param  id  Tournament identifier whose collected fees should be withdrawn.
+    /// @param  to  Destination address (team wallet).
+    function withdrawFees(bytes32 id, address to) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
+        uint256 amount = feeCollected[id];
+        if (amount == 0) return;
+        feeCollected[id] = 0;
+        USDC.safeTransfer(to, amount);
+        emit FeesWithdrawn(id, to, amount);
     }
 
     /// @notice Emergency withdrawal of any stuck USDC. Owner-only safety valve.
@@ -366,10 +541,21 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         return entries;
     }
 
+    /// @notice Length of the submission history array for (tournament, player).
+    function submissionHistoryLength(bytes32 id, address player) external view returns (uint256) {
+        return _submissionHistory[id][player].length;
+    }
+
+    /// @notice Fetch a single submission by index from the audit trail.
+    function submissionAt(bytes32 id, address player, uint256 index) external view returns (Submission memory) {
+        return _submissionHistory[id][player][index];
+    }
+
     // ─── Internal ──────────────────────────────────────────────────────────────
 
     function _computeEffectiveScore(uint256 best, uint256 mc, uint256 bonus) internal pure returns (uint256) {
-        return best * SCORE_WEIGHT + mc * bonus * PARTICIPATION_WEIGHT;
+        uint256 cappedMc = mc > MATCH_COUNT_CAP ? MATCH_COUNT_CAP : mc;
+        return best * SCORE_WEIGHT + cappedMc * bonus * PARTICIPATION_WEIGHT;
     }
 
     function _verifySubmitSignature(
@@ -385,6 +571,26 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     {
         bytes32 digest =
             keccak256(abi.encode(id, player, score, matchCountDelta, nonce, address(this), block.chainid));
+        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
+        address signer = ECDSA.recover(ethDigest, signature);
+        if (signer != trustedSigner) revert BadSignature();
+    }
+
+    function _verifySoloSubmitSignature(
+        bytes32 id,
+        address player,
+        uint256 score,
+        bytes32 soloRunId,
+        uint256 matchCountDelta,
+        bytes32 nonce,
+        bytes calldata signature
+    )
+        internal
+        view
+    {
+        bytes32 digest = keccak256(
+            abi.encode(id, player, score, soloRunId, matchCountDelta, nonce, address(this), block.chainid)
+        );
         bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
         address signer = ECDSA.recover(ethDigest, signature);
         if (signer != trustedSigner) revert BadSignature();

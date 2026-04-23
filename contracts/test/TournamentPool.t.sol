@@ -654,4 +654,492 @@ contract TournamentPoolTest is Test {
         assertEq(r[1].player, players[0]);
         assertGe(r[0].effectiveScore, r[1].effectiveScore);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // V2 SOLO + RETRY FEE SUITE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ── V2 helpers
+
+    uint256 internal constant RETRY_FEE = 1_000_000; // 1 USDC
+
+    function _signSoloSubmit(
+        bytes32 id,
+        address player,
+        uint256 score,
+        bytes32 soloRunId,
+        uint256 matchCountDelta,
+        bytes32 nonce
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = keccak256(
+            abi.encode(id, player, score, soloRunId, matchCountDelta, nonce, address(pool), block.chainid)
+        );
+        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, ethDigest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _submitSolo(
+        bytes32 id,
+        address player,
+        uint256 score,
+        uint256 matchCountDelta,
+        uint256 nonceSeed
+    )
+        internal
+    {
+        bytes32 nonce = keccak256(abi.encodePacked("solo", id, player, nonceSeed));
+        bytes32 runId = keccak256(abi.encodePacked("run", id, player, nonceSeed));
+        bytes memory sig = _signSoloSubmit(id, player, score, runId, matchCountDelta, nonce);
+        pool.submitSoloScore(id, player, score, runId, matchCountDelta, nonce, sig);
+    }
+
+    function _fundAndApprove(address player, uint256 amount) internal {
+        usdc.mint(player, amount);
+        vm.prank(player);
+        usdc.approve(address(pool), type(uint256).max);
+    }
+
+    // ── submitSoloScore
+
+    function test_submitSolo_success_firstIsFree() public {
+        bytes32 id = _tournamentId(200);
+        _createTournament(id);
+
+        _submitSolo(id, players[0], 500, 1, 0);
+
+        assertTrue(pool.isParticipant(id, players[0]));
+        assertEq(pool.bestScore(id, players[0]), 500);
+        assertEq(pool.matchCount(id, players[0]), 1);
+        assertEq(pool.soloSubmissionCount(id, players[0]), 1);
+        assertEq(pool.feePaidByPlayer(id, players[0]), 0, "first solo is free");
+        assertEq(pool.feeCollected(id), 0, "no fees yet");
+        assertEq(pool.submissionHistoryLength(id, players[0]), 1);
+
+        TournamentPool.Submission memory s = pool.submissionAt(id, players[0], 0);
+        assertEq(uint8(s.source), uint8(TournamentPool.SubmissionSource.Solo));
+        assertEq(s.score, 500);
+    }
+
+    function test_submitSolo_revert_secondWithoutFee() public {
+        bytes32 id = _tournamentId(201);
+        _createTournament(id);
+
+        _submitSolo(id, players[0], 500, 1, 0);
+
+        // Second solo without prior chargeRetryFee must revert.
+        vm.expectRevert(TournamentPool.InsufficientFeePaid.selector);
+        _submitSolo(id, players[0], 700, 1, 1);
+    }
+
+    function test_submitSolo_success_paidRetryAfterFee() public {
+        bytes32 id = _tournamentId(202);
+        _createTournament(id);
+
+        _submitSolo(id, players[0], 500, 1, 0);
+        _fundAndApprove(players[0], 10 * RETRY_FEE);
+
+        vm.prank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+
+        // Now the second solo submission is allowed.
+        _submitSolo(id, players[0], 700, 1, 1);
+
+        assertEq(pool.soloSubmissionCount(id, players[0]), 2);
+        assertEq(pool.bestScore(id, players[0]), 700);
+        assertEq(pool.feePaidByPlayer(id, players[0]), RETRY_FEE);
+        assertEq(pool.feeCollected(id), RETRY_FEE);
+    }
+
+    function test_submitSolo_nthSubmissionRequiresNMinus1Fees() public {
+        bytes32 id = _tournamentId(203);
+        _createTournament(id);
+        _fundAndApprove(players[0], 100 * RETRY_FEE);
+
+        // 1st solo (free).
+        _submitSolo(id, players[0], 100, 1, 0);
+
+        // 4th solo requires 3 prior fees.
+        for (uint256 i; i < 3; ++i) {
+            vm.prank(players[0]);
+            pool.chargeRetryFee(id, players[0]);
+        }
+        _submitSolo(id, players[0], 200, 1, 1); // 2nd
+        _submitSolo(id, players[0], 300, 1, 2); // 3rd
+        _submitSolo(id, players[0], 400, 1, 3); // 4th
+
+        assertEq(pool.soloSubmissionCount(id, players[0]), 4);
+        assertEq(pool.feePaidByPlayer(id, players[0]), 3 * RETRY_FEE);
+
+        // 5th without a 4th fee must fail.
+        vm.expectRevert(TournamentPool.InsufficientFeePaid.selector);
+        _submitSolo(id, players[0], 500, 1, 4);
+
+        // After topping up, 5th succeeds.
+        vm.prank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+        _submitSolo(id, players[0], 500, 1, 5);
+
+        assertEq(pool.soloSubmissionCount(id, players[0]), 5);
+        assertEq(pool.feeCollected(id), 4 * RETRY_FEE);
+    }
+
+    function test_submitSolo_separatePlayers_independentFeeAccounting() public {
+        bytes32 id = _tournamentId(204);
+        _createTournament(id);
+
+        _fundAndApprove(players[0], 10 * RETRY_FEE);
+
+        // Player 0 does two solos (one fee). Player 1 does one solo (free).
+        _submitSolo(id, players[0], 500, 1, 0);
+        vm.prank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+        _submitSolo(id, players[0], 700, 1, 1);
+        _submitSolo(id, players[1], 900, 1, 2);
+
+        assertEq(pool.feePaidByPlayer(id, players[0]), RETRY_FEE);
+        assertEq(pool.feePaidByPlayer(id, players[1]), 0);
+        assertEq(pool.soloSubmissionCount(id, players[0]), 2);
+        assertEq(pool.soloSubmissionCount(id, players[1]), 1);
+    }
+
+    function test_submitSolo_revert_badSignature() public {
+        bytes32 id = _tournamentId(205);
+        _createTournament(id);
+
+        bytes32 nonce = keccak256("n");
+        bytes32 runId = keccak256("r");
+        bytes32 digest = keccak256(
+            abi.encode(id, players[0], uint256(100), runId, uint256(1), nonce, address(pool), block.chainid)
+        );
+        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD00D, ethDigest);
+        bytes memory wrongSig = abi.encodePacked(r, s, v);
+
+        vm.expectRevert(TournamentPool.BadSignature.selector);
+        pool.submitSoloScore(id, players[0], 100, runId, 1, nonce, wrongSig);
+    }
+
+    function test_submitSolo_revert_replayNonce() public {
+        bytes32 id = _tournamentId(206);
+        _createTournament(id);
+
+        bytes32 nonce = keccak256("replay-solo");
+        bytes32 runId = keccak256("run-s");
+        bytes memory sig = _signSoloSubmit(id, players[0], 100, runId, 1, nonce);
+
+        pool.submitSoloScore(id, players[0], 100, runId, 1, nonce, sig);
+        vm.expectRevert(TournamentPool.NonceUsed.selector);
+        pool.submitSoloScore(id, players[0], 100, runId, 1, nonce, sig);
+    }
+
+    function test_submitSolo_nonceSpaceSharedWithSubmitScore() public {
+        // A nonce used for submitScore cannot be reused for submitSoloScore.
+        bytes32 id = _tournamentId(207);
+        _createTournament(id);
+
+        bytes32 nonce = keccak256("shared");
+        bytes memory duelSig = _signSubmit(id, players[0], 100, 1, nonce);
+        pool.submitScore(id, players[0], 100, 1, nonce, duelSig);
+
+        bytes32 runId = keccak256("run-x");
+        bytes memory soloSig = _signSoloSubmit(id, players[0], 200, runId, 1, nonce);
+        vm.expectRevert(TournamentPool.NonceUsed.selector);
+        pool.submitSoloScore(id, players[0], 200, runId, 1, nonce, soloSig);
+    }
+
+    // ── chargeRetryFee
+
+    function test_chargeRetryFee_success() public {
+        bytes32 id = _tournamentId(220);
+        _createTournament(id);
+        _fundAndApprove(players[0], 10 * RETRY_FEE);
+
+        uint256 playerBefore = usdc.balanceOf(players[0]);
+        uint256 poolBefore = usdc.balanceOf(address(pool));
+
+        vm.prank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+
+        assertEq(usdc.balanceOf(players[0]), playerBefore - RETRY_FEE);
+        assertEq(usdc.balanceOf(address(pool)), poolBefore + RETRY_FEE);
+        assertEq(pool.feePaidByPlayer(id, players[0]), RETRY_FEE);
+        assertEq(pool.feeCollected(id), RETRY_FEE);
+    }
+
+    function test_chargeRetryFee_revert_playerMismatch() public {
+        bytes32 id = _tournamentId(221);
+        _createTournament(id);
+        _fundAndApprove(players[0], RETRY_FEE);
+
+        // Someone else tries to charge fee on behalf of players[0].
+        vm.prank(outsider);
+        vm.expectRevert(TournamentPool.PlayerMismatch.selector);
+        pool.chargeRetryFee(id, players[0]);
+    }
+
+    function test_chargeRetryFee_revert_tournamentEnded() public {
+        bytes32 id = _tournamentId(222);
+        _createTournament(id);
+        _fundAndApprove(players[0], RETRY_FEE);
+
+        vm.warp(ENDS_AT + 1);
+        vm.prank(players[0]);
+        vm.expectRevert(TournamentPool.TournamentAlreadyEnded.selector);
+        pool.chargeRetryFee(id, players[0]);
+    }
+
+    function test_chargeRetryFee_revert_tournamentNotFound() public {
+        _fundAndApprove(players[0], RETRY_FEE);
+        vm.prank(players[0]);
+        vm.expectRevert(TournamentPool.TournamentNotFound.selector);
+        pool.chargeRetryFee(_tournamentId(9999), players[0]);
+    }
+
+    function test_chargeRetryFee_accumulates() public {
+        bytes32 id = _tournamentId(223);
+        _createTournament(id);
+        _fundAndApprove(players[0], 5 * RETRY_FEE);
+
+        for (uint256 i; i < 3; ++i) {
+            vm.prank(players[0]);
+            pool.chargeRetryFee(id, players[0]);
+        }
+
+        assertEq(pool.feePaidByPlayer(id, players[0]), 3 * RETRY_FEE);
+        assertEq(pool.feeCollected(id), 3 * RETRY_FEE);
+    }
+
+    // ── withdrawFees
+
+    function test_withdrawFees_drawsOnlyFromFeeCollected() public {
+        bytes32 id = _tournamentId(240);
+        _createTournament(id);
+        _fundAndApprove(players[0], 3 * RETRY_FEE);
+
+        // Player pays 2 retries.
+        vm.startPrank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+        pool.chargeRetryFee(id, players[0]);
+        vm.stopPrank();
+
+        address team = address(0xFEE71AB);
+        uint256 teamBefore = usdc.balanceOf(team);
+        uint256 poolBefore = usdc.balanceOf(address(pool)); // prize + 2·fee
+
+        pool.withdrawFees(id, team);
+
+        assertEq(usdc.balanceOf(team) - teamBefore, 2 * RETRY_FEE);
+        assertEq(pool.feeCollected(id), 0);
+        // Pool balance drops by exactly the fee total — prize pool intact.
+        assertEq(usdc.balanceOf(address(pool)), poolBefore - 2 * RETRY_FEE);
+        // Prize pool state is unchanged.
+        assertEq(pool.getTournament(id).prizePool, PRIZE_POOL);
+    }
+
+    function test_withdrawFees_revert_notOwner() public {
+        bytes32 id = _tournamentId(241);
+        _createTournament(id);
+
+        vm.prank(outsider);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, outsider));
+        pool.withdrawFees(id, outsider);
+    }
+
+    function test_withdrawFees_noFees_noop() public {
+        bytes32 id = _tournamentId(242);
+        _createTournament(id);
+
+        address team = address(0xFEE71AB);
+        uint256 teamBefore = usdc.balanceOf(team);
+        pool.withdrawFees(id, team);
+        assertEq(usdc.balanceOf(team), teamBefore, "no transfer on zero fees");
+    }
+
+    function test_withdrawFees_twiceZeros() public {
+        bytes32 id = _tournamentId(243);
+        _createTournament(id);
+        _fundAndApprove(players[0], RETRY_FEE);
+
+        vm.prank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+
+        address team = address(0xFEE71AB);
+        pool.withdrawFees(id, team);
+        assertEq(pool.feeCollected(id), 0);
+
+        uint256 teamAfterFirst = usdc.balanceOf(team);
+        pool.withdrawFees(id, team); // no-op second call
+        assertEq(usdc.balanceOf(team), teamAfterFirst);
+    }
+
+    // ── Invariant: retry fees NEVER flow into prize distribution
+
+    function test_invariant_feeCollectedIsolatedFromPrizePool() public {
+        // Full lifecycle: create → solo submits with retries → settle → verify.
+        // Retry fees collected must NOT affect prize distribution.
+        bytes32 id = _tournamentId(260);
+        _createTournament(id);
+        _fundAndApprove(players[0], 10 * RETRY_FEE);
+
+        // 4 solo submissions from players[0] (3 paid retries).
+        _submitSolo(id, players[0], 1000, 1, 0);
+        for (uint256 i; i < 3; ++i) {
+            vm.prank(players[0]);
+            pool.chargeRetryFee(id, players[0]);
+        }
+        _submitSolo(id, players[0], 1500, 1, 1);
+        _submitSolo(id, players[0], 2000, 1, 2);
+        _submitSolo(id, players[0], 1200, 1, 3);
+
+        // Other players (duel path, via submitScore) for a 4+ N ranking.
+        _submit(id, players[1], 800, 1, 10);
+        _submit(id, players[2], 600, 1, 11);
+        _submit(id, players[3], 400, 1, 12);
+
+        assertEq(pool.feeCollected(id), 3 * RETRY_FEE);
+        // Contract balance = prize pool + fees collected.
+        assertEq(usdc.balanceOf(address(pool)), PRIZE_POOL + 3 * RETRY_FEE);
+
+        vm.warp(ENDS_AT + 1);
+
+        // Ranking by effective score. All players have matchCount either 1 (duel)
+        // or 4 (solo with retries), so capping doesn't kick in here (< CAP=10).
+        address[] memory ranking = new address[](4);
+        ranking[0] = players[0]; // best=2000, mc=4
+        ranking[1] = players[1]; // best=800, mc=1
+        ranking[2] = players[2]; // best=600, mc=1
+        ranking[3] = players[3]; // best=400, mc=1
+
+        uint256 sponsorBefore = usdc.balanceOf(sponsor);
+        pool.settle(id, ranking);
+
+        // n=4, topN=ceil(4/2)=2. Contract pays top-3 fixed bps (25+15+10 = 50%);
+        // places 4+ skipped because tier4 loop starts at 3 with bound topN=2.
+        uint256 distributed = (PRIZE_POOL * (2500 + 1500 + 1000)) / 10_000;
+        uint256 expectedRefund = PRIZE_POOL - distributed;
+        assertEq(usdc.balanceOf(sponsor) - sponsorBefore, expectedRefund, "sponsor refund");
+
+        // Critical: feeCollected survives settle untouched.
+        assertEq(pool.feeCollected(id), 3 * RETRY_FEE, "fees must not be settled");
+        assertEq(usdc.balanceOf(address(pool)), 3 * RETRY_FEE, "only fees remain");
+
+        // Team can still withdraw their fees after settle.
+        address team = address(0xFEE71AB);
+        pool.withdrawFees(id, team);
+        assertEq(usdc.balanceOf(team), 3 * RETRY_FEE);
+        assertEq(usdc.balanceOf(address(pool)), 0);
+    }
+
+    function test_invariant_settleDoesNotTouchFeeCollected() public {
+        // Pair test: prize pool goes out via settle; feeCollected untouched.
+        bytes32 id = _tournamentId(261);
+        _createTournament(id);
+        _fundAndApprove(players[0], 5 * RETRY_FEE);
+
+        _submitSolo(id, players[0], 1000, 1, 0);
+        vm.prank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+        _submitSolo(id, players[0], 1200, 1, 1);
+
+        vm.warp(ENDS_AT + 1);
+        address[] memory ranking = new address[](1);
+        ranking[0] = players[0];
+        pool.settle(id, ranking);
+
+        // feeCollected should be unchanged after settle.
+        assertEq(pool.feeCollected(id), RETRY_FEE);
+    }
+
+    // ── Match-count cap
+
+    function test_effectiveScore_matchCountCap_caps_at_ten() public {
+        bytes32 id = _tournamentId(280);
+        _createTournament(id);
+        _fundAndApprove(players[0], 20 * RETRY_FEE);
+
+        // 12 solo submissions: 1 free + 11 paid retries.
+        _submitSolo(id, players[0], 1000, 1, 0);
+        for (uint256 i; i < 11; ++i) {
+            vm.prank(players[0]);
+            pool.chargeRetryFee(id, players[0]);
+            _submitSolo(id, players[0], 1000, 1, i + 1);
+        }
+
+        assertEq(pool.matchCount(id, players[0]), 12, "raw matchCount tracks actual");
+        assertEq(pool.soloSubmissionCount(id, players[0]), 12);
+
+        // Effective score uses cap of 10, not 12.
+        uint256 expected = 1000 * 85 + 10 * PARTICIPATION_BONUS * 15;
+        assertEq(pool.effectiveScoreOf(id, players[0]), expected, "matchCount caps at 10 in effective score");
+    }
+
+    function test_effectiveScore_belowCap_unchanged() public {
+        bytes32 id = _tournamentId(281);
+        _createTournament(id);
+        _fundAndApprove(players[0], 5 * RETRY_FEE);
+
+        _submitSolo(id, players[0], 1000, 1, 0);
+        for (uint256 i; i < 4; ++i) {
+            vm.prank(players[0]);
+            pool.chargeRetryFee(id, players[0]);
+            _submitSolo(id, players[0], 1000, 1, i + 1);
+        }
+
+        // 5 matches < 10 cap → unchanged behavior.
+        assertEq(pool.effectiveScoreOf(id, players[0]), 1000 * 85 + 5 * PARTICIPATION_BONUS * 15);
+    }
+
+    // ── Mixed Solo + Duel settle
+
+    function test_settle_mixedSoloAndDuel_worksAsBefore() public {
+        bytes32 id = _tournamentId(300);
+        _createTournament(id);
+
+        // 2 solo, 2 duel — enough to hit the 4-player top-50% curve.
+        _submitSolo(id, players[0], 2000, 1, 0);
+        _submitSolo(id, players[1], 1500, 1, 1);
+        _submit(id, players[2], 1000, 1, 10);
+        _submit(id, players[3], 500, 1, 11);
+
+        vm.warp(ENDS_AT + 1);
+        address[] memory ranking = new address[](4);
+        ranking[0] = players[0];
+        ranking[1] = players[1];
+        ranking[2] = players[2];
+        ranking[3] = players[3];
+
+        pool.settle(id, ranking);
+
+        // n=4, topN=ceil(4/2)=2, but top-3 always paid with fixed bps. Place 4+ skipped.
+        // 25+15+10 = 50% distributed, 50% refunded.
+        uint256 p1 = (PRIZE_POOL * 2500) / 10_000;
+        uint256 p2 = (PRIZE_POOL * 1500) / 10_000;
+        uint256 p3 = (PRIZE_POOL * 1000) / 10_000;
+        assertEq(usdc.balanceOf(players[0]), p1);
+        assertEq(usdc.balanceOf(players[1]), p2);
+        assertEq(usdc.balanceOf(players[2]), p3);
+        assertEq(usdc.balanceOf(players[3]), 0);
+    }
+
+    function test_submissionHistory_tagsSourceCorrectly() public {
+        bytes32 id = _tournamentId(301);
+        _createTournament(id);
+        _fundAndApprove(players[0], 2 * RETRY_FEE);
+
+        _submit(id, players[0], 100, 1, 0);       // Duel
+        _submitSolo(id, players[0], 200, 1, 0);   // Solo #1 (free)
+        vm.prank(players[0]);
+        pool.chargeRetryFee(id, players[0]);
+        _submitSolo(id, players[0], 300, 1, 1);   // Solo #2 (paid)
+
+        assertEq(pool.submissionHistoryLength(id, players[0]), 3);
+        assertEq(uint8(pool.submissionAt(id, players[0], 0).source), uint8(TournamentPool.SubmissionSource.Duel));
+        assertEq(uint8(pool.submissionAt(id, players[0], 1).source), uint8(TournamentPool.SubmissionSource.Solo));
+        assertEq(uint8(pool.submissionAt(id, players[0], 2).source), uint8(TournamentPool.SubmissionSource.Solo));
+    }
 }

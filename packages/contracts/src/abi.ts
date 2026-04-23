@@ -290,6 +290,118 @@ export const TOURNAMENT_POOL_ABI = [
     anonymous: false,
   },
 
+  // ─── v2 additions (solo + retry fee) ──────────────────────────────────
+  {
+    type: "function",
+    name: "submitSoloScore",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "player", type: "address" },
+      { name: "score", type: "uint256" },
+      { name: "soloRunId", type: "bytes32" },
+      { name: "matchCountDelta", type: "uint256" },
+      { name: "nonce", type: "bytes32" },
+      { name: "signature", type: "bytes" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "chargeRetryFee",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "player", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "withdrawFees",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "to", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "soloSubmissionCount",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "bytes32" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "feePaidByPlayer",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "bytes32" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "feeCollected",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "bytes32" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "RETRY_FEE",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "MATCH_COUNT_CAP",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "SoloScoreSubmitted",
+    inputs: [
+      { name: "id", type: "bytes32", indexed: true },
+      { name: "player", type: "address", indexed: true },
+      { name: "score", type: "uint256", indexed: false },
+      { name: "matchCountDelta", type: "uint256", indexed: false },
+      { name: "nonce", type: "bytes32", indexed: false },
+      { name: "soloRunId", type: "bytes32", indexed: false },
+      { name: "priorSoloCount", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "RetryFeePaid",
+    inputs: [
+      { name: "id", type: "bytes32", indexed: true },
+      { name: "player", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "FeesWithdrawn",
+    inputs: [
+      { name: "id", type: "bytes32", indexed: true },
+      { name: "to", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+
   // ─── Custom errors ────────────────────────────────────────────────────
   { type: "error", name: "TournamentNotFound", inputs: [] },
   { type: "error", name: "TournamentAlreadyExists", inputs: [] },
@@ -308,6 +420,8 @@ export const TOURNAMENT_POOL_ABI = [
   { type: "error", name: "NotParticipant", inputs: [] },
   { type: "error", name: "PlayerExcluded", inputs: [] },
   { type: "error", name: "DuplicateInRanking", inputs: [] },
+  { type: "error", name: "InsufficientFeePaid", inputs: [] },
+  { type: "error", name: "PlayerMismatch", inputs: [] },
 ] as const;
 
 // ─── ERC20 (USDC) ABI — approve / balanceOf / allowance ────────────────────
