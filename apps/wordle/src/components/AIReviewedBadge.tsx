@@ -1,25 +1,26 @@
 "use client";
 
 // ───────────────────────────────────────────────────────────────────────────
-// AIReviewedBadge — small trust-signal pill near the score card.
+// AIReviewedBadge — small trust-signal pill near the score card. Renders
+// for both duel and solo; the response contract is identical so only the
+// endpoint path branches.
 //
-// Fetches GET /api/duel/[id]/plausibility on mount. The public endpoint
-// always returns one of:
+// Duel:    GET /api/duel/[matchId]/plausibility
+// Solo:    GET /api/tournaments/solo/[matchId]/plausibility
+//
+// Both endpoints always return one of:
 //   { status: "pending" }                           → show subdued "Reviewing…"
 //   { status: "reviewed", reviewedAt: ISO string }  → show green "AI Reviewed ✓"
 //
-// Polling: settle fires the anti-cheat audit asynchronously with a ~2-5s
-// Haiku latency. If the user opens the result page before the audit
-// completes, the first response is "pending". We retry ONCE after 5s;
-// after either a "reviewed" response or a second "pending" we stop
-// polling forever for this mount. The result page is usually open for
-// longer than one Haiku round-trip, so two chances is enough for the
-// hot path.
+// Polling: settle (duel) / submit (solo) fires the anti-cheat audit
+// asynchronously with a ~2-5s Haiku latency. If the user opens the
+// result panel before the audit completes, the first response is
+// "pending". We retry ONCE after 5s; after either a "reviewed" response
+// or a second "pending" we stop polling forever for this mount.
 //
 // Error handling: hidden silently. The badge is an enhancement, and
-// showing "audit failed" to a user who just won money would undermine
-// the trust it's meant to build. Admins see the NULL row via the flag
-// queue's absence; users see nothing.
+// showing "audit failed" to a user would undermine the trust it's meant
+// to build. Admins see the NULL row via the flag queue's absence.
 // ───────────────────────────────────────────────────────────────────────────
 
 import { useEffect } from "react";
@@ -31,20 +32,26 @@ type PlausibilityStatus =
 
 type Props = {
   matchId: string;
+  context?: "duel" | "solo";
 };
 
 async function fetchPlausibility(
   matchId: string,
+  context: "duel" | "solo",
 ): Promise<PlausibilityStatus> {
-  const res = await fetch(`/api/duel/${matchId}/plausibility`);
+  const url =
+    context === "solo"
+      ? `/api/tournaments/solo/${matchId}/plausibility`
+      : `/api/duel/${matchId}/plausibility`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as PlausibilityStatus;
 }
 
-export function AIReviewedBadge({ matchId }: Props) {
+export function AIReviewedBadge({ matchId, context = "duel" }: Props) {
   const { data, isError, refetch } = useQuery<PlausibilityStatus>({
-    queryKey: ["plausibility", matchId],
-    queryFn: () => fetchPlausibility(matchId),
+    queryKey: ["plausibility", context, matchId],
+    queryFn: () => fetchPlausibility(matchId, context),
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,

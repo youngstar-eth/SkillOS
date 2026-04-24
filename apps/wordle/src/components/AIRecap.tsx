@@ -1,11 +1,21 @@
 "use client";
 
 // ───────────────────────────────────────────────────────────────────────────
-// AIRecap — post-match shareable narrative card.
+// AIRecap — post-match shareable narrative card. Renders for both duel
+// and solo.
 //
-// Fetches POST /api/duel/[id]/recap on mount. Match-wide (no `player` in the
-// body). The server generates the recap once per match and caches in
-// v2_duels.recap_cache; subsequent mounts hit the cache instantly.
+// Duel:
+//   Fetches POST /api/duel/[matchId]/recap. Share link deep-links to the
+//   duel result page.
+//
+// Solo (context="solo"):
+//   Fetches POST /api/tournaments/solo/[matchId]/recap. Share link points
+//   at the solo tournament page (no per-run deep link exists yet — can be
+//   upgraded in a later sprint without changing this contract).
+//
+// The recap endpoint response shape is identical across duel and solo, so
+// this component renders both without a mapping layer. The only branching
+// is the endpoint path and the share-URL shape.
 //
 // States:
 //   • loading — headline/body skeleton
@@ -23,17 +33,25 @@ import type { RecapResponse, RecapStyle } from "@skillbase/ai-coach";
 
 type Props = {
   matchId: string;
+  context?: "duel" | "solo";
 };
 
-// matchUrl base. Reads NEXT_PUBLIC_URL so Vercel/env drives the
-// production domain; falls back to the canonical subdomain so the
+// URL base for share links. Reads NEXT_PUBLIC_URL so Vercel/env drives
+// the production domain; falls back to the canonical subdomain so the
 // card still links correctly when env is missing (e.g. local dev).
 // Fallback is the one line that differs across the 6 app copies.
-const MATCH_URL_BASE =
+const URL_BASE =
   process.env.NEXT_PUBLIC_URL ?? "https://wordle.skillbase.games";
 
-async function fetchRecap(matchId: string): Promise<RecapResponse> {
-  const res = await fetch(`/api/duel/${matchId}/recap`, {
+async function fetchRecap(
+  matchId: string,
+  context: "duel" | "solo",
+): Promise<RecapResponse> {
+  const url =
+    context === "solo"
+      ? `/api/tournaments/solo/${matchId}/recap`
+      : `/api/duel/${matchId}/recap`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: "{}",
@@ -72,10 +90,10 @@ const STYLE_PILL: Record<
   },
 };
 
-export function AIRecap({ matchId }: Props) {
+export function AIRecap({ matchId, context = "duel" }: Props) {
   const { data, isLoading, isError } = useQuery<RecapResponse>({
-    queryKey: ["recap", matchId],
-    queryFn: () => fetchRecap(matchId),
+    queryKey: ["recap", context, matchId],
+    queryFn: () => fetchRecap(matchId, context),
     // Cached server-side. Once we have a recap, it's permanent for the match.
     staleTime: Infinity,
     gcTime: Infinity,
@@ -89,9 +107,15 @@ export function AIRecap({ matchId }: Props) {
   // Recap is an enhancement — if anything goes wrong, disappear silently.
   if (isError) return null;
 
-  const matchUrl = `${MATCH_URL_BASE}/duel/${matchId}/result`;
+  // Duel deep-links per match; solo currently has no per-run page, so we
+  // link to the tournament landing — viewers click through and play solo
+  // themselves. Keeps the share loop intact even without a deep link.
+  const shareTargetUrl =
+    context === "solo"
+      ? `${URL_BASE}/tournament/solo`
+      : `${URL_BASE}/duel/${matchId}/result`;
   const populatedShareText = data
-    ? data.shareText.replace("{url}", matchUrl)
+    ? data.shareText.replace("{url}", shareTargetUrl)
     : "";
 
   const shareToX = () => {
@@ -104,7 +128,7 @@ export function AIRecap({ matchId }: Props) {
 
   const shareToFarcaster = () => {
     window.open(
-      `https://warpcast.com/~/compose?text=${encodeURIComponent(populatedShareText)}&embeds[]=${encodeURIComponent(matchUrl)}`,
+      `https://warpcast.com/~/compose?text=${encodeURIComponent(populatedShareText)}&embeds[]=${encodeURIComponent(shareTargetUrl)}`,
       "_blank",
       "noopener,noreferrer",
     );
