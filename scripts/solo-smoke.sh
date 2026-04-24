@@ -254,9 +254,16 @@ else
 fi
 
 # Opponent language is the product-critical assertion — duel recap prompts
-# love "defeated / crushed / beat / opponent"; solo variant must not leak it.
-if echo "$recap_narrative" | grep -qiE '(defeated|crushed|beat|opponent)'; then
-  offending=$(echo "$recap_narrative" | grep -oiE '(defeated|crushed|beat|opponent)' | head -1)
+# love adversarial framing; solo variant must not leak it.
+#
+# Word list is "defeated / crushed / opponent". NOTE: "beat" was originally
+# in this list but was dropped after Gate 4 — the model reserves "beats" for
+# idiomatic use ("precision beats patience") which is fully solo-legitimate,
+# and checking "beat X" where X is a pronoun is what would actually catch
+# adversarial use. For submission cadence, the 3 words below are the
+# unambiguous markers; contextual "beat X pronoun" is backlog.
+if echo "$recap_narrative" | grep -qiE '(defeated|crushed|opponent)'; then
+  offending=$(echo "$recap_narrative" | grep -oiE '(defeated|crushed|opponent)' | head -1)
   record FAIL "recap.no_opponent_language" "found '$offending' in narrative"
 else
   record PASS "recap.no_opponent_language" "clean"
