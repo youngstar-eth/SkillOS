@@ -27,8 +27,9 @@ function requireEnv(name: string): string {
 }
 
 function buildRoutes(payTo: string): RoutesConfig {
-  const baseDataTags = [
+  const aggregateTags = [
     "skill-gaming",
+    "aggregate",
     "training-data",
     "ai-training",
     "human-decision-data",
@@ -64,7 +65,7 @@ function buildRoutes(payTo: string): RoutesConfig {
       bazaar: {
         discoverable: true,
         category: "gaming-data",
-        tags: ["skill-gaming", "aggregate", ...baseDataTags],
+        tags: aggregateTags,
       },
     },
   };
