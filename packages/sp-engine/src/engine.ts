@@ -87,3 +87,66 @@ export function levelForSP(totalSP: number): number {
   }
   return current;
 }
+
+/**
+ * Progress toward the next level. Returns the `minSP` of the next level (or
+ * `null` at L10, the current cap), the SP still needed, and the current
+ * level's `minSP` so the UI can render an in-level progress bar without
+ * re-importing LEVEL_THRESHOLDS.
+ *
+ * Consumers typically render:
+ *   (totalSP - currentLevelMinSP) / (next - currentLevelMinSP)
+ */
+export function spForNextLevel(totalSP: number): {
+  next: number | null;
+  remaining: number;
+  currentLevelMinSP: number;
+} {
+  const level = levelForSP(totalSP);
+  const currentLevelMinSP = LEVEL_THRESHOLDS[level - 1].minSP;
+  if (level >= LEVEL_THRESHOLDS.length) {
+    return { next: null, remaining: 0, currentLevelMinSP };
+  }
+  const next = LEVEL_THRESHOLDS[level].minSP;
+  return { next, remaining: Math.max(0, next - totalSP), currentLevelMinSP };
+}
+
+/**
+ * Breakdown for the SPEarnedCard — exposes base and multiplier alongside the
+ * rounded delta so the UI can render "base 50 × 1.0 plausible → +50 SP"
+ * without duplicating the switch-by-kind from `awardSP`.
+ *
+ * For `tournament_rank_bonus` there is no multiplier concept (implausible
+ * entries are excluded from the ranking upstream at settle time), so
+ * `base` equals the delta and `multiplier` is always 1.
+ */
+export function awardSPBreakdown(event: SPEvent): {
+  sp: number;
+  base: number;
+  multiplier: number;
+} {
+  switch (event.kind) {
+    case "duel_win":
+      return {
+        base: BASE_SP.duelWin,
+        multiplier: MULTIPLIER[event.verdict],
+        sp: Math.round(BASE_SP.duelWin * MULTIPLIER[event.verdict]),
+      };
+    case "duel_loss":
+      return {
+        base: BASE_SP.duelLoss,
+        multiplier: MULTIPLIER[event.verdict],
+        sp: Math.round(BASE_SP.duelLoss * MULTIPLIER[event.verdict]),
+      };
+    case "solo_submit":
+      return {
+        base: BASE_SP.soloSubmit,
+        multiplier: MULTIPLIER[event.verdict],
+        sp: Math.round(BASE_SP.soloSubmit * MULTIPLIER[event.verdict]),
+      };
+    case "tournament_rank_bonus": {
+      const sp = tournamentRankBonus(event.rank);
+      return { base: sp, multiplier: 1, sp };
+    }
+  }
+}

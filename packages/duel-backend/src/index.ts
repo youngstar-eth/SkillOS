@@ -11,4 +11,6 @@ export * from "./api/tournaments/solo-coach";
 export * from "./api/tournaments/solo-recap";
 export * from "./api/tournaments/solo-plausibility";
 export * from "./api/tournaments/list";
+export * from "./api/profile";
+export * from "./api/sp-earned";
 export * from "./cron/tournaments";

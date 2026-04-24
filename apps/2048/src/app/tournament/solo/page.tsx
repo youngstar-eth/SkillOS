@@ -48,6 +48,7 @@ import { Game2048 } from "@/components/Game2048";
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";
 import { AIReviewedBadge } from "@/components/AIReviewedBadge";
+import { SPEarnedCard } from "@/components/SPEarnedCard";
 
 const GAME = "2048";
 
@@ -500,6 +501,11 @@ export default function SoloPage() {
                   </Link>
                 </div>
               </Panel>
+              <SPEarnedCard
+                kind="solo"
+                sourceId={result.soloRunId}
+                player={address}
+              />
               <AIRecap matchId={result.soloRunId} context="solo" />
               <AICoach matchId={result.soloRunId} context="solo" />
             </>

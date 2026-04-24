@@ -53,6 +53,12 @@ interface LeaderboardEntryDTO {
   excluded: boolean;
   prizeWonUsdc: string | null;
   prizeTxHash: string | null;
+  /**
+   * Player's current SP level from v2_user_stats. `null` when the player has
+   * never earned SP (edge case: tournament entry written before any SP-earning
+   * event completed). Rendered as an "L7" pill in the leaderboard column.
+   */
+  level: number | null;
 }
 
 function toTournamentDTO(row: Record<string, unknown>, entryCount = 0): TournamentDTO {
@@ -174,10 +180,31 @@ export function createTournamentDetailHandler(config: TournamentReadHandlerConfi
     if (eErr) return jsonError("db_error", eErr.message, 500);
 
     const entries = (entryRows ?? []) as Record<string, unknown>[];
+
+    // Batch-fetch SP levels for every player in the leaderboard so the UI
+    // can render "L7" pills without N per-row round-trips. One `.in()` query
+    // bounded by the tournament's entry count.
+    const addresses = Array.from(
+      new Set(entries.map((e) => (e.player_address as string).toLowerCase())),
+    );
+    const levelByAddr = new Map<string, number>();
+    if (addresses.length > 0) {
+      const { data: statsRows } = await supabase
+        .from("v2_user_stats")
+        .select("user_address,current_level")
+        .in("user_address", addresses);
+      for (const r of statsRows ?? []) {
+        const addr = (r as { user_address: string }).user_address.toLowerCase();
+        const lvl = (r as { current_level: number }).current_level;
+        levelByAddr.set(addr, lvl);
+      }
+    }
+
     let rank = 0;
     const leaderboard: LeaderboardEntryDTO[] = entries.map((entry) => {
       const excluded = entry.excluded as boolean;
       if (!excluded) rank += 1;
+      const addrLc = (entry.player_address as string).toLowerCase();
       return {
         rank: excluded ? 0 : rank,
         playerAddress: entry.player_address as string,
@@ -188,6 +215,7 @@ export function createTournamentDetailHandler(config: TournamentReadHandlerConfi
         prizeWonUsdc:
           entry.prize_won_usdc != null ? String(entry.prize_won_usdc) : null,
         prizeTxHash: (entry.prize_tx_hash as string | null) ?? null,
+        level: levelByAddr.get(addrLc) ?? null,
       };
     });
 

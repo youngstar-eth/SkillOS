@@ -14,6 +14,7 @@ import {
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";
 import { AIReviewedBadge } from "@/components/AIReviewedBadge";
+import { SPEarnedCard } from "@/components/SPEarnedCard";
 import { TournamentInvite } from "@/components/TournamentInvite";
 
 type PageProps = { params: { id: string } };
@@ -167,6 +168,20 @@ export default function ResultPage({ params }: PageProps) {
             </div>
           )}
         </div>
+
+        {/*
+         * SP earned — post-game reward card. Rendered per-player (reads
+         * wagmi address), so it's per-viewer not match-wide. Sits above
+         * recap/coach because "here's what you got" is the most immediate
+         * hit; narrative cards follow.
+         */}
+        {match.status === "settled" && address && (
+          <SPEarnedCard
+            kind="duel"
+            sourceId={match.matchId}
+            player={address}
+          />
+        )}
 
         {/*
          * Recap is shown to any viewer of a settled match — it's match-wide,
