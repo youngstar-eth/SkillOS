@@ -81,6 +81,7 @@ type LeaderboardEntry = {
   excluded: boolean;
   prizeWonUsdc: string | null;
   prizeTxHash: string | null;
+  level: number | null;
 };
 
 type ActiveResponse = {
@@ -184,13 +185,21 @@ export default function TournamentPage() {
         {daily && <TournamentSection tournament={daily} />}
         {weekly && <TournamentSection tournament={weekly} />}
 
-        <div className="flex items-center justify-between border-t border-border-subtle pt-6 text-xs text-neutral-500">
-          <Link
-            href="/tournament/archive"
-            className="underline-offset-4 hover:text-neutral-200 hover:underline"
-          >
-            Past tournaments ↗
-          </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-6 text-xs text-neutral-500">
+          <div className="flex gap-4">
+            <Link
+              href="/tournament/archive"
+              className="underline-offset-4 hover:text-neutral-200 hover:underline"
+            >
+              Past tournaments ↗
+            </Link>
+            <Link
+              href="/leaderboard"
+              className="underline-offset-4 hover:text-skill hover:underline"
+            >
+              Global SP leaderboard ↗
+            </Link>
+          </div>
           <Link
             href="/duel/waiting"
             className="underline-offset-4 hover:text-neutral-200 hover:underline"
@@ -454,6 +463,7 @@ function Leaderboard({
           <tr>
             <th className="px-3 py-2">Rank</th>
             <th className="px-3 py-2">Player</th>
+            <th className="px-3 py-2 text-center">Level</th>
             <th className="px-3 py-2 text-right">Best</th>
             <th className="hidden px-3 py-2 text-right sm:table-cell">Matches</th>
             <th className="hidden px-3 py-2 text-right sm:table-cell">
@@ -487,13 +497,25 @@ function Leaderboard({
                   )}
                 </td>
                 <td className="px-3 py-2">
-                  <span className="font-mono text-xs">
+                  <Link
+                    href={`/profile/${e.playerAddress}`}
+                    className="font-mono text-xs underline-offset-4 hover:text-skill hover:underline"
+                  >
                     {truncateAddress(e.playerAddress)}
-                  </span>
+                  </Link>
                   {isMe && (
                     <span className="ml-2 rounded bg-skill/20 px-1.5 py-0.5 text-[10px] text-skill">
                       you
                     </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-center">
+                  {e.level != null ? (
+                    <span className="inline-block rounded bg-skill/10 px-1.5 py-0.5 text-[10px] font-semibold text-skill">
+                      L{e.level}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-600">—</span>
                   )}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">

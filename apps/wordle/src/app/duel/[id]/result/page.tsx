@@ -15,6 +15,7 @@ import { AICoach } from "@/components/AICoach";
 import { TournamentInvite } from "@/components/TournamentInvite";
 import { AIRecap } from "@/components/AIRecap";
 import { AIReviewedBadge } from "@/components/AIReviewedBadge";
+import { SPEarnedCard } from "@/components/SPEarnedCard";
 
 type PageProps = { params: { id: string } };
 
@@ -161,6 +162,14 @@ export default function ResultPage({ params }: PageProps) {
             </div>
           )}
         </div>
+
+        {match.status === "settled" && address && (
+          <SPEarnedCard
+            kind="duel"
+            sourceId={match.matchId}
+            player={address}
+          />
+        )}
 
         {match.status === "settled" && (
           <AIRecap matchId={match.matchId} />

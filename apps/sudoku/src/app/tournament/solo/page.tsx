@@ -48,6 +48,7 @@ import { GameSudoku } from "@/components/GameSudoku";
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";
 import { AIReviewedBadge } from "@/components/AIReviewedBadge";
+import { SPEarnedCard } from "@/components/SPEarnedCard";
 
 const GAME = "sudoku";
 
@@ -500,6 +501,11 @@ export default function SoloPage() {
                   </Link>
                 </div>
               </Panel>
+              <SPEarnedCard
+                kind="solo"
+                sourceId={result.soloRunId}
+                player={address}
+              />
               <AIRecap matchId={result.soloRunId} context="solo" />
               <AICoach matchId={result.soloRunId} context="solo" />
             </>
