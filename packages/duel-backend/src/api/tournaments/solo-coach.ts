@@ -34,8 +34,16 @@ import {
   getSupabaseService,
   isUuid,
   jsonError,
-  jsonOk,
 } from "@skillbase/lib-shared";
+
+/**
+ * Coach response with an X-Cache header parallel to recap. Lets smoke tests
+ * and observability distinguish generated vs cached serves without guessing
+ * from latency alone (cold TLS dominates over cache read).
+ */
+function jsonCoach(body: CoachResponse, cache: "HIT" | "MISS"): Response {
+  return Response.json(body, { headers: { "X-Cache": cache } });
+}
 
 export interface SoloCoachHandlerConfig {
   /** One of the GameType literals from @skillbase/ai-coach. */
@@ -84,7 +92,7 @@ export function createSoloCoachHandler(config: SoloCoachHandlerConfig) {
     // per-slot wrapper). Empty object means "no call yet".
     const cache = run.coach_cache ?? {};
     if (Object.keys(cache).length > 0) {
-      if (isCoachResponse(cache)) return jsonOk(cache);
+      if (isCoachResponse(cache)) return jsonCoach(cache, "HIT");
       // Non-empty but malformed — log and regenerate. Same defensive
       // path as duel recap.
       console.warn(
@@ -123,6 +131,6 @@ export function createSoloCoachHandler(config: SoloCoachHandlerConfig) {
       console.error("[solo-coach] cache write failed", runId, writeErr);
     }
 
-    return jsonOk(response);
+    return jsonCoach(response, "MISS");
   };
 }
