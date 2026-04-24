@@ -13,6 +13,13 @@
 // tournament the user's been in, which isn't worth the query budget for a
 // read that runs on every profile view.
 //
+// TODO(post-submission): profile activity feed includes tournament rank
+// bonuses — requires either v2_sp_ledger OR a materialized view keyed on
+// (user_address, tournament_id) with denormalized rank, to avoid per-view
+// re-rank cost. Known jury-visible gap: a user who just won a tournament
+// sees tournaments_won incremented but no "+68 Tournament · rank 1" line
+// in the recent-activity list.
+//
 // Per-app wire-up (apps/<game>/src/app/api/profile/[address]/route.ts):
 //   import { createProfileHandler } from "@skillbase/duel-backend";
 //   export const runtime = "nodejs";
