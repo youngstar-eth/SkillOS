@@ -30,7 +30,9 @@ import {
   SUBMIT_GRACE_MS,
 } from "@skillbase/contracts";
 import { checkPlausibility, type GameType } from "@skillbase/ai-coach";
+import type { Verdict } from "@skillbase/sp-engine";
 import { waitUntil } from "@vercel/functions";
+import { applySPAward } from "./sp/award";
 import type { Duel } from "@skillbase/game-types";
 import {
   bytes32FromUuid,
@@ -167,8 +169,31 @@ function firePlausibilityCheckAsync(input: {
   winnerScore: number;
   loserScore: number;
   durationSeconds: number;
+  /**
+   * When provided, chains Skill-Point awards for both duelists onto the
+   * same waitUntil lifetime as the plausibility check. The verdict used
+   * for the multiplier is whatever the Haiku audit returned; on any
+   * plausibility failure (timeout, db-write error) the SP path defaults
+   * to `plausible` — same optimistic convention the settle cron uses.
+   */
+  sp?: {
+    winnerAddress: Address;
+    /**
+     * Loser address is optional — omitted on walkover because the loser
+     * never actually played, so the 20-SP "participation" bucket doesn't
+     * apply and we skip the duels_lost counter too. In a normal settle
+     * where both players submitted, always pass it.
+     */
+    loserAddress?: Address;
+  };
 }): void {
-  const checkPromise = checkPlausibility(input);
+  const checkPromise = checkPlausibility({
+    duelId: input.duelId,
+    gameType: input.gameType,
+    winnerScore: input.winnerScore,
+    loserScore: input.loserScore,
+    durationSeconds: input.durationSeconds,
+  });
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
       () => reject(new Error("anticheat_timeout")),
@@ -177,7 +202,7 @@ function firePlausibilityCheckAsync(input: {
   });
 
   const job = Promise.race([checkPromise, timeoutPromise])
-    .then(async (result) => {
+    .then(async (result): Promise<Verdict> => {
       try {
         await getSupabaseService()
           .from("v2_duels")
@@ -186,9 +211,33 @@ function firePlausibilityCheckAsync(input: {
       } catch (err) {
         console.warn("[anticheat] db write failed", input.duelId, err);
       }
+      return result.verdict;
     })
-    .catch((err) => {
+    .catch((err): Verdict => {
       console.warn("[anticheat] check failed", input.duelId, err);
+      // Default to "plausible" so a Haiku outage doesn't strip SP from
+      // legitimate winners — matches the cron-settle "NULL = optimistic"
+      // contract.
+      return "plausible";
+    })
+    .then(async (verdict) => {
+      if (!input.sp) return;
+      try {
+        await applySPAward({
+          userAddress: input.sp.winnerAddress,
+          event: { kind: "duel_win", verdict },
+          counterDelta: { duelsWon: 1 },
+        });
+        if (input.sp.loserAddress) {
+          await applySPAward({
+            userAddress: input.sp.loserAddress,
+            event: { kind: "duel_loss", verdict },
+            counterDelta: { duelsLost: 1 },
+          });
+        }
+      } catch (err) {
+        console.warn("[sp-award] duel-settle failed", input.duelId, err);
+      }
     });
 
   // Hand the job to Vercel's container-lifetime manager so it survives past
@@ -306,6 +355,11 @@ export async function triggerSettle(
     );
     const winnerIsP1 =
       winner === normalizeAddress(claimed.player1_address);
+    const loser = winnerIsP1
+      ? (claimed.player2_address
+          ? normalizeAddress(claimed.player2_address)
+          : null)
+      : normalizeAddress(claimed.player1_address);
     firePlausibilityCheckAsync({
       duelId: matchId,
       gameType: opts.gameType,
@@ -316,6 +370,7 @@ export async function triggerSettle(
         ? (claimed.player2_score ?? 0)
         : (claimed.player1_score ?? 0),
       durationSeconds,
+      sp: loser ? { winnerAddress: winner, loserAddress: loser } : { winnerAddress: winner },
     });
   }
 
@@ -457,6 +512,9 @@ export async function checkAndTriggerWalkover(
         ? (claimed.player2_score ?? 0)
         : (claimed.player1_score ?? 0),
       durationSeconds,
+      // Walkover: no loser SP. The abandoner didn't play, so "participated"
+      // doesn't apply and duels_lost doesn't get bumped.
+      sp: { winnerAddress: winner },
     });
   }
 

@@ -75,7 +75,9 @@ import {
   TOURNAMENT_POOL_V2_ADDRESS,
 } from "@skillbase/contracts";
 import { checkPlausibility, type GameType } from "@skillbase/ai-coach";
+import type { Verdict } from "@skillbase/sp-engine";
 import { waitUntil } from "@vercel/functions";
+import { applySPAward } from "../../sp/award";
 import {
   getPublicClient,
   getSupabaseService,
@@ -170,6 +172,16 @@ function firePlausibilityCheckAsync(input: {
   soloRunId: string;
   gameType: TournamentGame;
   score: number;
+  /**
+   * When provided, chains a Skill-Point award for the submitter onto the
+   * same waitUntil lifetime as the plausibility audit. The verdict drives
+   * the multiplier (plausible=1.0, suspicious=0.5, implausible=0.0).
+   * On plausibility failure (timeout, db-write error) SP defaults to
+   * "plausible" — mirrors the cron-settle optimism contract.
+   */
+  sp?: {
+    playerAddress: Address;
+  };
 }): void {
   const checkPromise = checkPlausibility({
     duelId: input.soloRunId, // carries for log correlation only; not consumed by prompt
@@ -186,7 +198,7 @@ function firePlausibilityCheckAsync(input: {
   });
 
   const job = Promise.race([checkPromise, timeoutPromise])
-    .then(async (result) => {
+    .then(async (result): Promise<Verdict> => {
       try {
         await getSupabaseService()
           .from("v2_tournament_solo_runs")
@@ -199,9 +211,31 @@ function firePlausibilityCheckAsync(input: {
           err,
         );
       }
+      return result.verdict;
     })
-    .catch((err) => {
+    .catch((err): Verdict => {
       console.warn("[solo-anticheat] check failed", input.soloRunId, err);
+      return "plausible";
+    })
+    .then(async (verdict) => {
+      if (!input.sp) return;
+      try {
+        await applySPAward({
+          userAddress: input.sp.playerAddress,
+          event: { kind: "solo_submit", verdict },
+          // tournaments_participated is bumped at TOURNAMENT settle (one
+          // per ranked participant), NOT per solo-run submit — otherwise
+          // a player making 5 paid retries in one tournament would show
+          // as "participated: 5" which would be misleading on the
+          // leaderboard.
+        });
+      } catch (err) {
+        console.warn(
+          "[sp-award] solo-submit failed",
+          input.soloRunId,
+          err,
+        );
+      }
     });
 
   // Hand the job to Vercel's container-lifetime manager so it survives past
@@ -522,6 +556,7 @@ export function createTournamentSoloHandler(
       soloRunId: soloRunDbId,
       gameType: config.game,
       score,
+      sp: { playerAddress: player },
     });
 
     return jsonOk({

@@ -39,6 +39,7 @@ import {
   TOURNAMENT_POOL_V2_ADDRESS,
   USDC_ADDRESS,
 } from "@skillbase/contracts";
+import { applySPAward } from "../sp/award";
 import {
   getPublicClient,
   getSupabaseService,
@@ -512,6 +513,35 @@ export async function runSettleTournaments(): Promise<SettleTournamentsResult> {
           })
           .eq("tournament_id", t.id)
           .eq("player_address", ranking[i]);
+      }
+
+      // Award SP rank bonus + tournament counters to every ranked
+      // participant. Top-50 gets (51 - rank) * 2 SP; rank-1 flips the
+      // tournaments_won counter. Implausible entries were already excluded
+      // up at line ~440, so a rank bonus here is by construction against
+      // plausibility-clean rows — no multiplier applies at settle time.
+      //
+      // Errors per-entry are logged and swallowed so a single failed
+      // UPSERT doesn't strip downstream entries' SP.
+      for (let i = 0; i < n; ++i) {
+        const rank = i + 1;
+        try {
+          await applySPAward({
+            userAddress: ranking[i],
+            event: { kind: "tournament_rank_bonus", rank },
+            counterDelta: {
+              tournamentsParticipated: 1,
+              tournamentsWon: rank === 1 ? 1 : 0,
+            },
+          });
+        } catch (err) {
+          console.warn(
+            "[sp-award] tournament-settle failed",
+            t.id,
+            ranking[i],
+            err,
+          );
+        }
       }
 
       const distributed = prizes.reduce((acc, p) => acc + p, 0n);
