@@ -1,34 +1,56 @@
 "use client";
 
 // ───────────────────────────────────────────────────────────────────────────
-// AICoach — post-match feedback card.
+// AICoach — post-match feedback card. Renders for both duel and solo.
 //
-// Fetches POST /api/duel/[id]/coach on mount. The server generates the
-// response on first call and caches it (v2_duels.coach_cache); subsequent
-// mounts for the same (matchId, player) return the cached row instantly.
+// Duel:
+//   Fetches POST /api/duel/[matchId]/coach with { player } so the server
+//   can determine the caller's slot (p1 vs p2). Tone badge always renders.
+//
+// Solo (context="solo"):
+//   Fetches POST /api/tournaments/solo/[matchId]/coach with an empty body
+//   (the runId alone identifies the single-slot cache). The solo prompt
+//   enforces a strict 6-enum tone; on repeated enum violation it returns
+//   tone="encouraging" as the hide-badge sentinel — in solo context we
+//   SUPPRESS the tone badge when that sentinel is seen so the user isn't
+//   shown a generic fallback label. Duel context keeps "encouraging" as
+//   a first-class tone per its existing contract.
 //
 // States:
 //   • loading  — skeleton lines + "Analyzing your match…"
-//   • ready    — styled feedback card with tone badge
+//   • ready    — styled feedback card with tone badge (unless suppressed)
 //   • error    — soft fallback message, no crash
 // ───────────────────────────────────────────────────────────────────────────
 
 import { useQuery } from "@tanstack/react-query";
 import type { CoachResponse, CoachTone } from "@skillbase/ai-coach";
 
-type Props = {
+type DuelProps = {
   matchId: string;
   player: `0x${string}`;
+  context?: "duel";
 };
+type SoloProps = {
+  matchId: string;
+  context: "solo";
+  player?: `0x${string}`;
+};
+type Props = DuelProps | SoloProps;
 
 async function fetchCoach(
   matchId: string,
-  player: string,
+  context: "duel" | "solo",
+  player: string | undefined,
 ): Promise<CoachResponse> {
-  const res = await fetch(`/api/duel/${matchId}/coach`, {
+  const url =
+    context === "solo"
+      ? `/api/tournaments/solo/${matchId}/coach`
+      : `/api/duel/${matchId}/coach`;
+  const body = context === "solo" ? "{}" : JSON.stringify({ player });
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ player }),
+    body,
   });
   if (!res.ok) {
     // Surface the structured error body when available — helps debugging
@@ -79,10 +101,14 @@ const TONE_STYLES: Record<CoachTone, { label: string; cls: string }> = {
   },
 };
 
-export function AICoach({ matchId, player }: Props) {
+export function AICoach(props: Props) {
+  const { matchId } = props;
+  const context = props.context ?? "duel";
+  const player = context === "duel" ? props.player : undefined;
+
   const { data, isLoading, isError } = useQuery<CoachResponse>({
-    queryKey: ["coach", matchId, player],
-    queryFn: () => fetchCoach(matchId, player),
+    queryKey: ["coach", context, matchId, player ?? null],
+    queryFn: () => fetchCoach(matchId, context, player),
     // Cached server-side — once we have a response it won't change. No
     // point in refetching on focus, reconnect, or background intervals.
     staleTime: Infinity,
@@ -92,13 +118,19 @@ export function AICoach({ matchId, player }: Props) {
     retry: 1,
   });
 
+  // Solo context uses tone="encouraging" as a hide-badge sentinel when the
+  // strict 6-enum prompt retries failed. Duel has no such sentinel — every
+  // tone including "encouraging" renders its badge as today.
+  const showToneBadge =
+    !!data && !(context === "solo" && data.tone === "encouraging");
+
   return (
     <div className="rounded-2xl border border-border bg-bg-elev p-6">
       <div className="flex items-center justify-between">
         <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
           🤖 AI Coach
         </p>
-        {data && (
+        {showToneBadge && data && (
           <span
             className={`rounded border px-2 py-0.5 text-[10px] uppercase tracking-wider ${TONE_STYLES[data.tone].cls}`}
           >
