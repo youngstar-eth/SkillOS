@@ -15,6 +15,7 @@
     "@skillbase/contracts": "*",
     "@skillbase/game-types": "*",
     "@skillbase/lib-shared": "*",
+    "@skillbase/sp-engine": "*",
     "@vercel/functions": "^1.5.0"
   },
   "peerDependencies": {
