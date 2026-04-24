@@ -2,13 +2,15 @@
 // x402-paid endpoint — $0.01 USDC per call.
 // Aggregate tier histogram across 6 Skillbase games. Anonymized.
 //
-// Payment is handled by apps/2048/src/middleware.ts (verify + settle via
-// CDP facilitator). This handler runs only after a successful settlement
-// and returns the real data.
+// Payment is handled inline by withX402 (verify + settle via CDP
+// facilitator). Inner runs only after payment verifies; settlement
+// happens after inner returns and settlement headers are merged onto
+// the response.
 // ───────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
 import { getSupabaseService } from "@skillbase/lib-shared";
+import { withX402 } from "@/lib/x402-handle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +29,7 @@ function hasPlausibleVerdict(raw: unknown): boolean {
   return (raw as { verdict?: unknown }).verdict === "plausible";
 }
 
-export async function GET() {
+export const GET = withX402(async () => {
   const supabase = getSupabaseService();
 
   const [usersRes, runsRes] = await Promise.all([
@@ -130,4 +132,4 @@ export async function GET() {
   };
 
   return NextResponse.json(body);
-}
+});

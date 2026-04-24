@@ -3,12 +3,13 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { parseGame, sampleDecision } from "@/lib/decision-sample";
+import { withX402 } from "@/lib/x402-handle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
+export const GET = withX402(async (request: NextRequest) => {
   const game = parseGame(request.nextUrl.searchParams.get("game"));
   const body = await sampleDecision({ tier: "8-plus", game });
   return NextResponse.json(body);
-}
+});

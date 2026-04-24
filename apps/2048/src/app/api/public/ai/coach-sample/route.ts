@@ -4,13 +4,14 @@
 // @skillbase/ai-coach solo-coach pipeline (same Anthropic client, same
 // strict 6-tone enum, same retry-then-hide-badge graceful degradation).
 //
-// Split of labor:
-//   middleware.ts  — x402 payment verify + settle
-//   this handler   — rate-limit (after payment), parse params, call coach,
-//                    reshape feedback into the spec's structured schema
+// Flow:
+//   withX402   — verify payment (runs inner on success, settles after)
+//   inner      — rate-limit (payment already taken), parse params,
+//                call coach, reshape feedback into spec schema
 //
 // On rate-limit hit after successful payment: 429 with non-refund note.
-// On Anthropic error: 502 (upstream coach failure).
+// Settlement still runs (per spec: payment non-refundable in sample tier).
+// On Anthropic error: 502 (upstream coach failure), settle still runs.
 // ───────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -20,6 +21,7 @@ import {
   type GameType,
 } from "@skillbase/ai-coach";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { withX402 } from "@/lib/x402-handle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,7 +81,7 @@ function error(code: string, message: string, status: number) {
   return NextResponse.json({ error: code, message }, { status });
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withX402(async (request: NextRequest) => {
   const ip = clientIp(request);
   const rl = checkRateLimit(ip);
   if (!rl.ok) {
@@ -163,4 +165,4 @@ export async function GET(request: NextRequest) {
       rate_limit_note: "Sample endpoint — 30 req/min per IP.",
     },
   });
-}
+});
