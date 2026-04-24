@@ -31,3 +31,10 @@ export type {
 // output. Strict 6-enum tone with single retry + hide-badge fallback.
 export { generateSoloCoachFeedback } from "./solo-coach/generate";
 export type { SoloCoachRequest } from "./solo-coach/types";
+
+// Solo-recap variant — same RecapResponse shape as duel recap with
+// solo-flavored input and narrative constraints that strip any
+// opponent framing ("defeated", "crushed", etc.). Style vocabulary
+// narrowed to speedRun / grind / standard.
+export { generateSoloRecap } from "./solo-recap/generate";
+export type { SoloRecapRequest } from "./solo-recap/types";
