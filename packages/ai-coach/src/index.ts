@@ -25,3 +25,9 @@ export type {
   PlausibilityResponse,
   Verdict,
 } from "./anticheat/types";
+
+// Solo-coach variant — same CoachResponse shape as duel coach but with a
+// solo-flavored input (no opponent) and a structured "2 areas + 1 tip"
+// output. Strict 6-enum tone with single retry + hide-badge fallback.
+export { generateSoloCoachFeedback } from "./solo-coach/generate";
+export type { SoloCoachRequest } from "./solo-coach/types";
