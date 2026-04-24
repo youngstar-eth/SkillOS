@@ -54,6 +54,15 @@
         "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/MAS/apps/match3 && exec npx next dev -p 3005"
       ],
       "port": 3005
+    },
+    {
+      "name": "skillbase-apex",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && cd /Users/inancayvaz/skillbase-apex && exec pnpm dev -p 3006"
+      ],
+      "port": 3006
     }
   ]
 }
