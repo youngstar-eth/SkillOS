@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Solo AI flow smoke — Gate 2 / Gate 4 harness.
+# Solo AI flow smoke — Gate 2 / Gate 4 / Gate 6 harness.
 #
 # Tests the end-to-end solo tournament flow against a deployed app:
 #   1. Deploy liveness  (200 on /tournament/solo, x-vercel-id header)
@@ -10,6 +10,7 @@
 #   5. AI recap assertions (no-opponent-language, share placeholder, cache)
 #   6. Plausibility polling (pending → reviewed within 15s)
 #   7. Retry fee isolation (2nd submit must 429 or 402, never 200)
+#   8. SP award pipeline (profile endpoint, user_stats row, level + multiplier)
 #
 # Output: one line per assertion in "PASS/FAIL  <name>  (<detail>)" format,
 # followed by a summary table and an overall exit code (0 = all pass).
@@ -361,6 +362,100 @@ case "$retry_code" in
     record FAIL "retry.gate_fires" "unexpected $retry_code ($retry_body)"
     ;;
 esac
+
+# ─── section 8: SP pipeline ──────────────────────────────────────────────────
+# Touches v2_user_stats + the read paths (profile + leaderboard) the jury
+# sees. The SP hook is chained onto the plausibility waitUntil Promise so by
+# the time section 6 sees `reviewed`, the stats row should be materialized;
+# a brief retry loop absorbs any residual jitter.
+
+echo "── [8/8] SP pipeline ──"
+
+profile_url="$BASE_URL/api/profile/$test_addr"
+profile_body=""
+for i in $(seq 1 8); do
+  profile_body=$(curl -s "$profile_url")
+  # Wait for v2_user_stats row to land (materialized by the solo_submit hook).
+  stats_null=$(echo "$profile_body" | jq -r '.stats == null')
+  if [[ "$stats_null" != "true" ]]; then
+    break
+  fi
+  sleep 1
+done
+
+profile_code=$(curl -s -o /dev/null -w "%{http_code}" "$profile_url")
+if [[ "$profile_code" == "200" ]]; then
+  record PASS "sp.profile_endpoint_200" "HTTP 200"
+else
+  record FAIL "sp.profile_endpoint_200" "HTTP $profile_code"
+fi
+
+total_sp=$(echo "$profile_body" | jq -r '.stats.totalSp // empty')
+current_level=$(echo "$profile_body" | jq -r '.stats.currentLevel // empty')
+
+# 8.1 — user_stats row materialized for the freshly-submitted address.
+if [[ -n "$total_sp" ]]; then
+  record PASS "sp.user_stats_row_exists" "totalSp=$total_sp"
+else
+  record FAIL "sp.user_stats_row_exists" "stats still null after 8s"
+fi
+
+# 8.2 — current_level matches the local threshold table. Mirrors
+# sp-engine's levelForSP (0/500/1500/3500/7500/15000/25000/35000/45000/50000).
+if [[ -n "$total_sp" && -n "$current_level" ]]; then
+  expected_level=1
+  idx=1
+  for t in 0 500 1500 3500 7500 15000 25000 35000 45000 50000; do
+    if (( total_sp >= t )); then expected_level=$idx; fi
+    idx=$(( idx + 1 ))
+  done
+  if (( current_level == expected_level )); then
+    record PASS "sp.level_matches_thresholds" "L$current_level for $total_sp SP"
+  else
+    record FAIL "sp.level_matches_thresholds" "got L$current_level, expected L$expected_level for $total_sp SP"
+  fi
+else
+  record FAIL "sp.level_matches_thresholds" "stats missing totalSp/currentLevel"
+fi
+
+# 8.3 — plausibility multiplier was applied. The first activity row is the
+# solo submission we just made; awarded SP must match 50 × multiplier for the
+# recorded verdict. Also cross-checks that the total equals the single event
+# (fresh address, no prior SP).
+first_sp=$(echo "$profile_body" | jq -r '.activity[0].sp // empty')
+first_verdict=$(echo "$profile_body" | jq -r '.activity[0].verdict // empty')
+
+case "$first_verdict" in
+  plausible)   expected_sp=50 ;;
+  suspicious)  expected_sp=25 ;;
+  implausible) expected_sp=0 ;;
+  *)           expected_sp="" ;;
+esac
+
+if [[ -n "$first_sp" && -n "$expected_sp" && "$first_sp" == "$expected_sp" ]]; then
+  record PASS "sp.multiplier_respected" "solo_submit × $first_verdict = $first_sp"
+else
+  record FAIL "sp.multiplier_respected" \
+    "activity[0] sp=$first_sp verdict=$first_verdict (expected $expected_sp)"
+fi
+
+if [[ -n "$total_sp" && -n "$first_sp" && "$total_sp" == "$first_sp" ]]; then
+  record PASS "sp.total_equals_single_event" "fresh addr: totalSp=$total_sp == activity[0].sp"
+else
+  record FAIL "sp.total_equals_single_event" "totalSp=$total_sp vs activity[0].sp=$first_sp"
+fi
+
+# 8.4 — global leaderboard endpoint responds and contains our address (or
+# returns an array, even if empty under the top-100 cap for tiny test envs).
+lb_body=$(curl -s "$BASE_URL/api/leaderboard")
+lb_code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/leaderboard")
+lb_count=$(echo "$lb_body" | jq -r '.leaderboard | length // empty')
+
+if [[ "$lb_code" == "200" && -n "$lb_count" ]]; then
+  record PASS "sp.leaderboard_endpoint_200" "HTTP 200, $lb_count rows"
+else
+  record FAIL "sp.leaderboard_endpoint_200" "HTTP $lb_code, count=$lb_count"
+fi
 
 # ─── summary ─────────────────────────────────────────────────────────────────
 
