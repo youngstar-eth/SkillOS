@@ -45,6 +45,9 @@ import {
 } from "@skillbase/contracts";
 import { Timer, parseWalletError } from "@skillbase/ui";
 import { GameSudoku } from "@/components/GameSudoku";
+import { AICoach } from "@/components/AICoach";
+import { AIRecap } from "@/components/AIRecap";
+import { AIReviewedBadge } from "@/components/AIReviewedBadge";
 
 const GAME = "sudoku";
 
@@ -67,6 +70,7 @@ type ActiveResponse = {
 
 type SoloSubmitResponse = {
   submitted: boolean;
+  soloRunId: string;
   rank: number;
   bestScore: number;
   matchCount: number;
@@ -465,30 +469,40 @@ export default function SoloPage() {
           )}
 
           {status === "submitted" && result && (
-            <Panel highlight>
-              <p className="text-sm font-semibold text-neutral-100">
-                Score submitted ✓ {result.bestScore} points
-              </p>
-              <p className="mt-1 text-xs text-neutral-400">
-                Rank #{result.rank} · {result.matchCount}{" "}
-                {result.matchCount === 1 ? "run" : "runs"} submitted
-                {result.isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={handlePlayAgain}
-                  className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90"
-                >
-                  Play again (1.00 USDC)
-                </button>
-                <Link
-                  href="/tournament"
-                  className="flex-1 rounded-lg border border-border bg-bg-elev px-3 py-2 text-center text-sm font-semibold text-neutral-200 hover:bg-bg-elev2"
-                >
-                  View tournament
-                </Link>
-              </div>
-            </Panel>
+            <>
+              <Panel highlight>
+                <p className="text-sm font-semibold text-neutral-100">
+                  Score submitted ✓ {result.bestScore} points
+                </p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  Rank #{result.rank} · {result.matchCount}{" "}
+                  {result.matchCount === 1 ? "run" : "runs"} submitted
+                  {result.isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
+                </p>
+                <div className="mt-3">
+                  <AIReviewedBadge
+                    matchId={result.soloRunId}
+                    context="solo"
+                  />
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={handlePlayAgain}
+                    className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90"
+                  >
+                    Play again (1.00 USDC)
+                  </button>
+                  <Link
+                    href="/tournament"
+                    className="flex-1 rounded-lg border border-border bg-bg-elev px-3 py-2 text-center text-sm font-semibold text-neutral-200 hover:bg-bg-elev2"
+                  >
+                    View tournament
+                  </Link>
+                </div>
+              </Panel>
+              <AIRecap matchId={result.soloRunId} context="solo" />
+              <AICoach matchId={result.soloRunId} context="solo" />
+            </>
           )}
 
           {status === "error" && (
