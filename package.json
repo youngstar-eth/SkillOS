@@ -12,7 +12,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "dev:2048": "npm run dev --workspace @skillbase/app-2048",
-    "build:2048": "npm run build --workspace @skillbase/app-2048"
+    "build:2048": "npm run build --workspace @skillbase/app-2048",
+    "backfill:sp": "tsx scripts/backfill-sp.ts"
   },
   "devDependencies": {
     "tsx": "^4.21.0",
