@@ -71,6 +71,23 @@
 // the UI mid-payment in a way that pay-then-play makes more visible. Stick
 // with the legacy useWriteContract 2-tx path (USDC.approve, then
 // chargeRetryFee) until the bundler issue is diagnosed.
+//
+// Popup-blocker awareness (Chrome default settings):
+//
+//   The 2-tx chain fires popup #1 (approve) inside the click handler —
+//   user-gesture context, always allowed. Popup #2 (chargeRetryFee) fires
+//   from the auto-chain useEffect AFTER the approve receipt mines, by
+//   which time the user-gesture window has closed. Chrome can silently
+//   suppress popup #2; the hook then sits in status="paying" forever.
+//
+//   We do NOT probe popup state with a window.open test inside
+//   handlePlayClick: the probe runs in user-gesture context and will
+//   report "allowed" even when popup #2 will later be blocked, so it
+//   can't see the bug we want to surface, and risks false positives in
+//   fringe browsers. Instead, the consuming page renders a <PopupHint>
+//   below the Pay button and inside the "paying" panel — preventive
+//   copy that tells users to allow popups for the site, which is the
+//   actual remediation regardless of detection result.
 // ───────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useRef, useState } from "react";

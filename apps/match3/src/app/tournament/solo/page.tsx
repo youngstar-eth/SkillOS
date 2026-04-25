@@ -20,6 +20,7 @@ import { useAccount } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PLAY_WINDOW_MS } from "@skillbase/contracts";
 import {
+  PopupHint,
   Timer,
   useSoloRetry,
   type SoloEligibility,
@@ -255,6 +256,7 @@ export default function SoloPage() {
               >
                 {playButtonLabel}
               </button>
+              {isPaidRetry && <PopupHint />}
             </Panel>
           ) : null}
 
@@ -271,6 +273,7 @@ export default function SoloPage() {
               <p className="text-sm text-neutral-300">
                 Settling fee on-chain… game starts on confirmation.
               </p>
+              <PopupHint variant="stuck" />
             </Panel>
           )}
 

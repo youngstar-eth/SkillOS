@@ -10,6 +10,7 @@ export { wagmiConfig } from "./wagmi";
 export { Providers } from "./Providers";
 export { Timer } from "./Timer";
 export { WalletButton } from "./WalletButton";
+export { PopupHint, type PopupHintProps } from "./PopupHint";
 export {
   useSoloRetry,
   type UseSoloRetryStatus,
