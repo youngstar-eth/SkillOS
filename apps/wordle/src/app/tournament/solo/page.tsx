@@ -293,84 +293,95 @@ export default function SoloPage() {
         </div>
       )}
 
-      {/* Post-game panel — submitting, submitted, submission-queued, error-with-finalScore */}
+      {/* Post-game panel — single column on mobile, 2-col on desktop for the
+          submitted state so score / SP / recap / coach fit fold-above. */}
       {finalScore != null && (
-        <div className="mt-6 w-full max-w-md space-y-3">
+        <div className="mt-6 w-full max-w-md md:max-w-4xl">
           {status === "submitting" && (
-            <Panel>
-              <p className="text-sm text-neutral-300">
-                Submitting {finalScore} points…
-              </p>
-            </Panel>
+            <div className="mx-auto max-w-md">
+              <Panel>
+                <p className="text-sm text-neutral-300">
+                  Submitting {finalScore} points…
+                </p>
+              </Panel>
+            </div>
           )}
 
           {status === "submitted" && result && (
-            <>
-              <Panel highlight>
-                <p className="text-sm font-semibold text-neutral-100">
-                  Score submitted ✓ {result.bestScore} points
-                </p>
-                <p className="mt-1 text-xs text-neutral-400">
-                  Rank #{result.rank} · {result.matchCount}{" "}
-                  {result.matchCount === 1 ? "run" : "runs"} submitted
-                  {result.isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
-                </p>
-                <div className="mt-3">
-                  <AIReviewedBadge
-                    matchId={result.soloRunId}
-                    context="solo"
-                  />
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={handlePlayAgain}
-                    disabled={walletBusy}
-                    className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Play again (1.00 USDC)
-                  </button>
-                  <Link
-                    href="/tournament"
-                    className="flex-1 rounded-lg border border-border bg-bg-elev px-3 py-2 text-center text-sm font-semibold text-neutral-200 hover:bg-bg-elev2"
-                  >
-                    View tournament
-                  </Link>
-                </div>
-              </Panel>
-              <SPEarnedCard
-                kind="solo"
-                sourceId={result.soloRunId}
-                player={address}
-              />
-              <AIRecap matchId={result.soloRunId} context="solo" />
-              <AICoach matchId={result.soloRunId} context="solo" />
-            </>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="flex flex-col gap-3">
+                <Panel highlight>
+                  <p className="text-sm font-semibold text-neutral-100">
+                    Score submitted ✓ {result.bestScore} points
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Rank #{result.rank} · {result.matchCount}{" "}
+                    {result.matchCount === 1 ? "run" : "runs"} submitted
+                    {result.isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
+                  </p>
+                  <div className="mt-3">
+                    <AIReviewedBadge
+                      matchId={result.soloRunId}
+                      context="solo"
+                    />
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={handlePlayAgain}
+                      disabled={walletBusy}
+                      className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Play again (1.00 USDC)
+                    </button>
+                    <Link
+                      href="/tournament"
+                      className="flex-1 rounded-lg border border-border bg-bg-elev px-3 py-2 text-center text-sm font-semibold text-neutral-200 hover:bg-bg-elev2"
+                    >
+                      View tournament
+                    </Link>
+                  </div>
+                </Panel>
+                <SPEarnedCard
+                  kind="solo"
+                  sourceId={result.soloRunId}
+                  player={address}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <AIRecap matchId={result.soloRunId} context="solo" />
+                <AICoach matchId={result.soloRunId} context="solo" />
+              </div>
+            </div>
           )}
 
           {status === "submission-queued" && (
-            <Panel>
-              <p className="text-sm font-semibold text-neutral-100">
-                Score buffered — network slow
-              </p>
-              <p className="mt-1 text-xs text-neutral-400">
-                Your run + payment is saved locally. We'll auto-submit on your
-                next visit while the tournament is still open.
-              </p>
-            </Panel>
+            <div className="mx-auto max-w-md">
+              <Panel>
+                <p className="text-sm font-semibold text-neutral-100">
+                  Score buffered — network slow
+                </p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  Your run + payment is saved locally. We'll auto-submit on your
+                  next visit while the tournament is still open.
+                </p>
+              </Panel>
+            </div>
           )}
 
           {status === "error" && (
-            <Panel tone="error">
-              <p className="text-sm text-red-300">
-                {error ?? "Something went wrong."}
-              </p>
-              <button
-                onClick={reset}
-                className="mt-2 text-xs underline"
-              >
-                Reset
-              </button>
-            </Panel>
+            <div className="mx-auto max-w-md">
+              <Panel tone="error">
+                <p className="text-sm text-red-300">
+                  {error ?? "Something went wrong."}
+                </p>
+                <button
+                  onClick={reset}
+                  className="mt-2 text-xs underline"
+                >
+                  Reset
+                </button>
+              </Panel>
+            </div>
           )}
         </div>
       )}
