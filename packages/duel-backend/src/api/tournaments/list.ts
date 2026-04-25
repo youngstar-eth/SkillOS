@@ -20,11 +20,34 @@ import {
   isUuid,
   jsonError,
   jsonOk,
+  parseAddress,
 } from "@skillbase/lib-shared";
+import { RETRY_FEE } from "@skillbase/contracts";
 import type { TournamentGame } from "../../cron/tournaments";
 
 export interface TournamentReadHandlerConfig {
   game: TournamentGame;
+}
+
+/**
+ * Per-wallet eligibility for the next solo submission on a tournament.
+ *
+ * Pay-then-play needs the client to know upfront whether the next click
+ * is a free run or a paid retry — the legacy "try free, fall back to 402"
+ * pattern fires the wallet popup AFTER the user already saw their score
+ * (cherry-pick exploit). With this, the client knows before the game starts.
+ *
+ * Computed only when caller provides ?address= query param. Backward-
+ * compatible: callers without the param see `eligibility: null`.
+ */
+interface EligibilityDTO {
+  walletAddress: string;
+  /** count of v2_tournament_solo_runs rows for (tournament, player). */
+  priorSoloRuns: number;
+  /** true iff priorSoloRuns >= 1 — next submission requires fee. */
+  nextPaidRetry: boolean;
+  /** "1000000" (1 USDC, 6 decimals) when paid retry; "0" otherwise. */
+  currentFeeOwed: string;
 }
 
 interface TournamentDTO {
@@ -42,6 +65,8 @@ interface TournamentDTO {
   settledAt: string | null;
   settleTxHash: string | null;
   entryCount: number;
+  /** null when caller didn't pass ?address= or address was invalid. */
+  eligibility: EligibilityDTO | null;
 }
 
 interface LeaderboardEntryDTO {
@@ -61,7 +86,11 @@ interface LeaderboardEntryDTO {
   level: number | null;
 }
 
-function toTournamentDTO(row: Record<string, unknown>, entryCount = 0): TournamentDTO {
+function toTournamentDTO(
+  row: Record<string, unknown>,
+  entryCount = 0,
+  eligibility: EligibilityDTO | null = null,
+): TournamentDTO {
   return {
     id: row.id as string,
     onChainId: row.on_chain_id as string,
@@ -77,15 +106,22 @@ function toTournamentDTO(row: Record<string, unknown>, entryCount = 0): Tourname
     settledAt: (row.settled_at as string | null) ?? null,
     settleTxHash: (row.settle_tx_hash as string | null) ?? null,
     entryCount,
+    eligibility,
   };
 }
 
 // ─── GET /api/tournaments (active daily + weekly) ─────────────────────────
 
 export function createTournamentActiveHandler(config: TournamentReadHandlerConfig) {
-  return async function GET(_req: NextRequest): Promise<Response> {
+  return async function GET(req: NextRequest): Promise<Response> {
     const supabase = getSupabaseService();
     const nowIso = new Date().toISOString();
+
+    // Pay-then-play eligibility: client passes ?address= to learn whether the
+    // next click is a free run or a paid retry. Backward-compatible: missing/
+    // invalid address yields `eligibility: null` on each tournament.
+    const addressParam = req.nextUrl.searchParams.get("address");
+    const player = addressParam ? parseAddress(addressParam) : null;
 
     const { data: rows, error } = await supabase
       .from("v2_tournaments")
@@ -127,11 +163,42 @@ export function createTournamentActiveHandler(config: TournamentReadHandlerConfi
       }
     }
 
+    // Bulk-count solo runs per (tournament, player) for eligibility. One
+    // round-trip covers both daily + weekly via .in(); skipped when no
+    // valid address was supplied. .select("tournament_id") returns one row
+    // per matching solo run; we group client-side to avoid an RPC.
+    const soloCountByTid = new Map<string, number>();
+    if (player && ids.length > 0) {
+      const { data: runRows, error: rErr } = await supabase
+        .from("v2_tournament_solo_runs")
+        .select("tournament_id")
+        .in("tournament_id", ids)
+        .eq("player_address", player);
+      if (rErr) return jsonError("db_error", rErr.message, 500);
+      for (const r of runRows ?? []) {
+        const tid = (r as { tournament_id: string }).tournament_id;
+        soloCountByTid.set(tid, (soloCountByTid.get(tid) ?? 0) + 1);
+      }
+    }
+
+    function eligibilityFor(tournamentId: string): EligibilityDTO | null {
+      if (!player) return null;
+      const priorSoloRuns = soloCountByTid.get(tournamentId) ?? 0;
+      const nextPaidRetry = priorSoloRuns >= 1;
+      return {
+        walletAddress: player,
+        priorSoloRuns,
+        nextPaidRetry,
+        currentFeeOwed: nextPaidRetry ? RETRY_FEE.toString() : "0",
+      };
+    }
+
     for (const row of tournaments) {
+      const id = row.id as string;
       if (row.cycle_type === "daily" && !daily) {
-        daily = toTournamentDTO(row, counts.get(row.id as string) ?? 0);
+        daily = toTournamentDTO(row, counts.get(id) ?? 0, eligibilityFor(id));
       } else if (row.cycle_type === "weekly" && !weekly) {
-        weekly = toTournamentDTO(row, counts.get(row.id as string) ?? 0);
+        weekly = toTournamentDTO(row, counts.get(id) ?? 0, eligibilityFor(id));
       }
     }
 
