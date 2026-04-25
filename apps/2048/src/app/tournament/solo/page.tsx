@@ -28,9 +28,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Hex, maxUint256 } from "viem";
+import { baseSepolia } from "wagmi/chains";
 import {
   useAccount,
+  useCapabilities,
   useReadContract,
+  useSendCalls,
+  useWaitForCallsStatus,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
@@ -210,6 +214,7 @@ export default function SoloPage() {
     useWaitForTransactionReceipt({ hash: chargeHash });
 
   // When chargeRetryFee confirms, re-POST to /solo with feeTxHash.
+  // Same ref dedupes both paths (single useWriteContract tx + sendCalls bundle).
   const chargeHandled = useRef<Hex | null>(null);
   useEffect(() => {
     if (!chargeDone || !chargeHash || !address || !tournament || finalScore == null) {
@@ -221,6 +226,62 @@ export default function SoloPage() {
     // finalizeSoloSubmit is stable via the refs below; missing in deps on purpose.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chargeDone, chargeHash, address, tournament?.id, finalScore]);
+
+  // ─── Paymaster (EIP-5792 sendCalls) ──────────────────────────────────
+  //
+  // When the connected wallet is a Smart Wallet that supports paymaster
+  // sponsorship, batch USDC.approve (if needed) + chargeRetryFee into a
+  // single sponsored UserOp. Smart Wallet auto-renders "Sponsored". The
+  // backend's verifyRetryFeeTx scans logs for the RetryFeePaid event, so
+  // a bundled tx works the same as a direct tx.
+  //
+  // Fallback (injected/MetaMask/Rabby): the existing 2-tx useWriteContract
+  // path above. useCapabilities reports `paymasterService.supported: true`
+  // only for wallets that implement EIP-5792 + paymaster — graceful
+  // degradation for everyone else.
+  const { data: capabilities } = useCapabilities({
+    account: address,
+    query: { enabled: !!address },
+  });
+  const supportsPaymaster =
+    capabilities?.[baseSepolia.id]?.paymasterService?.supported === true;
+
+  const [paymasterUrl, setPaymasterUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPaymasterUrl(`${window.location.origin}/api/paymaster`);
+    }
+  }, []);
+
+  const usePaymasterPath = supportsPaymaster && paymasterUrl !== null;
+
+  const {
+    sendCalls,
+    data: callsData,
+    isPending: callsPending,
+    reset: resetCalls,
+  } = useSendCalls();
+  const callsId = callsData?.id;
+  const { data: callsStatus } = useWaitForCallsStatus({
+    id: callsId,
+    query: { enabled: !!callsId },
+  });
+  const callsWaiting =
+    callsId != null && (!callsStatus || callsStatus.status !== "success");
+
+  // When the sponsored bundle is mined, the EntryPoint's tx contains the
+  // chargeRetryFee internal call → emits RetryFeePaid → server accepts.
+  useEffect(() => {
+    if (callsStatus?.status !== "success") return;
+    const receipts = callsStatus.receipts;
+    if (!receipts || receipts.length === 0) return;
+    const txHash = receipts[0].transactionHash as Hex;
+    if (!txHash || finalScore == null) return;
+    if (chargeHandled.current === txHash) return;
+    chargeHandled.current = txHash;
+    void finalizeSoloSubmit(txHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callsStatus?.status, finalScore]);
 
   // ─── Submit flow ─────────────────────────────────────────────────────
 
@@ -277,6 +338,52 @@ export default function SoloPage() {
     if (!address || !tournament || finalScore == null) return;
     setError(null);
     setStatus("paying-fee");
+
+    // Smart Wallet path: bundle approve (if needed) + chargeRetryFee into
+    // one sponsored UserOp. One wallet prompt; zero ETH on the user side.
+    if (usePaymasterPath) {
+      const calls = hasAllowance
+        ? [
+            {
+              to: TOURNAMENT_POOL_V2_ADDRESS,
+              abi: TOURNAMENT_POOL_ABI,
+              functionName: "chargeRetryFee" as const,
+              args: [tournament.onChainId, address] as const,
+            },
+          ]
+        : [
+            {
+              to: USDC_ADDRESS,
+              abi: ERC20_ABI,
+              functionName: "approve" as const,
+              args: [TOURNAMENT_POOL_V2_ADDRESS, maxUint256] as const,
+            },
+            {
+              to: TOURNAMENT_POOL_V2_ADDRESS,
+              abi: TOURNAMENT_POOL_ABI,
+              functionName: "chargeRetryFee" as const,
+              args: [tournament.onChainId, address] as const,
+            },
+          ];
+      sendCalls(
+        {
+          calls,
+          capabilities: {
+            paymasterService: { url: paymasterUrl as string },
+          },
+        },
+        {
+          onError: (e) => {
+            setError(parseWalletError(e).message);
+            setStatus("awaiting-fee");
+          },
+        },
+      );
+      return;
+    }
+
+    // Fallback: 2-tx flow for injected wallets (MetaMask / Rabby) — they
+    // don't support EIP-5792, so user pays gas in ETH for both txs.
     if (!hasAllowance) {
       writeApprove(
         {
@@ -351,13 +458,19 @@ export default function SoloPage() {
     setError(null);
     setStatus("playing");
     resetCharge();
+    resetCalls();
     chargeHandled.current = null;
   }
 
   // ─── Render ─────────────────────────────────────────────────────────
 
   const walletBusy =
-    approvePending || approveMining || chargePending || chargeMining;
+    approvePending ||
+    approveMining ||
+    chargePending ||
+    chargeMining ||
+    callsPending ||
+    callsWaiting;
 
   if (!address) {
     return (
@@ -446,14 +559,21 @@ export default function SoloPage() {
                 Pay 1.00 USDC to submit this run. Fees fund platform operations —
                 they don't touch the prize pool.
               </p>
+              {usePaymasterPath && (
+                <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-skill">
+                  ⚡ Sponsored by Skillbase — no ETH gas
+                </p>
+              )}
               <button
                 onClick={handlePayRetry}
                 disabled={walletBusy}
                 className="mt-3 w-full rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {hasAllowance
+                {usePaymasterPath
                   ? "Pay 1.00 USDC & submit"
-                  : "Approve USDC + pay"}
+                  : hasAllowance
+                    ? "Pay 1.00 USDC & submit"
+                    : "Approve USDC + pay"}
               </button>
             </Panel>
           )}
@@ -461,10 +581,21 @@ export default function SoloPage() {
           {status === "paying-fee" && (
             <Panel>
               <p className="text-sm text-neutral-300">
-                {!hasAllowance && approvePending && "Approving USDC…"}
-                {!hasAllowance && approveMining && "Waiting for approval receipt…"}
-                {(hasAllowance || approveDone) && chargePending && "Paying retry fee…"}
-                {(hasAllowance || approveDone) && chargeMining && "Waiting for fee receipt…"}
+                {usePaymasterPath
+                  ? callsPending
+                    ? "Confirming sponsored bundle in your wallet…"
+                    : callsWaiting
+                      ? "Settling on-chain (gas covered by Skillbase)…"
+                      : "Submitting…"
+                  : !hasAllowance && approvePending
+                    ? "Approving USDC…"
+                    : !hasAllowance && approveMining
+                      ? "Waiting for approval receipt…"
+                      : (hasAllowance || approveDone) && chargePending
+                        ? "Paying retry fee…"
+                        : (hasAllowance || approveDone) && chargeMining
+                          ? "Waiting for fee receipt…"
+                          : "Submitting…"}
               </p>
             </Panel>
           )}
