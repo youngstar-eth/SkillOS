@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: "Skillbase Match 3 — On-chain gem duels on Base",
   description:
     "Stake 1 USDC, match a player, swap gems for 2 minutes. Deepest cascades + highest score wins the pool.",
+  other: {
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://match3.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Match3 on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://match3.skillbase.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://match3.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Match3 on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://match3.skillbase.games/tournament/solo\"}}}",
+  },
 };
 
 export const viewport = {

@@ -17,6 +17,7 @@ export {
   type BasenameStatus,
   type UseBasenameReturn,
 } from "./useBasename";
+export { gameOgTemplate, type GameOgProps } from "./og";
 export {
   useSoloRetry,
   type UseSoloRetryStatus,
