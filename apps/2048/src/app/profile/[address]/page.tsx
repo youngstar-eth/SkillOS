@@ -11,7 +11,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { truncateAddress, basescanAddress } from "@skillbase/ui";
+import { AddressDisplay, basescanAddress } from "@skillbase/ui";
 
 type Verdict = "plausible" | "suspicious" | "implausible";
 
@@ -120,7 +120,7 @@ export default function ProfilePage({
         <section className="rounded-2xl border border-border bg-bg-elev p-6">
           <div className="flex items-baseline justify-between">
             <h1 className="font-mono text-lg tracking-tight">
-              {truncateAddress(address)}
+              <AddressDisplay address={address} variant="stacked" />
             </h1>
             <a
               href={basescanAddress(address)}

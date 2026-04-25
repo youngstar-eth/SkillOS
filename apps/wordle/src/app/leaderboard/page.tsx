@@ -11,7 +11,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { truncateAddress } from "@skillbase/ui";
+import { AddressDisplay } from "@skillbase/ui";
 
 type LeaderboardRow = {
   rank: number;
@@ -98,7 +98,7 @@ export default function LeaderboardPage() {
                           href={`/profile/${row.address}`}
                           className="underline-offset-4 hover:text-skill hover:underline"
                         >
-                          {truncateAddress(row.address)}
+                          <AddressDisplay address={row.address} />
                         </Link>
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">

@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { truncateAddress } from "@skillbase/ui";
+import { AddressDisplay } from "@skillbase/ui";
 
 type Tournament = {
   id: string;
@@ -156,7 +156,7 @@ export default function TournamentDetailPage({
                           )}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs">
-                          {truncateAddress(e.playerAddress)}
+                          <AddressDisplay address={e.playerAddress} />
                           {isMe && (
                             <span className="ml-2 rounded bg-skill/20 px-1.5 py-0.5 text-[10px] text-skill">
                               you

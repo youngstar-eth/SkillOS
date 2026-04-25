@@ -11,6 +11,12 @@ export { Providers } from "./Providers";
 export { Timer } from "./Timer";
 export { WalletButton } from "./WalletButton";
 export { PopupHint, type PopupHintProps } from "./PopupHint";
+export { AddressDisplay, type AddressDisplayProps } from "./AddressDisplay";
+export {
+  useBasename,
+  type BasenameStatus,
+  type UseBasenameReturn,
+} from "./useBasename";
 export {
   useSoloRetry,
   type UseSoloRetryStatus,
