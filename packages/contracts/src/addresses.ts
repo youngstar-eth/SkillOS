@@ -68,6 +68,3 @@ export const RETRY_FEE = 1_000_000n;
 
 /** Match-count cap applied in on-chain effective score. Matches contract MATCH_COUNT_CAP. */
 export const MATCH_COUNT_CAP = 10n;
-
-/** Rate limit between solo submissions from a single player on a single tournament. */
-export const SOLO_SUBMIT_COOLDOWN_MS = 60 * 1000;

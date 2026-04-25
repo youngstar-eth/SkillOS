@@ -356,9 +356,11 @@ fi
 
 echo "── [7/7] Retry fee isolation ──"
 
-# Second submit with the SAME test address. Within 60s cooldown → 429.
-# After cooldown (we don't wait) + no feeTxHash → 402. Either proves the
-# paid-retry gate fires. A 200 would mean retry fee isolation regressed.
+# Second submit with the SAME test address, no feeTxHash → 402
+# payment_required. (The legacy 60s cooldown returned 429; it was retired
+# when pay-then-play made the economic gate sufficient. The 429 case below
+# is kept for backward-compat against pre-rollback deploys.) A 200 would
+# mean retry fee isolation regressed.
 retry_resp=$(curl -s -w "\n%{http_code}" -X POST -H 'content-type: application/json' \
   -d "{\"playerAddress\":\"$test_addr\",\"score\":999}" \
   "$BASE_URL/api/tournaments/$tournament_id/solo")

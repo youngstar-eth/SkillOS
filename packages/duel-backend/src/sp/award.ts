@@ -14,9 +14,10 @@
 // Concurrency note: this is a read-then-write helper, NOT a CAS. Two
 // concurrent awards to the same user race, and the later write wins. For
 // Phase-1 we accept this — per-user event frequency is orders of
-// magnitude below "simultaneous" (60s cooldown on solo, one-duel-at-a-time
-// UX on duel). If leaderboard correctness under contention ever matters,
-// lift this to a stored proc with a serializable transaction.
+// magnitude below "simultaneous" (each paid solo submit is gated by
+// chargeRetryFee on-chain settlement, one-duel-at-a-time UX on duel).
+// If leaderboard correctness under contention ever matters, lift this
+// to a stored proc with a serializable transaction.
 // ───────────────────────────────────────────────────────────────────────────
 
 import { awardSP, levelForSP, type SPEvent } from "@skillbase/sp-engine";

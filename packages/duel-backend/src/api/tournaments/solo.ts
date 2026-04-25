@@ -39,7 +39,11 @@
 //   402 payment_required — when priorSoloRuns >= 1 and feeTxHash missing
 //   404 tournament not found
 //   409 tournament settled / feeTxHash already used
-//   429 rate_limited — 60s cooldown between submissions per player
+//
+// Spam protection note: the 60s rate limit was retired with pay-then-play
+// (Tournaments v2). Every submission past the first requires a
+// chargeRetryFee on-chain settlement (1 USDC), so spam is gated by
+// economics — the throughput ceiling is "as fast as you can pay".
 //
 // On-chain broadcast is fire-and-forget (plan decision — retry UX needs
 // snappy response). writeContract returns after RPC broadcast accepts the
@@ -70,7 +74,6 @@ import {
 import {
   MATCH_COUNT_CAP,
   RETRY_FEE,
-  SOLO_SUBMIT_COOLDOWN_MS,
   TOURNAMENT_POOL_ABI,
   TOURNAMENT_POOL_V2_ADDRESS,
 } from "@skillbase/contracts";
@@ -385,7 +388,10 @@ export function createTournamentSoloHandler(
       );
     }
 
-    // ─── rate limit + free/paid decision (one query, ordered desc) ──────
+    // ─── free/paid decision ──────────────────────────────────────────────
+    // Any prior solo run for (tournament, player) flips this to paid retry.
+    // The 60s cooldown was retired with pay-then-play (see header comment) —
+    // on-chain payment settlement is the spam gate.
     const { data: priorRun, error: lastRunErr } = await supabase
       .from("v2_tournament_solo_runs")
       .select("submitted_at")
@@ -396,21 +402,6 @@ export function createTournamentSoloHandler(
       .maybeSingle();
     if (lastRunErr) return jsonError("db_error", lastRunErr.message, 500);
 
-    if (priorRun) {
-      const elapsed = nowMs - new Date(priorRun.submitted_at).getTime();
-      if (elapsed < SOLO_SUBMIT_COOLDOWN_MS) {
-        const waitSeconds = Math.ceil(
-          (SOLO_SUBMIT_COOLDOWN_MS - elapsed) / 1000,
-        );
-        return jsonError(
-          "rate_limited",
-          `wait ${waitSeconds}s before next solo submission`,
-          429,
-        );
-      }
-    }
-
-    // priorRun existing → at least one prior solo run → paid path required
     const isPaidRetry = priorRun !== null;
 
     let feeTxHash: Hex | null = null;
