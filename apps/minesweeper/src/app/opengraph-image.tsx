@@ -25,19 +25,60 @@ const NUM_COLOR: Record<1 | 2 | 3, string> = {
   3: "#EF4444",
 };
 
-const GRID: Cell[] = [
-  { kind: "number", n: 1 }, { kind: "number", n: 2 }, { kind: "flag" },     { kind: "covered" },
-  { kind: "blank" },         { kind: "number", n: 1 }, { kind: "number", n: 2 }, { kind: "covered" },
-  { kind: "blank" },         { kind: "blank" },         { kind: "number", n: 1 }, { kind: "covered" },
-  { kind: "blank" },         { kind: "blank" },         { kind: "blank" },         { kind: "covered" },
+const ROWS: Cell[][] = [
+  [{ kind: "number", n: 1 }, { kind: "number", n: 2 }, { kind: "flag" },     { kind: "covered" }],
+  [{ kind: "blank" },         { kind: "number", n: 1 }, { kind: "number", n: 2 }, { kind: "covered" }],
+  [{ kind: "blank" },         { kind: "blank" },         { kind: "number", n: 1 }, { kind: "covered" }],
+  [{ kind: "blank" },         { kind: "blank" },         { kind: "blank" },         { kind: "covered" }],
 ];
+
+function CellView({ cell }: { cell: Cell }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 70,
+        height: 70,
+        background:
+          cell.kind === "covered"
+            ? "#26262C"
+            : cell.kind === "flag"
+              ? "#1A1A1F"
+              : "#0E0E12",
+        border:
+          cell.kind === "covered"
+            ? "2px solid rgba(255,255,255,0.18)"
+            : "1px solid rgba(255,255,255,0.05)",
+        borderRadius: 6,
+        color: cell.kind === "number" ? NUM_COLOR[cell.n] : "transparent",
+        fontSize: 28,
+        fontWeight: 700,
+      }}
+    >
+      {cell.kind === "number" && String(cell.n)}
+      {cell.kind === "flag" && (
+        <div
+          style={{
+            display: "flex",
+            width: 20,
+            height: 24,
+            background: "#EF4444",
+            clipPath: "polygon(0 0, 100% 50%, 0 100%)",
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 function MinesGrid() {
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        display: "flex",
+        flexDirection: "column",
         gap: 4,
         width: 320,
         height: 320,
@@ -47,42 +88,11 @@ function MinesGrid() {
         border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      {GRID.map((cell, i) => (
-        <div
-          key={i}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background:
-              cell.kind === "covered"
-                ? "#26262C"
-                : cell.kind === "flag"
-                  ? "#1A1A1F"
-                  : "#0E0E12",
-            border:
-              cell.kind === "covered"
-                ? "2px solid rgba(255,255,255,0.18)"
-                : "1px solid rgba(255,255,255,0.05)",
-            borderRadius: 6,
-            color:
-              cell.kind === "number" ? NUM_COLOR[cell.n] : "transparent",
-            fontSize: 28,
-            fontWeight: 700,
-          }}
-        >
-          {cell.kind === "number" && String(cell.n)}
-          {cell.kind === "flag" && (
-            <div
-              style={{
-                display: "flex",
-                width: 20,
-                height: 24,
-                background: "#EF4444",
-                clipPath: "polygon(0 0, 100% 50%, 0 100%)",
-              }}
-            />
-          )}
+      {ROWS.map((row, r) => (
+        <div key={r} style={{ display: "flex", gap: 4, flex: "1 1 0" }}>
+          {row.map((cell, c) => (
+            <CellView key={c} cell={cell} />
+          ))}
         </div>
       ))}
     </div>
