@@ -3,47 +3,27 @@
 // ───────────────────────────────────────────────────────────────────────────
 // /tournament/solo — solo submit primary path (Tournaments v2).
 //
-// State machine:
+// Pay-then-play state machine: payment settles BEFORE the game starts.
+// The full state machine + localStorage replay logic lives in the shared
+// useSoloRetry hook (@skillbase/ui). This page is presentation-only.
 //
-//   playing   → user plays a round; onScoreChange tracks liveScore
-//   submitting → game ended; POSTing to /api/tournaments/[id]/solo without
-//               feeTxHash. On 200 → submitted. On 402 → awaiting-fee.
-//   awaiting-fee → server said "pay first". We show "Retry (1 USDC)" CTA.
-//   paying-fee → wallet prompts: approve (if needed) → chargeRetryFee. On
-//                success → re-POST with feeTxHash.
-//   submitted → rank + score displayed; "Play again" starts a new round
-//               (which will take the paid path because ≥1 solo_runs exists).
-//   error     → blocked; retry button available
-//
-// The "try-free-first, fall-back-to-402" pattern avoids an extra
-// GET request to determine free-vs-paid on mount. The endpoint is the
-// single source of truth — it counts prior solo_runs and tells us.
-//
-// Fee payment is a 2-tx dance: USDC approve (one-shot max) + chargeRetryFee.
-// Approval is cached by the contract so after the first retry, subsequent
-// retries skip directly to chargeRetryFee — 1 wallet confirmation instead of 2.
+// Smart Wallet + EIP-5792 batched paymaster path is deferred to Phase 2 —
+// every wallet uses the legacy useWriteContract approve+chargeRetryFee
+// flow until the bundler-drop bug is diagnosed.
 // ───────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type Hex, maxUint256 } from "viem";
+import { useEffect, useMemo, useState } from "react";
+import { type Hex } from "viem";
+import { useAccount } from "wagmi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PLAY_WINDOW_MS } from "@skillbase/contracts";
 import {
-  useAccount,
-  useReadContract,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from "wagmi";
-import { useQuery } from "@tanstack/react-query";
-import {
-  ERC20_ABI,
-  PLAY_WINDOW_MS,
-  RETRY_FEE,
-  TOURNAMENT_POOL_ABI,
-  TOURNAMENT_POOL_V2_ADDRESS,
-  USDC_ADDRESS,
-} from "@skillbase/contracts";
-import { Timer, parseWalletError } from "@skillbase/ui";
+  Timer,
+  useSoloRetry,
+  type SoloEligibility,
+} from "@skillbase/ui";
 import { GameClicker } from "@/components/GameClicker";
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";
@@ -62,6 +42,7 @@ type Tournament = {
   endsAt: string;
   prizePoolUsdc: string;
   entryCount: number;
+  eligibility: SoloEligibility | null;
 };
 
 type ActiveResponse = {
@@ -69,60 +50,15 @@ type ActiveResponse = {
   weekly: Tournament | null;
 };
 
-type SoloSubmitResponse = {
-  submitted: boolean;
-  soloRunId: string;
-  rank: number;
-  bestScore: number;
-  matchCount: number;
-  isPaidRetry: boolean;
-  txHash: string | null;
-};
-
-type Status =
-  | "playing"
-  | "submitting"
-  | "awaiting-fee"
-  | "paying-fee"
-  | "submitted"
-  | "error";
-
 // ─── Data ──────────────────────────────────────────────────────────────────
 
-async function fetchActive(): Promise<ActiveResponse> {
-  const res = await fetch("/api/tournaments", { cache: "no-store" });
+async function fetchActive(address: string | undefined): Promise<ActiveResponse> {
+  const url = address
+    ? `/api/tournaments?address=${address}`
+    : `/api/tournaments`;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as ActiveResponse;
-}
-
-async function postSolo(params: {
-  tournamentDbId: string;
-  body: {
-    playerAddress: string;
-    score: number;
-    durationSeconds: number;
-    feeTxHash?: string;
-  };
-}): Promise<{ ok: true; data: SoloSubmitResponse } | { ok: false; status: number; code: string; message: string }> {
-  const res = await fetch(`/api/tournaments/${params.tournamentDbId}/solo`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(params.body),
-  });
-  if (res.ok) {
-    const data = (await res.json()) as SoloSubmitResponse;
-    return { ok: true, data };
-  }
-  const err = (await res.json().catch(() => ({}))) as {
-    error?: string;
-    message?: string;
-  };
-  return {
-    ok: false,
-    status: res.status,
-    code: err.error ?? `http_${res.status}`,
-    message: err.message ?? res.statusText,
-  };
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────
@@ -153,230 +89,70 @@ function useCountdown(targetIso: string | undefined): string {
 export default function SoloPage() {
   const router = useRouter();
   const { address } = useAccount();
+  const queryClient = useQueryClient();
 
-  const [seed, setSeed] = useState(() => randomSeed());
-  const [liveScore, setLiveScore] = useState(0);
-  const [finalScore, setFinalScore] = useState<number | null>(null);
-  const [status, setStatus] = useState<Status>("playing");
-  const [result, setResult] = useState<SoloSubmitResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [finalDurationSeconds, setFinalDurationSeconds] = useState<number | null>(null);
-
-  // Captured at component mount; reset on handlePlayAgain. The plausibility
-  // audit uses this to distinguish honest fast play from 0-second tampered
-  // submits — without it, every free run flagged "implausible" by the model.
-  const matchStartTimeRef = useRef<number>(Date.now());
-
-  // Bounded session timer — mirrors duel's 2-minute play window. Required
-  // for clicker + match3 (no natural end state); benign for games that
-  // game-over organically. Reset per round via the seed-keyed useMemo.
-  const playDeadline = useMemo(
-    () => new Date(Date.now() + PLAY_WINDOW_MS).toISOString(),
-    [seed],
+  const tournamentsKey = useMemo(
+    () => ["tournaments", "active", GAME, "solo", address] as const,
+    [address],
   );
 
   const { data: activeData } = useQuery({
-    queryKey: ["tournaments", "active", GAME, "solo"],
-    queryFn: fetchActive,
+    queryKey: tournamentsKey,
+    queryFn: () => fetchActive(address),
     refetchInterval: 30_000,
   });
   const tournament = activeData?.daily ?? null;
   const countdown = useCountdown(tournament?.endsAt);
 
-  // ─── USDC allowance check ────────────────────────────────────────────
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: USDC_ADDRESS,
-    abi: ERC20_ABI,
-    functionName: "allowance",
-    args: address ? [address, TOURNAMENT_POOL_V2_ADDRESS] : undefined,
-    query: { enabled: !!address },
-  });
-  const hasAllowance =
-    typeof allowance === "bigint" && allowance >= RETRY_FEE;
+  const [seed, setSeed] = useState(() => randomSeed());
 
-  // ─── Approve tx ──────────────────────────────────────────────────────
   const {
-    writeContract: writeApprove,
-    data: approveHash,
-    isPending: approvePending,
-    reset: resetApprove,
-  } = useWriteContract();
-  const { isLoading: approveMining, isSuccess: approveDone } =
-    useWaitForTransactionReceipt({ hash: approveHash });
-  useEffect(() => {
-    if (approveDone) {
-      refetchAllowance();
-      resetApprove();
-    }
-  }, [approveDone, refetchAllowance, resetApprove]);
-
-  // ─── chargeRetryFee tx ───────────────────────────────────────────────
-  const {
-    writeContract: writeCharge,
-    data: chargeHash,
-    isPending: chargePending,
-    reset: resetCharge,
-  } = useWriteContract();
-  const { isLoading: chargeMining, isSuccess: chargeDone } =
-    useWaitForTransactionReceipt({ hash: chargeHash });
-
-  // When chargeRetryFee confirms, re-POST to /solo with feeTxHash.
-  const chargeHandled = useRef<Hex | null>(null);
-  useEffect(() => {
-    if (!chargeDone || !chargeHash || !address || !tournament || finalScore == null) {
-      return;
-    }
-    if (chargeHandled.current === chargeHash) return; // dedupe on re-render
-    chargeHandled.current = chargeHash;
-    void finalizeSoloSubmit(chargeHash);
-    // finalizeSoloSubmit is stable via the refs below; missing in deps on purpose.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chargeDone, chargeHash, address, tournament?.id, finalScore]);
-
-  // ─── Submit flow ─────────────────────────────────────────────────────
-
-  async function trySubmit(score: number, durationSeconds: number, feeTxHash?: Hex) {
-    if (!tournament || !address) return;
-    setError(null);
-    const res = await postSolo({
-      tournamentDbId: tournament.id,
-      body: {
-        playerAddress: address,
-        score,
-        durationSeconds,
-        ...(feeTxHash ? { feeTxHash } : {}),
-      },
-    });
-    if (res.ok) {
-      setResult(res.data);
-      setStatus("submitted");
-      return;
-    }
-    if (res.status === 402) {
-      setStatus("awaiting-fee");
-      return;
-    }
-    if (res.status === 429) {
-      setError(res.message);
-      setStatus("error");
-      return;
-    }
-    setError(`${res.code}: ${res.message}`);
-    setStatus("error");
-  }
-
-  const handleGameOver = useCallback(
-    async (score: number) => {
-      if (finalScore != null) return; // guard against double-fire
-      const duration = Math.max(
-        0,
-        Math.floor((Date.now() - matchStartTimeRef.current) / 1000),
-      );
-      setFinalScore(score);
-      setFinalDurationSeconds(duration);
-      setStatus("submitting");
-      await trySubmit(score, duration);
+    status,
+    error,
+    liveScore,
+    finalScore,
+    result,
+    canPlay,
+    walletBusy,
+    handlePlayClick,
+    handleGameOver,
+    setLiveScore,
+    reset,
+    eligibility,
+  } = useSoloRetry({
+    tournamentId: tournament?.id ?? null,
+    tournamentOnChainId: (tournament?.onChainId as Hex | undefined) ?? null,
+    gameSlug: GAME,
+    eligibility: tournament?.eligibility ?? null,
+    tournamentEndsAt: tournament?.endsAt ?? null,
+    onSubmitted: () => {
+      // Refresh eligibility — priorSoloRuns went up; next click is paid retry.
+      void queryClient.invalidateQueries({ queryKey: tournamentsKey });
     },
-    // trySubmit closes over tournament + address; both re-read every call. OK.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [finalScore, tournament?.id, address],
-  );
+  });
 
-  // Timer expiry submits with the current liveScore. For clicker/match3 this
-  // is the only end-condition; for games that can game-over earlier, the
-  // natural onGameOver wins the race (handleGameOver guards on finalScore).
-  const handleTimerExpire = useCallback(() => {
-    if (finalScore != null) return;
-    void handleGameOver(liveScore);
-  }, [finalScore, liveScore, handleGameOver]);
-
-  function handlePayRetry() {
-    if (!address || !tournament || finalScore == null) return;
-    setError(null);
-    setStatus("paying-fee");
-    if (!hasAllowance) {
-      writeApprove(
-        {
-          address: USDC_ADDRESS,
-          abi: ERC20_ABI,
-          functionName: "approve",
-          args: [TOURNAMENT_POOL_V2_ADDRESS, maxUint256],
-        },
-        {
-          onError: (e) => {
-            setError(parseWalletError(e).message);
-            setStatus("awaiting-fee");
-          },
-        },
-      );
-      return;
-    }
-    writeCharge(
-      {
-        address: TOURNAMENT_POOL_V2_ADDRESS,
-        abi: TOURNAMENT_POOL_ABI,
-        functionName: "chargeRetryFee",
-        args: [tournament.onChainId, address],
-      },
-      {
-        onError: (e) => {
-          setError(parseWalletError(e).message);
-          setStatus("awaiting-fee");
-        },
-      },
-    );
-  }
-
-  // After approve succeeds, automatically chain chargeRetryFee.
+  // New play deadline each time the game (re)starts. Reset seed too so the
+  // game component remounts with fresh internal state.
+  const [playDeadline, setPlayDeadline] = useState<string | null>(null);
   useEffect(() => {
-    if (
-      status === "paying-fee" &&
-      approveDone &&
-      hasAllowance &&
-      !chargeHash &&
-      address &&
-      tournament
-    ) {
-      writeCharge(
-        {
-          address: TOURNAMENT_POOL_V2_ADDRESS,
-          abi: TOURNAMENT_POOL_ABI,
-          functionName: "chargeRetryFee",
-          args: [tournament.onChainId, address],
-        },
-        {
-          onError: (e) => {
-            setError(parseWalletError(e).message);
-            setStatus("awaiting-fee");
-          },
-        },
+    if (canPlay) {
+      setPlayDeadline(
+        new Date(Date.now() + PLAY_WINDOW_MS).toISOString(),
       );
+      setSeed(randomSeed());
     }
-  }, [status, approveDone, hasAllowance, chargeHash, address, tournament, writeCharge]);
+  }, [canPlay]);
 
-  async function finalizeSoloSubmit(feeTxHash: Hex) {
-    if (finalScore == null) return;
-    setStatus("submitting");
-    await trySubmit(finalScore, finalDurationSeconds ?? 0, feeTxHash);
+  function handlePlayPress() {
+    handlePlayClick();
   }
 
   function handlePlayAgain() {
-    setSeed(randomSeed());
-    setLiveScore(0);
-    setFinalScore(null);
-    setFinalDurationSeconds(null);
-    setResult(null);
-    setError(null);
-    setStatus("playing");
-    matchStartTimeRef.current = Date.now();
-    resetCharge();
-    chargeHandled.current = null;
+    reset();
+    handlePlayClick();
   }
 
   // ─── Render ─────────────────────────────────────────────────────────
-
-  const walletBusy =
-    approvePending || approveMining || chargePending || chargeMining;
 
   if (!address) {
     return (
@@ -403,6 +179,14 @@ export default function SoloPage() {
     );
   }
 
+  const isPaidRetry = eligibility?.nextPaidRetry === true;
+  const playButtonLabel = !eligibility
+    ? "Loading…"
+    : isPaidRetry
+      ? "Pay 1.00 USDC & play"
+      : "Play (free)";
+  const playButtonDisabled = !eligibility || walletBusy;
+
   return (
     <main className="flex min-h-[calc(100vh-56px)] flex-col items-center px-4 py-6">
       {/* Header */}
@@ -421,8 +205,11 @@ export default function SoloPage() {
             closes in {countdown}
           </p>
         </div>
-        {finalScore == null ? (
-          <Timer deadline={playDeadline} onExpire={handleTimerExpire} />
+        {canPlay && playDeadline ? (
+          <Timer
+            deadline={playDeadline}
+            onExpire={() => handleGameOver(liveScore)}
+          />
         ) : (
           <div className="w-[52px]" />
         )}
@@ -438,52 +225,78 @@ export default function SoloPage() {
         </p>
       </div>
 
-      <GameClicker
-        seed={seed}
-        onGameOver={handleGameOver}
-        onScoreChange={setLiveScore}
-        frozen={finalScore != null}
-      />
+      {/* Game (only while playing) */}
+      {canPlay && (
+        <GameClicker
+          seed={seed}
+          onGameOver={handleGameOver}
+          onScoreChange={setLiveScore}
+          frozen={false}
+        />
+      )}
 
-      {/* Post-game panel */}
+      {/* Pre-game CTA — idle, awaiting-payment, paying, error-without-finalScore */}
+      {!canPlay && finalScore == null && (
+        <div className="mt-6 w-full max-w-md space-y-3">
+          {status === "idle" || status === "checking-eligibility" ? (
+            <Panel>
+              <p className="text-sm font-semibold text-neutral-100">
+                Ready to play?
+              </p>
+              <p className="mt-1 text-xs text-neutral-400">
+                {isPaidRetry
+                  ? "Your first run is in. Each retry costs 1.00 USDC. Payment settles on-chain before the game starts — no cherry-picking."
+                  : "Your first solo entry is free. Subsequent retries are 1.00 USDC each."}
+              </p>
+              <button
+                onClick={handlePlayPress}
+                disabled={playButtonDisabled}
+                className="mt-3 w-full rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {playButtonLabel}
+              </button>
+            </Panel>
+          ) : null}
+
+          {status === "awaiting-payment" && (
+            <Panel>
+              <p className="text-sm text-neutral-300">
+                Confirm payment in your wallet…
+              </p>
+            </Panel>
+          )}
+
+          {status === "paying" && (
+            <Panel>
+              <p className="text-sm text-neutral-300">
+                Settling fee on-chain… game starts on confirmation.
+              </p>
+            </Panel>
+          )}
+
+          {status === "error" && (
+            <Panel tone="error">
+              <p className="text-sm text-red-300">
+                {error ?? "Something went wrong."}
+              </p>
+              <button
+                onClick={reset}
+                className="mt-2 text-xs underline"
+              >
+                Reset
+              </button>
+            </Panel>
+          )}
+        </div>
+      )}
+
+      {/* Post-game panel — submitting, submitted, submission-queued, error-with-finalScore */}
       {finalScore != null && (
         <div className="mt-6 w-full max-w-md space-y-3">
           {status === "submitting" && (
             <Panel>
               <p className="text-sm text-neutral-300">
                 Submitting {finalScore} points…
-              </p>
-            </Panel>
-          )}
-
-          {status === "awaiting-fee" && (
-            <Panel>
-              <p className="text-sm font-semibold text-neutral-100">
-                First entry already used
-              </p>
-              <p className="mt-1 text-xs text-neutral-400">
-                Pay 1.00 USDC to submit this run. Fees fund platform operations —
-                they don't touch the prize pool.
-              </p>
-              <button
-                onClick={handlePayRetry}
-                disabled={walletBusy}
-                className="mt-3 w-full rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {hasAllowance
-                  ? "Pay 1.00 USDC & submit"
-                  : "Approve USDC + pay"}
-              </button>
-            </Panel>
-          )}
-
-          {status === "paying-fee" && (
-            <Panel>
-              <p className="text-sm text-neutral-300">
-                {!hasAllowance && approvePending && "Approving USDC…"}
-                {!hasAllowance && approveMining && "Waiting for approval receipt…"}
-                {(hasAllowance || approveDone) && chargePending && "Paying retry fee…"}
-                {(hasAllowance || approveDone) && chargeMining && "Waiting for fee receipt…"}
               </p>
             </Panel>
           )}
@@ -508,7 +321,8 @@ export default function SoloPage() {
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={handlePlayAgain}
-                    className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90"
+                    disabled={walletBusy}
+                    className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Play again (1.00 USDC)
                   </button>
@@ -530,17 +344,28 @@ export default function SoloPage() {
             </>
           )}
 
+          {status === "submission-queued" && (
+            <Panel>
+              <p className="text-sm font-semibold text-neutral-100">
+                Score buffered — network slow
+              </p>
+              <p className="mt-1 text-xs text-neutral-400">
+                Your run + payment is saved locally. We'll auto-submit on your
+                next visit while the tournament is still open.
+              </p>
+            </Panel>
+          )}
+
           {status === "error" && (
             <Panel tone="error">
-              <p className="text-sm text-red-300">{error ?? "Something went wrong."}</p>
+              <p className="text-sm text-red-300">
+                {error ?? "Something went wrong."}
+              </p>
               <button
-                onClick={() => {
-                  setError(null);
-                  if (finalScore != null) void trySubmit(finalScore, finalDurationSeconds ?? 0);
-                }}
+                onClick={reset}
                 className="mt-2 text-xs underline"
               >
-                Try again
+                Reset
               </button>
             </Panel>
           )}
