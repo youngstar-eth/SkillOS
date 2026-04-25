@@ -132,8 +132,10 @@ fi
 echo "── [3/7] Submit solo run ──"
 
 test_addr="0x$(openssl rand -hex 20)"
+# durationSeconds=120 — synthetic 2-minute play window. Above all per-game
+# implausible thresholds so the plausibility audit returns "plausible".
 submit_resp=$(curl -s -X POST -H 'content-type: application/json' \
-  -d "{\"playerAddress\":\"$test_addr\",\"score\":1337}" \
+  -d "{\"playerAddress\":\"$test_addr\",\"score\":1337,\"durationSeconds\":120}" \
   "$BASE_URL/api/tournaments/$tournament_id/solo")
 
 solo_run_id=$(echo "$submit_resp" | jq -r '.soloRunId // empty')

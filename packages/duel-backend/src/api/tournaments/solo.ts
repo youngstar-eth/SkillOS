@@ -173,6 +173,12 @@ function firePlausibilityCheckAsync(input: {
   gameType: TournamentGame;
   score: number;
   /**
+   * Gameplay duration captured client-side. 0 indicates "not provided"
+   * (legacy clients during rolling deploy). The plausibility prompt's
+   * 0-second branch will flag — fix is to ensure clients send this.
+   */
+  durationSeconds: number;
+  /**
    * When provided, chains a Skill-Point award for the submitter onto the
    * same waitUntil lifetime as the plausibility audit. The verdict drives
    * the multiplier (plausible=1.0, suspicious=0.5, implausible=0.0).
@@ -188,7 +194,7 @@ function firePlausibilityCheckAsync(input: {
     gameType: toGameType(input.gameType),
     winnerScore: input.score,
     loserScore: 0, // solo — no opponent
-    durationSeconds: 0, // not collected yet; v3 replay verify will populate
+    durationSeconds: input.durationSeconds,
   });
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
@@ -303,6 +309,29 @@ export function createTournamentSoloHandler(
 
     const feeTxHashRaw = payload.feeTxHash;
     const feeTxHashProvided = isBytes32Hex(feeTxHashRaw) ? feeTxHashRaw : null;
+
+    // Optional client-supplied gameplay duration. Plausibility audit uses
+    // this to avoid the 0-second false-positive branch ("score X in 0s
+    // is physically impossible"). Tolerated as missing for the rolling
+    // deploy window — defaults to 0 (legacy behavior) when absent.
+    const durationSecondsRaw = payload.durationSeconds;
+    let durationSeconds = 0;
+    if (durationSecondsRaw !== undefined && durationSecondsRaw !== null) {
+      if (
+        typeof durationSecondsRaw !== "number" ||
+        !Number.isFinite(durationSecondsRaw) ||
+        !Number.isInteger(durationSecondsRaw) ||
+        durationSecondsRaw < 0 ||
+        durationSecondsRaw > 86_400
+      ) {
+        return jsonError(
+          "invalid_duration",
+          "durationSeconds must be a non-negative integer ≤ 86400",
+          400,
+        );
+      }
+      durationSeconds = durationSecondsRaw;
+    }
 
     // ─── tournament lookup + gating ─────────────────────────────────────
     const supabase = getSupabaseService();
@@ -556,6 +585,7 @@ export function createTournamentSoloHandler(
       soloRunId: soloRunDbId,
       gameType: config.game,
       score,
+      durationSeconds,
       sp: { playerAddress: player },
     });
 

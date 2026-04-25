@@ -97,7 +97,12 @@ async function fetchActive(): Promise<ActiveResponse> {
 
 async function postSolo(params: {
   tournamentDbId: string;
-  body: { playerAddress: string; score: number; feeTxHash?: string };
+  body: {
+    playerAddress: string;
+    score: number;
+    durationSeconds: number;
+    feeTxHash?: string;
+  };
 }): Promise<{ ok: true; data: SoloSubmitResponse } | { ok: false; status: number; code: string; message: string }> {
   const res = await fetch(`/api/tournaments/${params.tournamentDbId}/solo`, {
     method: "POST",
@@ -155,6 +160,12 @@ export default function SoloPage() {
   const [status, setStatus] = useState<Status>("playing");
   const [result, setResult] = useState<SoloSubmitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [finalDurationSeconds, setFinalDurationSeconds] = useState<number | null>(null);
+
+  // Captured at component mount; reset on handlePlayAgain. The plausibility
+  // audit uses this to distinguish honest fast play from 0-second tampered
+  // submits — without it, every free run flagged "implausible" by the model.
+  const matchStartTimeRef = useRef<number>(Date.now());
 
   // Bounded session timer — mirrors duel's 2-minute play window. Required
   // for clicker + match3 (no natural end state); benign for games that
@@ -224,7 +235,7 @@ export default function SoloPage() {
 
   // ─── Submit flow ─────────────────────────────────────────────────────
 
-  async function trySubmit(score: number, feeTxHash?: Hex) {
+  async function trySubmit(score: number, durationSeconds: number, feeTxHash?: Hex) {
     if (!tournament || !address) return;
     setError(null);
     const res = await postSolo({
@@ -232,6 +243,7 @@ export default function SoloPage() {
       body: {
         playerAddress: address,
         score,
+        durationSeconds,
         ...(feeTxHash ? { feeTxHash } : {}),
       },
     });
@@ -256,9 +268,14 @@ export default function SoloPage() {
   const handleGameOver = useCallback(
     async (score: number) => {
       if (finalScore != null) return; // guard against double-fire
+      const duration = Math.max(
+        0,
+        Math.floor((Date.now() - matchStartTimeRef.current) / 1000),
+      );
       setFinalScore(score);
+      setFinalDurationSeconds(duration);
       setStatus("submitting");
-      await trySubmit(score);
+      await trySubmit(score, duration);
     },
     // trySubmit closes over tournament + address; both re-read every call. OK.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -340,16 +357,18 @@ export default function SoloPage() {
   async function finalizeSoloSubmit(feeTxHash: Hex) {
     if (finalScore == null) return;
     setStatus("submitting");
-    await trySubmit(finalScore, feeTxHash);
+    await trySubmit(finalScore, finalDurationSeconds ?? 0, feeTxHash);
   }
 
   function handlePlayAgain() {
     setSeed(randomSeed());
     setLiveScore(0);
     setFinalScore(null);
+    setFinalDurationSeconds(null);
     setResult(null);
     setError(null);
     setStatus("playing");
+    matchStartTimeRef.current = Date.now();
     resetCharge();
     chargeHandled.current = null;
   }
@@ -517,7 +536,7 @@ export default function SoloPage() {
               <button
                 onClick={() => {
                   setError(null);
-                  if (finalScore != null) void trySubmit(finalScore);
+                  if (finalScore != null) void trySubmit(finalScore, finalDurationSeconds ?? 0);
                 }}
                 className="mt-2 text-xs underline"
               >
