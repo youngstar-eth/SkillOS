@@ -154,6 +154,22 @@ else
   record FAIL "submit.rank_present" "rank missing"
 fi
 
+# Pay-then-play eligibility assertion: re-fetch /api/tournaments?address=
+# with the address that just submitted; the response should now mark the
+# next run as a paid retry. Catches regressions in the eligibility query
+# that pay-then-play depends on.
+eligibility_json=$(curl -s "$BASE_URL/api/tournaments?address=$test_addr")
+elig_paid=$(echo "$eligibility_json" | jq -r '.daily.eligibility.nextPaidRetry // empty')
+elig_owed=$(echo "$eligibility_json" | jq -r '.daily.eligibility.currentFeeOwed // empty')
+elig_runs=$(echo "$eligibility_json" | jq -r '.daily.eligibility.priorSoloRuns // empty')
+if [[ "$elig_paid" == "true" && "$elig_owed" == "1000000" && "$elig_runs" == "1" ]]; then
+  record PASS "retry.eligibility_paid_after_first_run" \
+    "priorSoloRuns=1, nextPaidRetry=true, currentFeeOwed=1000000"
+else
+  record FAIL "retry.eligibility_paid_after_first_run" \
+    "got priorSoloRuns=$elig_runs nextPaidRetry=$elig_paid currentFeeOwed=$elig_owed"
+fi
+
 # ─── section 4: coach ────────────────────────────────────────────────────────
 
 echo "── [4/7] Coach endpoint ──"
