@@ -23,6 +23,8 @@ export {
   splashTemplate,
   type SplashProps,
 } from "./og";
+export { ModeChooser, type ModeChooserProps } from "./ModeChooser";
+export { DuelComingSoon } from "./DuelComingSoon";
 export {
   useSoloRetry,
   type UseSoloRetryStatus,
