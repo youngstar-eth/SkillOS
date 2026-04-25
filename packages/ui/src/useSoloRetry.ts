@@ -319,11 +319,19 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
   // ─── auto-chain approve → charge while in "paying" ───────────────────
   // Mirrors the legacy solo-page chain. Smart-Wallet/paymaster path is
   // deferred to Phase 2; this is the universal 2-tx flow.
+  //
+  // Trigger on approveDone ONLY — NOT on hasAllowance. The React-side
+  // `allowance` state is refreshed via async refetchAllowance(), which
+  // lags behind on-chain truth. Gating on hasAllowance loses the race
+  // on fresh wallets: the effect returns early at the render where
+  // approveDone first goes true, and by the next render resetApprove()
+  // has flipped approveDone back to false — the chain stays stuck.
+  // The receipt is authoritative: approveDone === true ⇒ allowance is
+  // sufficient on-chain. chargeStartedRef latches against re-fire.
   useEffect(() => {
     if (
       status !== "paying" ||
       !approveDone ||
-      !hasAllowance ||
       chargeHash ||
       !address ||
       !tournamentOnChainId
@@ -350,7 +358,6 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
   }, [
     status,
     approveDone,
-    hasAllowance,
     chargeHash,
     address,
     tournamentOnChainId,
