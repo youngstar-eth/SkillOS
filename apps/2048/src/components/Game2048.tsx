@@ -204,7 +204,7 @@ export function Game2048({
   }, [frozen, state.over]);
 
   return (
-    <div className="relative flex flex-col items-center gap-3">
+    <div className="relative flex w-full max-w-[420px] flex-col items-center gap-3">
       <div
         ref={boardRef}
         className="grid aspect-square w-full max-w-[420px] select-none grid-cols-4 gap-2 rounded-xl border border-border bg-bg-elev p-2 touch-none"
