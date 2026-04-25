@@ -25,6 +25,8 @@ export {
 } from "./og";
 export { ModeChooser, type ModeChooserProps } from "./ModeChooser";
 export { DuelComingSoon } from "./DuelComingSoon";
+export { useIsEmbedded } from "./useIsEmbedded";
+export { Header, type HeaderProps } from "./Header";
 export {
   useSoloRetry,
   type UseSoloRetryStatus,
