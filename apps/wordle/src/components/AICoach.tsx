@@ -165,7 +165,7 @@ export function AICoach(props: Props) {
       </div>
 
       <p className="mt-4 text-[10px] tracking-wider text-neutral-600">
-        Powered by Claude Haiku
+        Powered by Claude Sonnet 4.6
       </p>
     </div>
   );

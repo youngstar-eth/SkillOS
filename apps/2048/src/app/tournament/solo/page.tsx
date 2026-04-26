@@ -314,49 +314,45 @@ export default function SoloPage() {
           )}
 
           {status === "submitted" && result && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="flex flex-col gap-3">
-                <Panel highlight>
-                  <p className="text-sm font-semibold text-neutral-100">
-                    Score submitted ✓ {result.bestScore} points
-                  </p>
-                  <p className="mt-1 text-xs text-neutral-400">
-                    Rank #{result.rank} · {result.matchCount}{" "}
-                    {result.matchCount === 1 ? "run" : "runs"} submitted
-                    {result.isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
-                  </p>
-                  <div className="mt-3">
-                    <AIReviewedBadge
-                      matchId={result.soloRunId}
-                      context="solo"
-                    />
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={handlePlayAgain}
-                      disabled={walletBusy}
-                      className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Play again (1.00 USDC)
-                    </button>
-                    <Link
-                      href="/tournament"
-                      className="flex-1 rounded-lg border border-border bg-bg-elev px-3 py-2 text-center text-sm font-semibold text-neutral-200 hover:bg-bg-elev2"
-                    >
-                      View tournament
-                    </Link>
-                  </div>
-                </Panel>
-                <SPEarnedCard
-                  kind="solo"
-                  sourceId={result.soloRunId}
-                  player={address}
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <AIRecap matchId={result.soloRunId} context="solo" />
-                <AICoach matchId={result.soloRunId} context="solo" />
-              </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:auto-rows-min md:items-start">
+              <Panel highlight>
+                <p className="text-sm font-semibold text-neutral-100">
+                  Score submitted ✓ {result.bestScore} points
+                </p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  Rank #{result.rank} · {result.matchCount}{" "}
+                  {result.matchCount === 1 ? "run" : "runs"} submitted
+                  {result.isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
+                </p>
+                <div className="mt-3">
+                  <AIReviewedBadge
+                    matchId={result.soloRunId}
+                    context="solo"
+                  />
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={handlePlayAgain}
+                    disabled={walletBusy}
+                    className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Play again (1.00 USDC)
+                  </button>
+                  <Link
+                    href="/tournament"
+                    className="flex-1 rounded-lg border border-border bg-bg-elev px-3 py-2 text-center text-sm font-semibold text-neutral-200 hover:bg-bg-elev2"
+                  >
+                    View tournament
+                  </Link>
+                </div>
+              </Panel>
+              <AIRecap matchId={result.soloRunId} context="solo" />
+              <SPEarnedCard
+                kind="solo"
+                sourceId={result.soloRunId}
+                player={address}
+              />
+              <AICoach matchId={result.soloRunId} context="solo" />
             </div>
           )}
 
