@@ -11,7 +11,7 @@ import { cx, truncateAddress } from "./utils";
  */
 export function WalletButton() {
   const { address, status } = useAccount();
-  const { connectors, connect, isPending } = useConnect();
+  const { connectors, connect, isPending, error } = useConnect();
   const { disconnect } = useDisconnect();
 
   const [open, setOpen] = useState(false);
@@ -82,7 +82,15 @@ export function WalletButton() {
             <button
               key={c.uid}
               onClick={() => {
-                connect({ connector: c });
+                // Wrap in try/catch so a synchronous throw from connector init
+                // (e.g. Coinbase Wallet popup attempt inside an iframe) doesn't
+                // bubble to the framework error boundary. Async errors surface
+                // via `error` from useConnect and are rendered below.
+                try {
+                  connect({ connector: c });
+                } catch {
+                  /* surfaced via `error` state */
+                }
                 setOpen(false);
               }}
               className="block w-full px-3 py-2.5 text-left text-sm text-neutral-200 hover:bg-bg-elev2"
@@ -91,6 +99,11 @@ export function WalletButton() {
             </button>
           ))}
         </div>
+      )}
+      {error && (
+        <p className="absolute right-0 mt-2 max-w-xs text-right text-xs text-red-400">
+          {error.message}
+        </p>
       )}
     </div>
   );

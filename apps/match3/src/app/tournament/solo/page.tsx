@@ -20,8 +20,10 @@ import { useAccount } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PLAY_WINDOW_MS } from "@skillbase/contracts";
 import {
+  EmbedWalletFallback,
   PopupHint,
   Timer,
+  useIsEmbedded,
   useSoloRetry,
   type SoloEligibility,
 } from "@skillbase/ui";
@@ -90,6 +92,7 @@ function useCountdown(targetIso: string | undefined): string {
 export default function SoloPage() {
   const router = useRouter();
   const { address } = useAccount();
+  const isEmbedded = useIsEmbedded();
   const queryClient = useQueryClient();
 
   const tournamentsKey = useMemo(
@@ -157,10 +160,13 @@ export default function SoloPage() {
 
   if (!address) {
     return (
-      <main className="flex min-h-[calc(100vh-56px)] flex-col items-center justify-center px-4">
-        <p className="text-sm text-neutral-400">
-          Connect your wallet to play solo.
-        </p>
+      <main className="flex min-h-[calc(100vh-56px)] flex-col items-center justify-center gap-4 px-4">
+        <EmbedWalletFallback />
+        {!isEmbedded && (
+          <p className="text-sm text-neutral-400">
+            Connect your wallet to play solo.
+          </p>
+        )}
       </main>
     );
   }

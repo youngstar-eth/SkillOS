@@ -29,6 +29,7 @@ export { useIsEmbedded } from "./useIsEmbedded";
 export { Header, type HeaderProps } from "./Header";
 export { useMiniAppReady } from "./useMiniAppReady";
 export { ReadyMarker } from "./ReadyMarker";
+export { EmbedWalletFallback } from "./EmbedWalletFallback";
 export {
   useSoloRetry,
   type UseSoloRetryStatus,
