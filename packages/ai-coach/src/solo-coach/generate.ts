@@ -10,8 +10,9 @@
 //   • On enum violation we retry ONCE, then return the feedback text with
 //     tone="encouraging" (hide-badge signal). We never crash the card.
 //
-// Cost: ~400 output tokens on Haiku 4.5 ≈ $0.01/call (2x duel coach, wider
-// budget because the "2 areas + 1 tip" format needs headroom).
+// Cost: ~400 output tokens on Sonnet 4.6 ≈ $0.007/call (Sonnet's analytical
+// reasoning lift beats Haiku's price advantage for this task; pay-then-play
+// 1 USDC margin gives a 140x cushion).
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { TextBlock } from "@anthropic-ai/sdk/resources/messages";
@@ -19,7 +20,7 @@ import type { CoachResponse, CoachTone, GameType } from "../types";
 import { getAnthropicClient } from "../client";
 import type { SoloCoachRequest } from "./types";
 
-const MODEL = "claude-haiku-4-5";
+const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 400;
 const TEMPERATURE = 0.7;
 

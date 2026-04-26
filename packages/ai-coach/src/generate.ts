@@ -3,7 +3,7 @@
 //
 // Pipeline:
 //   1. Build game-specific prompt via the matching prompts/game-<x>.ts.
-//   2. Call Claude Haiku 4.5 via the shared Anthropic client.
+//   2. Call Claude Sonnet 4.6 via the shared Anthropic client.
 //   3. Parse the JSON response; fall back to raw text + mapped tone on
 //      parse failure (model rarely breaks the contract, but the route
 //      handler should never crash just because one reply lost its braces).
@@ -25,9 +25,9 @@ import { buildMinesweeperPrompt } from "./prompts/game-minesweeper";
 import { buildClickerPrompt } from "./prompts/game-clicker";
 import { buildMatch3Prompt } from "./prompts/game-match3";
 
-// Claude Haiku 4.5 — matches the sprint plan. Kept as a const to make
-// future model swaps a one-line change.
-const MODEL = "claude-haiku-4-5";
+// Claude Sonnet 4.6 — analytical/strategic reasoning beats Haiku here.
+// Kept as a const to make future model swaps a one-line change.
+const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 200;
 const TEMPERATURE = 0.7;
 
