@@ -314,7 +314,7 @@ export default function SoloPage() {
           )}
 
           {status === "submitted" && result && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:auto-rows-min md:items-start">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
               <Panel highlight>
                 <p className="text-sm font-semibold text-neutral-100">
                   Score submitted ✓ {result.bestScore} points
