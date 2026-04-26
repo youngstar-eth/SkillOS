@@ -346,12 +346,12 @@ export default function SoloPage() {
                   </Link>
                 </div>
               </Panel>
-              <AIRecap matchId={result.soloRunId} context="solo" />
               <SPEarnedCard
                 kind="solo"
                 sourceId={result.soloRunId}
                 player={address}
               />
+              <AIRecap matchId={result.soloRunId} context="solo" />
               <AICoach matchId={result.soloRunId} context="solo" />
             </div>
           )}
