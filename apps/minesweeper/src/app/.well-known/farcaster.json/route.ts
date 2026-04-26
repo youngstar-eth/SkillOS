@@ -25,7 +25,7 @@ const ASSOCIATION = {
 const MANIFEST = {
   version: "1",
   name: 'Skillbase Minesweeper',
-  iconUrl: "https://www.skillbase.games/icon",
+  iconUrl: "https://minesweeper.skillbase.games/icon",
   homeUrl: "https://minesweeper.skillbase.games/tournament/solo",
   imageUrl: "https://minesweeper.skillbase.games/opengraph-image",
   buttonTitle: "Play Minesweeper",

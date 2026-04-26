@@ -24,6 +24,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { CoachResponse, CoachTone } from "@skillbase/ai-coach";
+import { COACH_MODEL_DISPLAY } from "@skillbase/ui";
 
 type DuelProps = {
   matchId: string;
@@ -165,7 +166,7 @@ export function AICoach(props: Props) {
       </div>
 
       <p className="mt-4 text-[10px] tracking-wider text-neutral-600">
-        Powered by Claude Sonnet 4.6
+        Powered by {COACH_MODEL_DISPLAY}
       </p>
     </div>
   );

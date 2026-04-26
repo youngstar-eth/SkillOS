@@ -45,7 +45,7 @@ function buildRoutes(payTo: string): RoutesConfig {
   const coachTags = [
     "gaming-ai",
     "coaching",
-    "claude-haiku",
+    "claude-sonnet",
     "skill-gaming",
     "player-analysis",
   ];
@@ -99,7 +99,7 @@ function buildRoutes(payTo: string): RoutesConfig {
       payTo,
     },
     description:
-      "AI Coach inference — per-game tactical feedback (2 areas + 1 actionable tip). Claude Haiku via Skillbase Coach pipeline. Rate-limited 30 req/min per IP.",
+      "AI Coach inference — per-game tactical feedback (2 areas + 1 actionable tip). Claude Sonnet 4.6 via Skillbase Coach pipeline. Rate-limited 30 req/min per IP.",
     mimeType: "application/json",
     extensions: {
       bazaar: {

@@ -28,8 +28,7 @@ import { buildMinesweeperAnticheatPrompt } from "./prompts/game-minesweeper";
 import { buildClickerAnticheatPrompt } from "./prompts/game-clicker";
 import { buildMatch3AnticheatPrompt } from "./prompts/game-match3";
 
-// Same model as coach/recap. Shared constant so future swaps are one-line.
-const MODEL = "claude-haiku-4-5";
+import { ANTICHEAT_MODEL } from "../models";
 // Room for reasoning + flags; verdicts are short.
 const MAX_TOKENS = 400;
 // Low temperature — judgments should be consistent across repeated calls
@@ -141,7 +140,7 @@ export async function checkPlausibility(
   const { system, user } = buildPromptFor(req);
 
   const response = await client.messages.create({
-    model: MODEL,
+    model: ANTICHEAT_MODEL,
     max_tokens: MAX_TOKENS,
     temperature: TEMPERATURE,
     system,
@@ -159,7 +158,7 @@ export async function checkPlausibility(
   return {
     ...parsed,
     reviewedAt: new Date().toISOString(),
-    modelVersion: MODEL,
+    modelVersion: ANTICHEAT_MODEL,
     gameType: req.gameType,
   };
 }

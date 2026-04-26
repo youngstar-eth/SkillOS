@@ -31,6 +31,11 @@ export { useMiniAppReady } from "./useMiniAppReady";
 export { ReadyMarker } from "./ReadyMarker";
 export { EmbedWalletFallback } from "./EmbedWalletFallback";
 export {
+  COACH_MODEL_DISPLAY,
+  RECAP_MODEL_DISPLAY,
+  ANTICHEAT_MODEL_DISPLAY,
+} from "./models";
+export {
   useSoloRetry,
   type UseSoloRetryStatus,
   type UseSoloRetryParams,

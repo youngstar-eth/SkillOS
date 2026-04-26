@@ -25,6 +25,7 @@
 
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ANTICHEAT_MODEL_DISPLAY } from "@skillbase/ui";
 
 type PlausibilityStatus =
   | { status: "pending" }
@@ -95,7 +96,7 @@ export function AIReviewedBadge({ matchId, context = "duel" }: Props) {
         <CheckIcon />
         AI Reviewed
         <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-800 px-2 py-1 text-[10px] text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-          Match plausibility verified by Claude Haiku
+          Match plausibility verified by {ANTICHEAT_MODEL_DISPLAY}
         </span>
       </div>
     </div>

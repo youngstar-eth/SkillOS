@@ -18,7 +18,8 @@ import type { GameType } from "../types";
 import type { RecapResponse, RecapStyle } from "../recap/types";
 import type { SoloRecapRequest } from "./types";
 
-const MODEL = "claude-haiku-4-5";
+import { RECAP_MODEL } from "../models";
+
 const MAX_TOKENS = 320;
 const TEMPERATURE = 0.9;
 
@@ -158,7 +159,7 @@ export async function generateSoloRecap(
   const { system, user } = buildSoloRecapPrompt(req);
 
   const response = await client.messages.create({
-    model: MODEL,
+    model: RECAP_MODEL,
     max_tokens: MAX_TOKENS,
     temperature: TEMPERATURE,
     system,

@@ -20,7 +20,8 @@ import type { CoachResponse, CoachTone, GameType } from "../types";
 import { getAnthropicClient } from "../client";
 import type { SoloCoachRequest } from "./types";
 
-const MODEL = "claude-sonnet-4-6";
+import { COACH_MODEL } from "../models";
+
 const MAX_TOKENS = 400;
 const TEMPERATURE = 0.7;
 
@@ -206,7 +207,7 @@ export async function generateSoloCoachFeedback(
 
   const callOnce = async (): Promise<CoachResponse | null> => {
     const response = await client.messages.create({
-      model: MODEL,
+      model: COACH_MODEL,
       max_tokens: MAX_TOKENS,
       temperature: TEMPERATURE,
       system,

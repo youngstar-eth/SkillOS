@@ -38,3 +38,8 @@ export type { SoloCoachRequest } from "./solo-coach/types";
 // narrowed to speedRun / grind / standard.
 export { generateSoloRecap } from "./solo-recap/generate";
 export type { SoloRecapRequest } from "./solo-recap/types";
+
+// Per-surface model identifiers — single source of truth for backend.
+// Frontend display variants live in @skillbase/ui/models (kept in sync
+// manually; see comments in both files).
+export { COACH_MODEL, RECAP_MODEL, ANTICHEAT_MODEL } from "./models";

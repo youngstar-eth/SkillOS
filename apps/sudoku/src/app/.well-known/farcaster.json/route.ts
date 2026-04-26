@@ -25,7 +25,7 @@ const ASSOCIATION = {
 const MANIFEST = {
   version: "1",
   name: 'Skillbase Sudoku',
-  iconUrl: "https://www.skillbase.games/icon",
+  iconUrl: "https://sudoku.skillbase.games/icon",
   homeUrl: "https://sudoku.skillbase.games/tournament/solo",
   imageUrl: "https://sudoku.skillbase.games/opengraph-image",
   buttonTitle: "Play Sudoku",

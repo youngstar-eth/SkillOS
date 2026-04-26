@@ -25,7 +25,7 @@ const ASSOCIATION = {
 const MANIFEST = {
   version: "1",
   name: 'Skillbase Match3',
-  iconUrl: "https://www.skillbase.games/icon",
+  iconUrl: "https://match3.skillbase.games/icon",
   homeUrl: "https://match3.skillbase.games/tournament/solo",
   imageUrl: "https://match3.skillbase.games/opengraph-image",
   buttonTitle: "Play Match3",

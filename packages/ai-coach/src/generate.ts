@@ -25,9 +25,8 @@ import { buildMinesweeperPrompt } from "./prompts/game-minesweeper";
 import { buildClickerPrompt } from "./prompts/game-clicker";
 import { buildMatch3Prompt } from "./prompts/game-match3";
 
-// Claude Sonnet 4.6 — analytical/strategic reasoning beats Haiku here.
-// Kept as a const to make future model swaps a one-line change.
-const MODEL = "claude-sonnet-4-6";
+import { COACH_MODEL } from "./models";
+
 const MAX_TOKENS = 200;
 const TEMPERATURE = 0.7;
 
@@ -108,7 +107,7 @@ export async function generateCoachFeedback(
   const { system, user } = buildPromptFor(req);
 
   const response = await client.messages.create({
-    model: MODEL,
+    model: COACH_MODEL,
     max_tokens: MAX_TOKENS,
     temperature: TEMPERATURE,
     system,

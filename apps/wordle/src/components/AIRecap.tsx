@@ -30,6 +30,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { RecapResponse, RecapStyle } from "@skillbase/ai-coach";
+import { RECAP_MODEL_DISPLAY } from "@skillbase/ui";
 
 type Props = {
   matchId: string;
@@ -204,7 +205,7 @@ export function AIRecap({ matchId, context = "duel" }: Props) {
       )}
 
       <p className="mt-4 text-[10px] tracking-wider text-neutral-600">
-        Powered by Claude Haiku
+        Powered by {RECAP_MODEL_DISPLAY}
       </p>
     </div>
   );

@@ -23,10 +23,10 @@ import { buildMinesweeperRecapPrompt } from "./prompts/game-minesweeper";
 import { buildClickerRecapPrompt } from "./prompts/game-clicker";
 import { buildMatch3RecapPrompt } from "./prompts/game-match3";
 
-// Same model as coach (Haiku 4.5). Shared constant keeps future swaps
-// one-line. Higher temperature than coach: recap is meant to be flavorful,
+import { RECAP_MODEL } from "../models";
+
+// Higher temperature than coach: recap is meant to be flavorful,
 // coach is meant to be accurate.
-const MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 320;
 const TEMPERATURE = 0.9;
 
@@ -127,7 +127,7 @@ export async function generateRecap(req: RecapRequest): Promise<RecapResponse> {
   const { system, user } = buildRecapPromptFor(req);
 
   const response = await client.messages.create({
-    model: MODEL,
+    model: RECAP_MODEL,
     max_tokens: MAX_TOKENS,
     temperature: TEMPERATURE,
     system,

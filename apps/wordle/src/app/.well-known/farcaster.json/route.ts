@@ -25,7 +25,7 @@ const ASSOCIATION = {
 const MANIFEST = {
   version: "1",
   name: 'Skillbase Wordle',
-  iconUrl: "https://www.skillbase.games/icon",
+  iconUrl: "https://wordle.skillbase.games/icon",
   homeUrl: "https://wordle.skillbase.games/tournament/solo",
   imageUrl: "https://wordle.skillbase.games/opengraph-image",
   buttonTitle: "Play Wordle",
