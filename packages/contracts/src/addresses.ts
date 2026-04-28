@@ -68,3 +68,13 @@ export const RETRY_FEE = 1_000_000n;
 
 /** Match-count cap applied in on-chain effective score. Matches contract MATCH_COUNT_CAP. */
 export const MATCH_COUNT_CAP = 10n;
+
+// ─── SkillbaseAnchor (SP ledger snapshot anchoring) ─────────────────────────
+
+/**
+ * SkillbaseAnchor contract — Base Sepolia. Stores SHA-256 hashes of canonical
+ * SP ledger snapshots, keyed by unix timestamp. Empty default (set via env
+ * after deploy); cron route refuses to run without it (fail-loud is correct).
+ */
+export const SKILLBASE_ANCHOR_ADDRESS = (process.env
+  .NEXT_PUBLIC_SKILLBASE_ANCHOR_ADDRESS ?? "") as Address;

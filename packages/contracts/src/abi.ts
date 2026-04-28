@@ -455,3 +455,78 @@ export const ERC20_ABI = [
     outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
+
+// ───────────────────────────────────────────────────────────────────────────
+// SkillbaseAnchor contract ABI (subset used by the app).
+//
+// ABI extracted from contracts/out/SkillbaseAnchor.sol/SkillbaseAnchor.json
+// (forge build — solc 0.8.26). Cron route uses anchorSnapshot (write) +
+// verifySnapshot/getSnapshotHash (read). Admin functions kept off the client
+// surface — they're used from forge scripts only.
+// ───────────────────────────────────────────────────────────────────────────
+
+export const SKILLBASE_ANCHOR_ABI = [
+  {
+    type: "function",
+    name: "anchorSnapshot",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "timestamp", type: "uint256" },
+      { name: "snapshotHash", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getSnapshotHash",
+    stateMutability: "view",
+    inputs: [{ name: "timestamp", type: "uint256" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "verifySnapshot",
+    stateMutability: "view",
+    inputs: [
+      { name: "timestamp", type: "uint256" },
+      { name: "expectedHash", type: "bytes32" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "snapshots",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "totalAnchored",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "authorizedAnchors",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "event",
+    name: "SnapshotAnchored",
+    inputs: [
+      { name: "timestamp", type: "uint256", indexed: true },
+      { name: "snapshotHash", type: "bytes32", indexed: true },
+      { name: "anchoredAt", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+  // Custom errors (decoded by viem when revert is encountered)
+  { type: "error", name: "AlreadyAnchored", inputs: [] },
+  { type: "error", name: "InvalidHash", inputs: [] },
+  { type: "error", name: "InvalidTimestamp", inputs: [] },
+  { type: "error", name: "UnauthorizedAnchor", inputs: [] },
+] as const;

@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/settle-tournaments",
       "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/cron/anchor-sp-snapshot",
+      "schedule": "7 2 * * *"
     }
   ]
 }
