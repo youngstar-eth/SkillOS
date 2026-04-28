@@ -477,6 +477,24 @@ else
   record FAIL "sp.leaderboard_endpoint_200" "HTTP $lb_code, count=$lb_count"
 fi
 
+# 8.5 — SP snapshot anchor health.
+# v2_sp_snapshots is a global table fed by the daily 02:07 UTC cron in
+# apps/2048. Every subdomain runs this assertion against its own host, but
+# all subdomains read the same global rows — passes are correlated, not
+# independent. Pre-cron-fire (i.e. before 02:10 UTC on day 1 in production)
+# the assertion will FAIL with anchored_today=false; that's the expected
+# fail-loud signal until the cron has run at least once.
+status_body=$(curl -s "$BASE_URL/api/sp-snapshot-status")
+status_code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/sp-snapshot-status")
+anchored_today=$(echo "$status_body" | jq -r '.anchored_today // empty')
+anchor_tx=$(echo "$status_body" | jq -r '.latest.anchor_tx_hash // empty')
+
+if [[ "$status_code" == "200" && "$anchored_today" == "true" && -n "$anchor_tx" ]]; then
+  record PASS "sp.anchor_published_today" "tx=${anchor_tx:0:12}…"
+else
+  record FAIL "sp.anchor_published_today" "HTTP $status_code, anchored_today=$anchored_today"
+fi
+
 # ─── summary ─────────────────────────────────────────────────────────────────
 
 print_summary

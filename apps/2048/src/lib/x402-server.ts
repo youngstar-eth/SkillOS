@@ -50,6 +50,14 @@ function buildRoutes(payTo: string): RoutesConfig {
     "skill-gaming",
     "player-analysis",
   ];
+  const snapshotTags = [
+    "skill-gaming",
+    "training-data",
+    "ai-training",
+    "verifiable-data",
+    "on-chain-anchor",
+    "data-integrity",
+  ];
 
   // Aggregate endpoint — $0.01 per call, anonymized tier histogram.
   const spTierDistribution = {
@@ -110,12 +118,54 @@ function buildRoutes(payTo: string): RoutesConfig {
     },
   };
 
+  // SP snapshot — daily SHA-256-anchored ledger state. Returns canonical JSON
+  // + on-chain anchor tx hash so AI labs can independently SHA-256 and verify
+  // against the SkillbaseAnchor contract on Base Sepolia.
+  const spSnapshotLatest = {
+    accepts: {
+      scheme: "exact",
+      price: "$0.05",
+      network: NETWORK,
+      payTo,
+    },
+    description:
+      "Latest anchored SP ledger snapshot. Canonical JSON + SHA-256 hash + Base Sepolia anchor tx. AI labs verify hash on-chain via SkillbaseAnchor.verifySnapshot — trustless data integrity proof.",
+    mimeType: "application/json",
+    extensions: {
+      bazaar: {
+        discoverable: true,
+        category: "gaming-data",
+        tags: snapshotTags,
+      },
+    },
+  };
+  const spSnapshotById = {
+    accepts: {
+      scheme: "exact",
+      price: "$0.05",
+      network: NETWORK,
+      payTo,
+    },
+    description:
+      "Historical SP ledger snapshot by UUID. Canonical JSON + SHA-256 hash + on-chain anchor proof. Same verification path as the latest endpoint, scoped to a specific past snapshot.",
+    mimeType: "application/json",
+    extensions: {
+      bazaar: {
+        discoverable: true,
+        category: "gaming-data",
+        tags: snapshotTags,
+      },
+    },
+  };
+
   return {
     "GET /api/public/data/sp-tier-distribution": spTierDistribution,
     "GET /api/public/data/decision-sample/any": decisionSample("$0.01"),
     "GET /api/public/data/decision-sample/tier/1-4": decisionSample("$0.02"),
     "GET /api/public/data/decision-sample/tier/5-7": decisionSample("$0.05"),
     "GET /api/public/data/decision-sample/tier/8-plus": decisionSample("$0.10"),
+    "GET /api/public/data/sp-snapshot": spSnapshotLatest,
+    "GET /api/public/data/sp-snapshot/{snapshotId}": spSnapshotById,
     "GET /api/public/ai/coach-sample": coachSample,
   };
 }
