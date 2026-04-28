@@ -1,4 +1,6 @@
-// Vercel Cron entry — runs every minute. Schedule in apps/2048/vercel.json.
+// Vercel Cron entry — runs daily at 00:05 UTC. Schedule in apps/2048/vercel.json.
+// (Vercel Hobby tier rejects sub-daily crons, so this is daily, not minute-grain
+// as originally designed; pending settles accumulate up to 24h before sweep.)
 //
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` when hitting
 // the endpoint. Local/manual triggers must include the same header to pass.
