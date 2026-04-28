@@ -41,5 +41,14 @@ export type { SoloRecapRequest } from "./solo-recap/types";
 
 // Per-surface model identifiers — single source of truth for backend.
 // Frontend display variants live in @skillbase/ui/models (kept in sync
-// manually; see comments in both files).
-export { COACH_MODEL, RECAP_MODEL, ANTICHEAT_MODEL } from "./models";
+// manually; see comments in both files). The DISPLAY variants below are
+// the server-side equivalents, used by x402 route descriptions and other
+// non-client surfaces that can't reach into @skillbase/ui.
+export {
+  COACH_MODEL,
+  RECAP_MODEL,
+  ANTICHEAT_MODEL,
+  COACH_MODEL_DISPLAY,
+  RECAP_MODEL_DISPLAY,
+  ANTICHEAT_MODEL_DISPLAY,
+} from "./models";

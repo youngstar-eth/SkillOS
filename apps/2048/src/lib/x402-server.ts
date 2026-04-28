@@ -12,6 +12,7 @@
 // resource server is framework-agnostic.
 // ───────────────────────────────────────────────────────────────────────────
 
+import { COACH_MODEL_DISPLAY } from "@skillbase/ai-coach";
 import { createFacilitatorConfig } from "@coinbase/x402";
 import { HTTPFacilitatorClient } from "@x402/core/http";
 import { x402ResourceServer } from "@x402/core/server";
@@ -98,8 +99,7 @@ function buildRoutes(payTo: string): RoutesConfig {
       network: NETWORK,
       payTo,
     },
-    description:
-      "AI Coach inference — per-game tactical feedback (2 areas + 1 actionable tip). Claude Sonnet 4.6 via Skillbase Coach pipeline. Rate-limited 30 req/min per IP.",
+    description: `AI Coach inference — per-game tactical feedback (2 areas + 1 actionable tip). ${COACH_MODEL_DISPLAY} via Skillbase Coach pipeline. Rate-limited 30 req/min per IP.`,
     mimeType: "application/json",
     extensions: {
       bazaar: {

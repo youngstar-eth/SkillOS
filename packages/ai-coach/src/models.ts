@@ -10,6 +10,10 @@
 // **Keep the two files in sync** — when you change a value here, update
 // the matching DISPLAY constant in packages/ui/src/models.ts.
 //
+// Server-side display strings (x402 route descriptions, etc.) import the
+// COACH_MODEL_DISPLAY below to avoid drifting from the model swap above.
+// **Also keep this in sync with packages/ui/src/models.ts.**
+//
 // Reasoning behind current picks:
 //   - Coach: analytical / strategic reasoning task. Sonnet 4.6 measurably
 //     better at pattern recognition + actionable advice than Haiku 4.5.
@@ -22,3 +26,10 @@
 export const COACH_MODEL = "claude-sonnet-4-6";
 export const RECAP_MODEL = "claude-haiku-4-5";
 export const ANTICHEAT_MODEL = "claude-haiku-4-5";
+
+// Human-readable display strings for server-side attribution (x402 route
+// descriptions, server-rendered pages, logs). Mirrors the frontend
+// constants in @skillbase/ui/models.
+export const COACH_MODEL_DISPLAY = "Claude Sonnet 4.6";
+export const RECAP_MODEL_DISPLAY = "Claude Haiku";
+export const ANTICHEAT_MODEL_DISPLAY = "Claude Haiku";
