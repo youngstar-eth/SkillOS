@@ -84,7 +84,7 @@ seller just has no inventory for that query.
 ### `GET /api/public/ai/coach-sample?game={slug}&score={int}` — $0.05 USDC
 
 AI Coach inference sample. Reuses the exact same solo-coach pipeline
-Skillbase uses in production: Claude Haiku, 6-tone strict enum, single
+Skillbase uses in production: Claude Sonnet 4.6, 6-tone strict enum, single
 retry on enum-violation, hide-badge fallback. Returns 2 improvement
 areas + 1 actionable tip.
 
@@ -94,7 +94,7 @@ curl -i "https://2048.skillbase.games/api/public/ai/coach-sample?game=2048&score
 ```
 
 Response on 200 (`category: ai-inference`, tags include `gaming-ai`,
-`coaching`, `claude-haiku`, `skill-gaming`, `player-analysis`):
+`coaching`, `claude-sonnet`, `skill-gaming`, `player-analysis`):
 
 ```json
 {
@@ -111,7 +111,7 @@ Response on 200 (`category: ai-inference`, tags include `gaming-ai`,
     "actionable_tip": "…"
   },
   "meta": {
-    "model": "claude-haiku-via-skillbase",
+    "model": "claude-sonnet-4-6-via-skillbase",
     "sample_note": "Same Coach pipeline as live Skillbase games…",
     "rate_limit_note": "Sample endpoint — 30 req/min per IP."
   }
