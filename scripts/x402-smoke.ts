@@ -45,6 +45,13 @@ interface RouteDef {
   name: string;
   path: string;
   priceUsd: number;
+  /**
+   * If set, paid response with this status is considered a "successful seed"
+   * (Bazaar still registers the route via settlement callback even though
+   * the body is an error envelope). Used for /sp-snapshot pre-first-cron-fire
+   * where the route legitimately returns 503 awaiting_first_anchor.
+   */
+  acceptablePaidStatuses?: number[];
 }
 
 const ROUTES: RouteDef[] = [
@@ -54,6 +61,23 @@ const ROUTES: RouteDef[] = [
   { name: "decision-sample-tier-5-7", path: "/api/public/data/decision-sample/tier/5-7", priceUsd: 0.05 },
   { name: "decision-sample-tier-8-plus", path: "/api/public/data/decision-sample/tier/8-plus", priceUsd: 0.1 },
   { name: "coach-sample", path: "/api/public/ai/coach-sample?game=2048&score=1234", priceUsd: 0.05 },
+  // SP snapshot — pre-first-cron-fire returns 503 (awaiting_first_anchor).
+  // Settlement still fires on 503 → Bazaar registers the route. Once the
+  // cron has fired at least once, bump expected to [200, 503] or just [200].
+  {
+    name: "sp-snapshot-latest",
+    path: "/api/public/data/sp-snapshot",
+    priceUsd: 0.05,
+    acceptablePaidStatuses: [200, 503],
+  },
+  // Historical by UUID — without a real anchored snapshot in DB this returns
+  // 404 snapshot_not_found. Same Bazaar registration mechanic via settlement.
+  {
+    name: "sp-snapshot-by-id",
+    path: "/api/public/data/sp-snapshot/00000000-0000-4000-8000-000000000000",
+    priceUsd: 0.05,
+    acceptablePaidStatuses: [200, 404],
+  },
 ];
 
 interface RouteResult {
@@ -222,8 +246,15 @@ async function main() {
     if (r.error) console.log(`  ERROR:  ${r.error}`);
   }
 
+  function isPaidStatusAcceptable(r: RouteResult): boolean {
+    const def = ROUTES.find((rt) => rt.name === r.route);
+    if (def?.acceptablePaidStatuses) {
+      return def.acceptablePaidStatuses.includes(r.paidStatus);
+    }
+    return r.paidStatus >= 200 && r.paidStatus < 300;
+  }
   const totalSpentUsd = results
-    .filter((r) => r.paidStatus >= 200 && r.paidStatus < 300)
+    .filter(isPaidStatusAcceptable)
     .reduce(
       (acc, r) =>
         acc +
@@ -231,7 +262,7 @@ async function main() {
       0,
     );
   const successCount = results.filter(
-    (r) => r.unpaidStatus === 402 && r.paidStatus >= 200 && r.paidStatus < 300,
+    (r) => r.unpaidStatus === 402 && isPaidStatusAcceptable(r),
   ).length;
 
   console.log("\n================ SUMMARY ================");
@@ -242,7 +273,7 @@ async function main() {
     console.log(`  ${r.route.padEnd(32)} ${r.baseScanUrl ?? "<no tx>"}`);
   }
 
-  const failed = results.filter((r) => r.error || r.paidStatus < 200 || r.paidStatus >= 300);
+  const failed = results.filter((r) => r.error || !isPaidStatusAcceptable(r));
   if (failed.length > 0) {
     console.error(`\n[x402-smoke] FAILED ${failed.length} route(s)`);
     process.exit(1);

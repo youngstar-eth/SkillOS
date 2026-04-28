@@ -165,7 +165,7 @@ function buildRoutes(payTo: string): RoutesConfig {
     "GET /api/public/data/decision-sample/tier/5-7": decisionSample("$0.05"),
     "GET /api/public/data/decision-sample/tier/8-plus": decisionSample("$0.10"),
     "GET /api/public/data/sp-snapshot": spSnapshotLatest,
-    "GET /api/public/data/sp-snapshot/{snapshotId}": spSnapshotById,
+    "GET /api/public/data/sp-snapshot/[snapshotId]": spSnapshotById,
     "GET /api/public/ai/coach-sample": coachSample,
   };
 }
