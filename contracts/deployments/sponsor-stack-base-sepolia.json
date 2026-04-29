@@ -2,6 +2,7 @@
   "network": "base-sepolia",
   "chainId": 84532,
   "deployedAt": "2026-04-29T14:00:00Z",
+  "deployBlock": 40851426,
   "contracts": {
     "TournamentPoolV21": "0x52049b812780134d2F69D6c20C2ef881D49702da",
     "MockSanctionsOracle": "0x0CB38F0A0511aF07FC34A20DCaB9e2Fc8061B1CC",

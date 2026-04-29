@@ -41,9 +41,10 @@ const REORG_BUFFER_BLOCKS = 30n;
 const MAX_BLOCK_SPAN = 5_000n;
 
 /** Default starting block if no watermark exists. SponsorshipModule deploy
- *  block on Base Sepolia (DeploySponsorStack.s.sol — 2026-04-29). Override
- *  via SPONSOR_INDEXER_DEPLOY_BLOCK if redeployed. */
-const DEFAULT_DEPLOY_BLOCK = 40_886_754n;
+ *  block on Base Sepolia (DeploySponsorStack.s.sol — 2026-04-29, tx
+ *  0x6b14a664... at block 0x26f57e2). Override via SPONSOR_INDEXER_DEPLOY_BLOCK
+ *  if redeployed. */
+const DEFAULT_DEPLOY_BLOCK = 40_851_426n;
 
 function deployBlock(): bigint {
   const raw = process.env.SPONSOR_INDEXER_DEPLOY_BLOCK;

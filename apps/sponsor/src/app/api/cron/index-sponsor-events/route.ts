@@ -1,8 +1,12 @@
 // Vercel Cron entry — sponsor event indexer.
-// Schedule defined in apps/sponsor/vercel.json (every 5 minutes nominally;
-// Vercel Hobby tier silently demotes to daily — see settle-tournaments
-// route comment for the same constraint). Sub-daily cadence requires Pro
-// tier or external scheduler hitting this endpoint with the bearer token.
+// Schedule defined in apps/sponsor/vercel.json. Daily (00:15 UTC, offset
+// from the 2048 crons so they don't pile up). Vercel Hobby tier rejects
+// sub-daily expressions; sub-daily cadence requires Pro upgrade or an
+// external scheduler hitting this endpoint with the bearer token.
+//
+// Until upgraded: sponsor events accumulate up to 24h between indexer
+// runs. Acceptable for sweepstakes posture (no funds at risk during
+// the gap), worse UX (sponsor's dashboard reflects with up to 24h lag).
 //
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` automatically.
 // Local/manual triggers must include the same header.
