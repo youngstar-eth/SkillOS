@@ -422,6 +422,110 @@ export const TOURNAMENT_POOL_ABI = [
   { type: "error", name: "DuplicateInRanking", inputs: [] },
   { type: "error", name: "InsufficientFeePaid", inputs: [] },
   { type: "error", name: "PlayerMismatch", inputs: [] },
+  // ─── v2.1 patch: permissionless sponsor top-up ─────────────────────────
+  {
+    type: "function",
+    name: "fundPrizePool",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "id", type: "bytes32" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "event",
+    name: "PrizePoolFunded",
+    inputs: [
+      { name: "id", type: "bytes32", indexed: true },
+      { name: "funder", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "newPrizePool", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+] as const;
+
+// ───────────────────────────────────────────────────────────────────────────
+// SponsorshipModule — permissionless sponsor entry point. Wraps fundPrizePool
+// with sanctions screening + soulbound receipt mint.
+//
+// Subset used by the apex /sponsor surface + indexer cron. View getters
+// for sponsorContributions / totalSponsorsByTournament are included for
+// the dashboard read path.
+// ───────────────────────────────────────────────────────────────────────────
+
+export const SPONSORSHIP_MODULE_ABI = [
+  {
+    type: "function",
+    name: "sponsorPool",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tournamentId", type: "bytes32" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "receiptTokenId", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "sponsorContributions",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "bytes32" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "totalSponsorsByTournament",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "bytes32" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "sanctionsOracle",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "USDC",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "POOL",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "RECEIPT",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "event",
+    name: "PoolSponsored",
+    inputs: [
+      { name: "tournamentId", type: "bytes32", indexed: true },
+      { name: "sponsor", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "receiptTokenId", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+  // Custom errors
+  { type: "error", name: "SponsorSanctioned", inputs: [] },
+  { type: "error", name: "ZeroAddress", inputs: [] },
+  { type: "error", name: "ZeroAmount", inputs: [] },
 ] as const;
 
 // ─── ERC20 (USDC) ABI — approve / balanceOf / allowance ────────────────────

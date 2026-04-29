@@ -69,6 +69,32 @@ export const RETRY_FEE = 1_000_000n;
 /** Match-count cap applied in on-chain effective score. Matches contract MATCH_COUNT_CAP. */
 export const MATCH_COUNT_CAP = 10n;
 
+// ─── F4.1 Permissionless Sponsor Pool — Base Sepolia, deployed 2026-04-29 ──
+
+// TournamentPool v2.1 — adds permissionless fundPrizePool() entry point.
+// New deployment, separate from the v2 above. Frontend tournament reads
+// should target this address; legacy v2 left for any in-flight settlements.
+export const TOURNAMENT_POOL_V21_ADDRESS = (process.env
+  .NEXT_PUBLIC_TOURNAMENT_POOL_V21_ADDRESS ??
+  "0x52049b812780134d2F69D6c20C2ef881D49702da") as Address;
+
+// SponsorshipModule — sanctions-screened sponsor entry; mints SBT on success.
+export const SPONSORSHIP_MODULE_ADDRESS = (process.env
+  .NEXT_PUBLIC_SPONSORSHIP_MODULE_ADDRESS ??
+  "0xD76670adB574A4C8D06dfF47127e7143d780ff87") as Address;
+
+// SponsorReceiptSBT — ERC-5192 soulbound receipt minted to sponsor on each
+// successful sponsorPool() call. tokenId monotonic from 1.
+export const SPONSOR_RECEIPT_SBT_ADDRESS = (process.env
+  .NEXT_PUBLIC_SPONSOR_RECEIPT_SBT_ADDRESS ??
+  "0xCCC183c72D666A16E03bf38E8c2DFa8a68b2e768") as Address;
+
+// MockSanctionsOracle (testnet only) — owner-curated blacklist. Mainnet
+// swaps to Chainalysis at 0x40C57923924B5c5c5455c48D93317139ADDaC8fb.
+export const SANCTIONS_ORACLE_ADDRESS = (process.env
+  .NEXT_PUBLIC_SANCTIONS_ORACLE_ADDRESS ??
+  "0x0CB38F0A0511aF07FC34A20DCaB9e2Fc8061B1CC") as Address;
+
 // ─── SkillbaseAnchor (SP ledger snapshot anchoring) ─────────────────────────
 
 /**

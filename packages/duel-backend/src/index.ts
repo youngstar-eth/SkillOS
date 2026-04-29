@@ -14,3 +14,6 @@ export * from "./api/tournaments/list";
 export * from "./api/profile";
 export * from "./api/sp-earned";
 export * from "./cron/tournaments";
+export * from "./cron/sponsors";
+export * from "./api/sponsor/contributions";
+export * from "./api/sponsor/tournament-sponsors";
