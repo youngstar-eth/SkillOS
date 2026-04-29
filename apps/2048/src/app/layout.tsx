@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   other: {
     "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
     "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
+    "base:app_id": "69f1e761bbed26bd8fc51c5e",
   },
 };
 
