@@ -10,6 +10,13 @@ Built by Simpl3 Inc.
 
 Under active development. See `/docs` for full spec (coming soon).
 
+### Permissionless Sponsor Pool — Phase 2 (live 2026-04-29)
+
+Anyone can fund a tournament prize pool on-chain via the SponsorshipModule.
+Soulbound NFT receipt issued per sponsorship. See [`docs/sponsor-flow.md`](docs/sponsor-flow.md)
+for the architecture, contract addresses, sanctions oracle setup, and end-user
+flow. Live at <https://sponsor.skillbase.games>.
+
 ## Quick start
 
 ```bash
