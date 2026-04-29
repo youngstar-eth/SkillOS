@@ -1,0 +1,21 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-04-29T14:00:00Z",
+  "contracts": {
+    "TournamentPoolV21": "0x52049b812780134d2F69D6c20C2ef881D49702da",
+    "MockSanctionsOracle": "0x0CB38F0A0511aF07FC34A20DCaB9e2Fc8061B1CC",
+    "SponsorReceiptSBT": "0xCCC183c72D666A16E03bf38E8c2DFa8a68b2e768",
+    "SponsorshipModule": "0xD76670adB574A4C8D06dfF47127e7143d780ff87"
+  },
+  "externalReferences": {
+    "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "deployer": "0x3a4F9eB7fBa1A0015a6F070259F3B9E883d95EEe",
+    "trustedSigner": "0xf35c284D9aB07Abb4fc297C2af89B467E30f2273"
+  },
+  "verification": {
+    "status": "deferred",
+    "reason": "Etherscan V2 API bug for Base Sepolia (rejects bytecode-identical compilations)",
+    "retryCmd": "forge verify-contract <addr> <name> --chain-id 84532 --etherscan-api-key $BASESCAN_API_KEY --compiler-version v0.8.26+commit.8a97fa7a"
+  }
+}

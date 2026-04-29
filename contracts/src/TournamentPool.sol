@@ -192,6 +192,16 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         uint256 prizePool,
         uint256 participationBonus
     );
+    /// @notice Emitted on permissionless top-up of a tournament's prize pool.
+    /// @dev    `funder` is the direct caller (typically SponsorshipModule).
+    ///         End-user sponsor identity is captured separately by the module's
+    ///         PoolSponsored event + SponsorReceiptSBT mint.
+    event PrizePoolFunded(
+        bytes32 indexed id,
+        address indexed funder,
+        uint256 amount,
+        uint256 newPrizePool
+    );
     event ScoreSubmitted(
         bytes32 indexed id,
         address indexed player,
@@ -263,6 +273,34 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         t.participationBonus = participationBonus;
 
         emit TournamentCreated(id, msg.sender, game, cycleType, startsAt, endsAt, prizePool, participationBonus);
+    }
+
+    /// @notice Permissionless top-up of an existing tournament's prize pool.
+    /// @dev    Anyone may fund any non-settled tournament. The SponsorshipModule
+    ///         wraps this call with sanctions screening + soulbound receipt mint,
+    ///         but at the pool level only lifecycle invariants are enforced
+    ///         (tournament exists, not settled). Sponsors may fund before
+    ///         startsAt or after endsAt — only the settled flag is decisive.
+    ///
+    ///         Architectural invariant (sweepstakes posture):
+    ///         this function ONLY mutates t.prizePool. It never touches
+    ///         feeCollected. The retry-fee/prize-pool segregation that v2
+    ///         depends on for clean fee withdrawal survives this addition.
+    ///
+    ///         Tested: see TournamentPool.t.sol invariant — feeCollected[id]
+    ///         is unchanged for any sequence of fundPrizePool calls.
+    /// @param  id      Tournament identifier (must exist via createTournament).
+    /// @param  amount  USDC atoms (6 decimals) to add to the prize pool.
+    function fundPrizePool(bytes32 id, uint256 amount) external nonReentrant {
+        if (amount == 0) revert ZeroPrize();
+        Tournament storage t = _tournaments[id];
+        if (t.sponsor == address(0)) revert TournamentNotFound();
+        if (t.settled) revert TournamentAlreadySettled();
+
+        USDC.safeTransferFrom(msg.sender, address(this), amount);
+        t.prizePool += amount;
+
+        emit PrizePoolFunded(id, msg.sender, amount, t.prizePool);
     }
 
     /// @notice Submit a player's score via backend-signed attestation.
