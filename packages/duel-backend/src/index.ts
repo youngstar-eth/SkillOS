@@ -17,3 +17,4 @@ export * from "./cron/tournaments";
 export * from "./cron/sponsors";
 export * from "./api/sponsor/contributions";
 export * from "./api/sponsor/tournament-sponsors";
+export * from "./api/sponsor/tournament-list";

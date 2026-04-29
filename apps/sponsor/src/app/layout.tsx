@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Header, Providers } from "@skillbase/ui";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Skillbase — Sponsor a Pool",
@@ -15,7 +17,12 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Providers>
+          <Header brand="Skillbase · Sponsor" />
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }
