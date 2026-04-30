@@ -1,7 +1,13 @@
 import { ImageResponse } from "next/og";
 
 // 512×512 per-game Mini App icon. Referenced by farcaster.json.
-// Sudoku variant — single grid cell with numeral, Base blue on dark.
+// Renders the canonical apex sudoku tile (also the eyebrow tile).
+//
+// Implementation note: Satori (next/og's renderer) doesn't reliably
+// rasterize <text> inside an embedded SVG, so the tile geometry is
+// reproduced with Satori-native primitives (divs + inline styles).
+// Public asset /sudoku.svg keeps the SVG-text version for the eyebrow,
+// where the browser is the renderer.
 
 export const runtime = "nodejs";
 
@@ -25,15 +31,15 @@ export async function GET() {
             justifyContent: "center",
             width: 380,
             height: 380,
-            borderRadius: 24,
-            background: "#0052FF",
-            color: "#ffffff",
-            fontSize: 280,
-            fontWeight: 700,
-            border: "8px solid #0044d6",
+            borderRadius: 59,
+            background: "#141414",
+            border: "6px solid #262626",
+            color: "#FFC72C",
+            fontSize: 220,
+            fontWeight: 500,
           }}
         >
-          5
+          9
         </div>
       </div>
     ),

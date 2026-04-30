@@ -1,7 +1,13 @@
 import { ImageResponse } from "next/og";
 
 // 512×512 per-game Mini App icon. Referenced by farcaster.json.
-// 2048 variant — single tile glyph, brand gold on dark.
+// Renders the canonical apex 2048 tile (also the eyebrow tile).
+//
+// Implementation note: Satori (next/og's renderer) doesn't reliably
+// rasterize <text> inside an embedded SVG, so the tile geometry is
+// reproduced with Satori-native primitives (divs + inline styles).
+// Public asset /2048.svg keeps the SVG-text version for the eyebrow,
+// where the browser is the renderer.
 
 export const runtime = "nodejs";
 
@@ -25,12 +31,13 @@ export async function GET() {
             justifyContent: "center",
             width: 380,
             height: 380,
-            borderRadius: 64,
-            background: "linear-gradient(135deg, #DDAC2F 0%, #b88a1c 100%)",
-            color: "#0a0a0a",
-            fontSize: 120,
-            fontWeight: 800,
-            letterSpacing: -4,
+            borderRadius: 59,
+            background: "#141414",
+            border: "6px solid #262626",
+            color: "#FFC72C",
+            fontSize: 107,
+            fontWeight: 500,
+            letterSpacing: -3,
           }}
         >
           2048
