@@ -6,6 +6,15 @@ export const metadata: Metadata = {
   title: "Skillbase Sudoku — On-chain Sudoku duels on Base",
   description:
     "Stake 1 USDC, match a player, race to solve the same puzzle. Most cells correct in 2 minutes wins the pool.",
+  openGraph: {
+    title: "Sudoku · Skillbase",
+    description: "Solve faster. Think deeper. Earn SP.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sudoku · Skillbase",
+    description: "Solve faster. Think deeper. Earn SP.",
+  },
   other: {
     "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
     "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",

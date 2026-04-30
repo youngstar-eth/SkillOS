@@ -6,6 +6,15 @@ export const metadata: Metadata = {
   title: "Skillbase Wordle — On-chain word duels on Base",
   description:
     "Stake 1 USDC, match a player, guess the same 5-letter target in 6 tries. Best score wins the pool.",
+  openGraph: {
+    title: "Wordle · Skillbase",
+    description: "Guess smarter. Score higher. Earn SP.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Wordle · Skillbase",
+    description: "Guess smarter. Score higher. Earn SP.",
+  },
   other: {
     "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
     "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
