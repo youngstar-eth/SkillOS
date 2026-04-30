@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { WalletButton } from "./WalletButton";
 import { useIsEmbedded } from "./useIsEmbedded";
+import { SkillbaseMark } from "./SkillbaseMark";
 
 export interface HeaderProps {
   /** Brand text shown next to the dot, e.g. "Skillbase · Wordle". Defaults to "Skillbase". */
@@ -32,7 +33,7 @@ export function Header({ brand = "Skillbase" }: HeaderProps) {
           href="/"
           className="flex items-center gap-2 text-sm font-semibold tracking-tight"
         >
-          <span className="inline-block h-2 w-2 rounded-full bg-skill" />
+          <SkillbaseMark size={28} />
           <span>{brand}</span>
         </Link>
         <WalletButton />
