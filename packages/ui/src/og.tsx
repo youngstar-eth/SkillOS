@@ -14,6 +14,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { ReactElement } from "react";
+import { SkillbaseMark } from "./SkillbaseMark";
 
 export interface GameOgProps {
   /** Game name as it should appear in the headline, e.g. "2048", "Wordle". */
@@ -75,15 +76,7 @@ export function gameOgTemplate({
           letterSpacing: "-0.01em",
         }}
       >
-        <span
-          style={{
-            display: "block",
-            width: 22,
-            height: 22,
-            borderRadius: 6,
-            background: "linear-gradient(135deg, #0052FF 0%, #DDAC2F 130%)",
-          }}
-        />
+        <SkillbaseMark size={28} style={{ display: "block" }} />
         skillbase
       </div>
 
@@ -237,16 +230,9 @@ export function splashTemplate({ name }: SplashProps): ReactElement {
           filter: "blur(80px)",
         }}
       />
-      <div
-        style={{
-          display: "flex",
-          width: 96,
-          height: 96,
-          borderRadius: 24,
-          background: "linear-gradient(135deg, #0052FF 0%, #DDAC2F 130%)",
-          zIndex: 1,
-        }}
-      />
+      <div style={{ display: "flex", zIndex: 1 }}>
+        <SkillbaseMark size={140} style={{ display: "block" }} />
+      </div>
       <div
         style={{
           display: "flex",
