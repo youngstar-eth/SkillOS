@@ -21,19 +21,25 @@ export interface ModeChooserProps {
   soloHref?: string;
   /** Subhead under the game name; defaults to canonical positioning. */
   subhead?: string;
+  /** Optional per-game tile node rendered in the eyebrow in place of the
+   * default gold dot. Sized by the caller (~14px square). */
+  tile?: React.ReactNode;
 }
 
 export function ModeChooser({
   gameName,
   soloHref = "/tournament/solo",
   subhead = "Daily skill tournaments on Base",
+  tile,
 }: ModeChooserProps) {
   return (
     <main className="flex min-h-[calc(100vh-56px)] flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-3xl">
         <header className="text-center">
-          <p className="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-bg-elev px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-skill" />
+          <p className="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-bg-elev px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-neutral-400">
+            {tile ?? (
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-skill" />
+            )}
             Skillbase · {gameName}
           </p>
           <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-5xl">

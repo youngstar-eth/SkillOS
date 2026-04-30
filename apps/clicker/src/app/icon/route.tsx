@@ -1,9 +1,19 @@
 import { ImageResponse } from "next/og";
 
 // 512×512 per-game Mini App icon. Referenced by farcaster.json.
-// Clicker variant — counter increment, brand gold on dark.
+// Renders the canonical apex game tile (also the eyebrow tile).
+// SVG kept inline so this file is the single source of truth that
+// matches /public/clicker.svg byte-for-byte.
 
 export const runtime = "nodejs";
+
+const TILE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect x="0" y="0" width="64" height="64" rx="10" fill="#141414" stroke="#262626"></rect>
+  <circle cx="32" cy="32" r="14" fill="none" stroke="#FFC72C" stroke-width="2"></circle>
+  <circle cx="32" cy="32" r="4" fill="#FFC72C"></circle>
+</svg>`;
+
+const TILE_DATA_URI = `data:image/svg+xml;base64,${Buffer.from(TILE_SVG).toString("base64")}`;
 
 export async function GET() {
   return new ImageResponse(
@@ -18,23 +28,8 @@ export async function GET() {
           justifyContent: "center",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 380,
-            height: 380,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #DDAC2F 0%, #b88a1c 100%)",
-            color: "#0a0a0a",
-            fontSize: 180,
-            fontWeight: 800,
-            letterSpacing: -2,
-          }}
-        >
-          +1
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={TILE_DATA_URI} width={380} height={380} alt="" />
       </div>
     ),
     { width: 512, height: 512 },

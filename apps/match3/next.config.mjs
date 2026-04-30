@@ -33,6 +33,17 @@ const nextConfig = {
     };
     return config;
   },
+  // Browsers, RSS readers, scrapers, and link-preview tools hit /favicon.ico
+  // regardless of <link rel="icon"> hints. 307 to /icon (the metadata route)
+  // kills the 404 noise and keeps a single source of truth. Non-permanent so
+  // we can swap in a real multi-size .ico later without poisoned caches.
+  redirects: async () => [
+    {
+      source: "/favicon.ico",
+      destination: "/icon",
+      permanent: false,
+    },
+  ],
 };
 
 export default nextConfig;
