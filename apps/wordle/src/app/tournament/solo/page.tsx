@@ -363,7 +363,7 @@ export default function SoloPage() {
                   Score buffered — network slow
                 </p>
                 <p className="mt-1 text-xs text-neutral-400">
-                  Your run + payment is saved locally. We'll auto-submit on your
+                  Your run + payment is saved locally. We&apos;ll auto-submit on your
                   next visit while the tournament is still open.
                 </p>
               </Panel>

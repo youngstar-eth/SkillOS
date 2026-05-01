@@ -312,7 +312,7 @@ function SoloCTA() {
         </p>
         <p className="mt-1 text-xs text-neutral-400">
           First entry free. Retries cost 1.00 USDC and fund platform
-          operations — they don't touch the prize pool.
+          operations — they don&apos;t touch the prize pool.
         </p>
       </div>
       <Link
