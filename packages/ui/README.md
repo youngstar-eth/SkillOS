@@ -4,13 +4,18 @@ Shared React components and design primitives consumed by every game app and the
 
 ## Exports
 
-- `Header`, `Nav` — top-bar with Skillbase brand + per-app slot
+- `Header` — top-bar with Skillbase brand + per-app slot
 - `Providers` — wagmi + react-query + theme provider stack
+- `wagmiConfig` — pre-configured wagmi client
+- `WalletButton`, `EmbedWalletFallback` — wallet connect UI (with miniapp-aware fallback)
 - `SkillbaseMark` — canonical brand monogram (SVG, sized via prop)
 - `ModeChooser` — solo / duel mode toggle (duel disabled in Phase 2)
 - `DuelComingSoon` — `<DuelComingSoon />` placeholder served at every `/duel/*` route while duels are paused for Phase 2
-- `Timer`, `PopupHint`, `AddressDisplay`, `EmbedWalletFallback`, `ReadyMarker` — utility primitives
-- `og/game-card` — `next/og`-compatible OG image renderer (subpath export, server-only)
+- `Timer`, `PopupHint`, `AddressDisplay`, `ReadyMarker` — utility primitives
+- `useBasename`, `useIsEmbedded`, `useMiniAppReady`, `useSoloRetry` — React hooks
+- `gameOgTemplate`, `splashTemplate` — text-only OG/splash content templates (client-safe)
+- `COACH_MODEL_DISPLAY`, `RECAP_MODEL_DISPLAY`, `ANTICHEAT_MODEL_DISPLAY` — model labels for AI attribution
+- Subpath `@skillbase/ui/og/game-card` — `next/og`-compatible OG image renderer (server-only); exposes `gameOgImage`, `GameOgCard`, `TileGlyph`
 
 ## Subpath exports
 

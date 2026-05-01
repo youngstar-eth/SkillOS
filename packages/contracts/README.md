@@ -4,32 +4,44 @@ ABIs and address constants for the on-chain contracts deployed at `/contracts` (
 
 ## Exports
 
-- `CHALLENGE_ESCROW_ABI`, `CHALLENGE_ESCROW_ADDRESS` — async-duel stake escrow
-- `TOURNAMENT_POOL_V2_ABI`, `TOURNAMENT_POOL_V2_ADDRESS`, `TOURNAMENT_POOL_V21_ADDRESS` — solo + duel prize-pool escrow
-- `SPONSORSHIP_MODULE_ABI`, `SPONSORSHIP_MODULE_ADDRESS` — permissionless prize-pool funding
-- `SPONSOR_RECEIPT_ABI`, `SPONSOR_RECEIPT_ADDRESS` — soulbound sponsor receipt SBT
-- `SANCTIONS_ORACLE_ABI`, `SANCTIONS_ORACLE_ADDRESS` — pre-tx OFAC + sanctions screen
-- `SKILLBASE_ANCHOR_ABI`, `SKILLBASE_ANCHOR_ADDRESS` — daily SP-ledger snapshot anchor
-- v1: `TOURNAMENT_POOL_ADDRESS` — preserved for rollback only; no new code paths route here.
+**ABIs** (`abi.ts`):
 
-Plus helpers:
+- `CHALLENGE_ESCROW_ABI` — async-duel stake escrow
+- `TOURNAMENT_POOL_ABI` — solo + duel prize-pool escrow (shared across v1 / v2 / v2.1; deployed instances are addressed separately below)
+- `SPONSORSHIP_MODULE_ABI` — permissionless prize-pool funding
+- `SKILLBASE_ANCHOR_ABI` — daily SP-ledger snapshot anchor
+- `ERC20_ABI` — generic ERC-20 (used for USDC reads)
 
-- `gameSlugFor(gameType)` / `gameTypeFromSlug(slug)` — bytes32 ↔ game-slug conversion
-- `matchIdFor(...)` — deterministic match-id generation
+**Addresses** (`addresses.ts`):
+
+- `CHALLENGE_ESCROW_ADDRESS`
+- `TOURNAMENT_POOL_ADDRESS` (v1, preserved for rollback only — no new code paths route here)
+- `TOURNAMENT_POOL_V2_ADDRESS`, `TOURNAMENT_POOL_V21_ADDRESS`
+- `USDC_ADDRESS`
+- `SPONSORSHIP_MODULE_ADDRESS`
+- `SPONSOR_RECEIPT_SBT_ADDRESS`
+- `SANCTIONS_ORACLE_ADDRESS` (address-only — read via direct interface, no ABI exported from this package)
+- `SKILLBASE_ANCHOR_ADDRESS`
+- Plus `CHAIN_ID` and on-chain game constants (`STAKE_AMOUNT`, `RETRY_FEE`, `CHALLENGE_DURATION_SECONDS`, `PLAY_WINDOW_MS`, `SUBMIT_GRACE_MS`, `QUEUE_WAIT_BUDGET_MS`, `MATCH_COUNT_CAP`).
+
+**Helpers**:
+
+- `gameSlug(name)` — `string → Hex` bytes32 game-slug encoder (`game-slug.ts`)
+- `generateMatchId()`, `bytes32FromUuid(uuid)` — match-id helpers (`match-id.ts`)
 
 ## Usage
 
 ```ts
 import {
   TOURNAMENT_POOL_V2_ADDRESS,
-  TOURNAMENT_POOL_V2_ABI,
+  TOURNAMENT_POOL_ABI,
 } from "@skillbase/contracts";
 import { createPublicClient, http } from "viem";
 
 const client = createPublicClient({ transport: http() });
 const tournament = await client.readContract({
   address: TOURNAMENT_POOL_V2_ADDRESS,
-  abi: TOURNAMENT_POOL_V2_ABI,
+  abi: TOURNAMENT_POOL_ABI,
   functionName: "getTournament",
   args: [tournamentId],
 });
