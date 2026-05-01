@@ -49,6 +49,9 @@ export const metadata: Metadata = {
       "Fund any Skillbase tournament prize pool on-chain. One tx, soulbound receipt.",
     siteName: "Skillbase Sponsor",
   },
+  other: {
+    "base:app_id": "69f5034cd7175bf80cb81fd0",
+  },
 };
 
 export const viewport: Viewport = {

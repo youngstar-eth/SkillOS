@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   other: {
     "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://clicker.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Clicker on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://clicker.skillbase.games/tournament/solo\"}}}",
     "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://clicker.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Clicker on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://clicker.skillbase.games/tournament/solo\"}}}",
+    "base:app_id": "69f4feaad7175bf80cb81fcc",
   },
 };
 
