@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   other: {
     "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://minesweeper.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Minesweeper on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://minesweeper.skillbase.games/tournament/solo\"}}}",
     "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://minesweeper.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Minesweeper on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://minesweeper.skillbase.games/tournament/solo\"}}}",
+    "base:app_id": "69f4de81d7175bf80cb81fb2",
   },
 };
 

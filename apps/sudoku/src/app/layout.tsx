@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   other: {
     "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
     "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
+    "base:app_id": "69f4fe943b51d26eb105fb69",
   },
 };
 
