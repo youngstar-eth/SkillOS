@@ -1,26 +1,494 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
+/* Tailwind v4 default content scanning only sees this package. The shared
+   `@skillbase/ui` workspace (Header, WalletButton, SkillbaseMark, …) lives
+   four levels up — declare it as a source so its utility classes compile. */
+@source "../../../../packages/ui/src";
+
+/* ============================================================
+   Skillbase apex tokens — dual theme, ported from skillbase-apex.
+
+   Two themes, set on <html> by the inline FOUC script in layout.tsx:
+     - .theme-dark   (sponsor default; gold + ink)
+     - .theme-light  (blue + paper)
+
+   Sponsor-only legacy aliases (--color-skill, --color-base) preserve
+   the v3 utilities (bg-skill, text-skill, border-skill) used across
+   page.tsx, dashboard, and [tournamentId] without a refactor.
+   ============================================================ */
+
+@theme {
+  /* ---- Apex Field Notes spec (light theme as static default) ---- */
+  --color-bg: #fafafa;
+  --color-bg-elev: #ffffff;
+  --color-bg-elev2: #f2f2f2;
+  --color-border: #e5e5e5;
+  --color-border-subtle: #efefef;
+  --color-fg-1: #0a0a0a;
+  --color-fg-2: #262626;
+  --color-fg-muted: #525252;
+  --color-fg-subtle: #737373;
+  --color-brand: #0052ff;
+  --color-brand-hover: #1a66ff;
+
+  /* Brand atoms — invariant; only the SB monogram and marquee dot use these. */
+  --color-brand-gold: #ffc72c;
+  --color-brand-blue: #0052ff;
+  --color-brand-blue-hover: #1a66ff;
+  --color-neutral-ink: #0a0a0a;
+  --color-neutral-paper: #fafafa;
+
+  /* Sponsor v3 legacy aliases — keep `bg-skill`, `text-skill`, `bg-base`
+     working without touching page.tsx / dashboard / [tournamentId]. */
+  --color-skill: #ffc72c;
+  --color-base: #0052ff;
+
+  /* Status (theme-invariant) */
+  --color-success: #22c55e;
+  --color-warning: #ffc72c;
+  --color-danger: #ef4444;
+
+  /* ---- Legacy aliases for any `text-fg`, `text-fg-dim`, etc. ---- */
+  --color-ink: #fafafa;
+  --color-panel: #ffffff;
+  --color-panel-2: #f2f2f2;
+  --color-panel-3: #e5e5e5;
+  --color-line: #efefef;
+  --color-line-strong: #e5e5e5;
+  --color-fg: #0a0a0a;
+  --color-fg-dim: #a3a3a3;
+  --color-brand-fg: #0052ff;
+  --color-brand-soft: rgb(0 82 255 / 0.12);
+  --color-brand-glow: rgb(0 82 255 / 0.35);
+  --color-gold: #ffc72c;
+  --color-gold-soft: rgb(255 199 44 / 0.12);
+  --color-gold-glow: rgb(255 199 44 / 0.35);
+
+  /* Fonts — Space Grotesk for display, Inter for body, JetBrains for mono */
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+
+  /* Tracking */
+  --tracking-display: -0.025em;
+  --tracking-tight: -0.02em;
+  --tracking-label: 0.18em;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.215, 0.61, 0.355, 1);
+
+  /* Animations */
+  --animate-fade-up: fade-up 900ms var(--ease-out-soft) both;
+  --animate-fade-in: fade-in 700ms var(--ease-out-soft) both;
+  --animate-pulse-ring: pulse-ring 1.8s var(--ease-standard) infinite;
+}
+
+/* ============================================================
+   Light theme — re-declares @theme values for symmetry.
+   ============================================================ */
+:root.theme-light {
+  --color-bg: #fafafa;
+  --color-bg-elev: #ffffff;
+  --color-bg-elev2: #f2f2f2;
+  --color-border: #e5e5e5;
+  --color-border-subtle: #efefef;
+  --color-fg-1: #0a0a0a;
+  --color-fg-2: #262626;
+  --color-fg-muted: #525252;
+  --color-fg-subtle: #737373;
+  --color-brand: #0052ff;
+  --color-brand-hover: #1a66ff;
+
+  --color-ink: #fafafa;
+  --color-panel: #ffffff;
+  --color-panel-2: #f2f2f2;
+  --color-panel-3: #e5e5e5;
+  --color-line: #efefef;
+  --color-line-strong: #e5e5e5;
+  --color-fg: #0a0a0a;
+  --color-fg-dim: #a3a3a3;
+  --color-brand-fg: #0052ff;
+  --color-brand-soft: rgb(0 82 255 / 0.12);
+  --color-brand-glow: rgb(0 82 255 / 0.35);
+
+  --brand: #0052ff;
+  --brand-hover: #1a66ff;
+  --brand-rgb: 0, 82, 255;
+  --bg: #fafafa;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f2f2f2;
+  --bg-elev-3: #e5e5e5;
+  --border: #e5e5e5;
+  --border-subtle: #efefef;
+  --border-strong: #d4d4d4;
+  --fg-1: #0a0a0a;
+  --fg-2: #262626;
+  --fg-muted: #525252;
+  --fg-subtle: #737373;
+  --fg-dim: #a3a3a3;
+  --shadow-md: 0 8px 24px -12px rgba(0, 0, 0, 0.18);
+  --wash-skill: radial-gradient(
+    60% 60% at 50% 0%,
+    rgba(0, 82, 255, 0.04),
+    transparent 70%
+  );
+
+  color-scheme: light;
+}
+
+/* ============================================================
+   Dark theme — sponsor default voice (gold + ink).
+   ============================================================ */
+:root.theme-dark {
+  --color-bg: #0a0a0a;
+  --color-bg-elev: #141414;
+  --color-bg-elev2: #1c1c1c;
+  --color-border: #262626;
+  --color-border-subtle: #1f1f1f;
+  --color-fg-1: #fafafa;
+  --color-fg-2: #d4d4d4;
+  --color-fg-muted: #a3a3a3;
+  --color-fg-subtle: #737373;
+  --color-brand: #ffc72c;
+  --color-brand-hover: #ffd24a;
+
+  --color-ink: #0a0a0a;
+  --color-panel: #141414;
+  --color-panel-2: #1c1c1c;
+  --color-panel-3: #242424;
+  --color-line: #1f1f1f;
+  --color-line-strong: #262626;
+  --color-fg: #ededed;
+  --color-fg-dim: #525252;
+  --color-brand-fg: #ffc72c;
+  --color-brand-soft: rgb(255 199 44 / 0.12);
+  --color-brand-glow: rgb(255 199 44 / 0.35);
+
+  --brand: #ffc72c;
+  --brand-hover: #ffd24a;
+  --brand-rgb: 255, 199, 44;
+  --bg: #0a0a0a;
+  --bg-elev: #141414;
+  --bg-elev-2: #1c1c1c;
+  --bg-elev-3: #242424;
+  --border: #262626;
+  --border-subtle: #1f1f1f;
+  --border-strong: #333333;
+  --fg-1: #fafafa;
+  --fg-2: #d4d4d4;
+  --fg-muted: #a3a3a3;
+  --fg-subtle: #92929a;
+  --fg-dim: #525252;
+  --shadow-md: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --wash-skill: radial-gradient(
+    60% 60% at 50% 0%,
+    rgba(255, 199, 44, 0.05),
+    transparent 70%
+  );
+
   color-scheme: dark;
 }
 
-html,
-body {
-  background: #0a0a0a;
-  color: #ededed;
+/* ============================================================
+   Theme-invariant raw tokens (radii, durations, glow shadow).
+   ============================================================ */
+:root {
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 9999px;
+
+  --shadow-glow-skill:
+    0 0 0 1px rgba(255, 199, 44, 0.15),
+    0 8px 32px -12px rgba(255, 199, 44, 0.18);
+
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 360ms;
 }
 
-button:focus-visible,
-a:focus-visible,
-[role="button"]:focus-visible {
-  outline: 2px solid #ffc72c;
-  outline-offset: 2px;
-  border-radius: 0.5rem;
+/* ============================================================
+   Keyframes
+   ============================================================ */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--brand-rgb), 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(var(--brand-rgb), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--brand-rgb), 0);
+  }
+}
+
+/* Apex page wash — atmospheric two-radial backdrop. */
+.apex-page-wash {
+  position: relative;
+  isolation: isolate;
+}
+.apex-page-wash::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 18% 8%, var(--apex-wash-1), transparent 45%),
+    radial-gradient(circle at 82% 92%, var(--apex-wash-2), transparent 50%);
+}
+.apex-page-wash > * {
+  position: relative;
+  z-index: 1;
+}
+
+:root.theme-light {
+  --apex-wash-1: rgba(0, 82, 255, 0.04);
+  --apex-wash-2: rgba(0, 82, 255, 0.03);
+}
+:root.theme-dark {
+  --apex-wash-1: rgba(255, 199, 44, 0.04);
+  --apex-wash-2: rgba(255, 199, 44, 0.03);
+}
+
+/* ============================================================
+   Semantic typography classes (.skb-*)
+   ============================================================ */
+.skb-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(2.75rem, 4.4vw + 1rem, 5rem);
+  line-height: 1.05;
+  letter-spacing: var(--tracking-display);
+  color: var(--fg-1);
+}
+
+.skb-h1 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 2.75rem;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-display);
+  color: var(--fg-1);
+}
+
+.skb-h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+
+.skb-h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+
+.skb-lead {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: var(--fg-2);
+}
+
+.skb-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--fg-2);
+}
+
+.skb-caption {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.skb-eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.skb-numeric {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight);
+}
+
+/* The pixel SB mark + game tile glyphs ship as crisp pixel SVGs.
+   Never anti-alias. */
+.pixel-mark {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  shape-rendering: crispEdges;
+}
+
+/* ============================================================
+   Buttons — ghost + primary. Matches apex Nav rhythm so the
+   sponsor wallet/theme cluster reads as one row.
+   ============================================================ */
+.apex-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-border);
+  color: var(--color-fg-1);
+  background: transparent;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+  cursor: pointer;
+}
+.apex-btn:hover { border-color: var(--color-brand); }
+.apex-btn-primary {
+  background: var(--color-brand);
+  color: var(--apex-fg-on-brand);
+  border-color: var(--color-brand);
+}
+.apex-btn-primary:hover {
+  background: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
+}
+.apex-btn-arrow { transition: transform var(--dur-fast) ease; }
+.apex-btn:hover .apex-btn-arrow { transform: translateX(2px); }
+
+.apex-btn-icon {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+  height: 40px;
+}
+
+:root.theme-light { --apex-fg-on-brand: var(--color-neutral-paper); }
+:root.theme-dark { --apex-fg-on-brand: var(--color-neutral-ink); }
+
+/* ============================================================
+   Footer — minimal lockup variant for sponsor.
+   ============================================================ */
+.apex-footer {
+  padding: 32px 0 40px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 64px;
+  background: var(--color-bg);
+}
+.apex-footer .row {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+.apex-footer .brand-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-fg-1);
+}
+.apex-footer .brand-block .word {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--color-fg-1);
+}
+.apex-footer .meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-fg-muted);
+}
+.apex-footer .links {
+  display: inline-flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.apex-footer .links a {
+  color: var(--color-fg-2);
+  text-decoration: none;
+  transition: color var(--dur-fast) ease;
+}
+.apex-footer .links a:hover { color: var(--color-brand); }
+
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg-1);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(var(--brand-rgb), 0.25);
+    color: var(--fg-1);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
