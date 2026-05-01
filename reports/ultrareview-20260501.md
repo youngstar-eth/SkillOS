@@ -280,14 +280,14 @@ Rationale:
 ### Friday 2026-05-01 (today, T-3 days)
 
 1. **DECIDE on sponsor.skillbase.games disposition** — deploy or scrub. (P0)
-2. **Fix v2.1 trustedSigner** — owner tx `setTrustedSigner(0xA24f9122…)` on v2.1 pool. (P0)
-3. **Top up sponsor wallet** — 0.02 ETH from signer. (P0)
-4. **Verify contracts on Blockscout** — `forge verify-contract` × 4. (P1)
-5. **Reword 70/30 + 30% claims** in `apex.ts:58,64,73,134-135`. (P1)
+2. **Fix v2.1 trustedSigner** — owner tx `setTrustedSigner(0xA24f9122…)` on v2.1 pool. (P0) ✓ **Closed 2026-05-02** — tx [`0xb5db…591e8`](https://sepolia.basescan.org/tx/0xb5db90eaeba5d78a921f68ab71238a0891dc1d4f5c167f82e164b874464591e8).
+3. **Top up sponsor wallet** — 0.02 ETH from signer. (P0) ✓ **Closed 2026-05-02** — tx [`0x9d4b…4af7`](https://sepolia.basescan.org/tx/0x9d4bccb976f3942e01413cc0e53d1b80c729f8fd84aa175d270fea600d1d4af7).
+4. **Verify contracts on Blockscout** — `forge verify-contract` × 4. (P1) ✓ **Closed 2026-05-02** — PR #9 (`eac44d3`); 4 contracts verified on Blockscout (links in PR).
+5. **Reword 70/30 + 30% claims** in `apex.ts:58,64,73,134-135`. (P1) ✓ **Closed 2026-05-02** — apex PR #3 (`88206ed`); also closes Layer 5 items 5.1 + 5.4.
 6. **Cut "1.2M+" from demo Scene 5; fix Haiku→Sonnet 4.6 in script.ts:25; re-record + re-render.** (P1)
 7. **Pick canonical thesis line** + back-propagate to README + apex + demo. (P1)
 8. **Sign apex farcaster.json `accountAssociation`** (or remove the manifest). (P1)
-9. **Ship Option A retry transport fix** in `packages/lib-shared/src/rpc.ts`. (P1)
+9. **Ship Option A retry transport fix** in `packages/lib-shared/src/rpc.ts`. (P1) ✓ **Closed 2026-05-02** — PR #14 (`4f83e5a`); also closes Layer 7 W3 + F3.
 10. Optional: rewrite apex `README.md`, fix 2 react-hooks errors, drop apple-icon.png, add `useSwitchChain`. (P2)
 
 ### Saturday 2026-05-02 (T-2 days, MIGRATION DAY)
