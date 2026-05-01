@@ -41,7 +41,11 @@ export function getPublicClient() {
   if (!cachedPublic) {
     cachedPublic = createPublicClient({
       chain: resolveChain(),
-      transport: http(resolveRpcUrl()),
+      transport: http(resolveRpcUrl(), {
+        retryCount: 3,
+        retryDelay: 200,
+        timeout: 30_000,
+      }),
     });
   }
   return cachedPublic;
@@ -53,7 +57,11 @@ export function getWalletClient() {
     cachedWallet = createWalletClient({
       account: getSignerAccount(),
       chain: resolveChain(),
-      transport: http(resolveRpcUrl()),
+      transport: http(resolveRpcUrl(), {
+        retryCount: 3,
+        retryDelay: 200,
+        timeout: 30_000,
+      }),
     });
   }
   return cachedWallet;
