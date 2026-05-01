@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { cx, truncateAddress } from "./utils";
+import {
+  useAccount,
+  useChainId,
+  useConnect,
+  useDisconnect,
+  useSwitchChain,
+} from "wagmi";
+import { baseSepolia } from "wagmi/chains";
+import { cx, parseWalletError, truncateAddress } from "./utils";
 
 /**
  * Wallet connect/disconnect button.
@@ -13,6 +20,12 @@ export function WalletButton() {
   const { address, status } = useAccount();
   const { connectors, connect, isPending, error } = useConnect();
   const { disconnect } = useDisconnect();
+  const chainId = useChainId();
+  const {
+    switchChain,
+    isPending: isSwitching,
+    error: switchError,
+  } = useSwitchChain();
 
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -33,6 +46,30 @@ export function WalletButton() {
   if (!mounted || status === "connecting" || status === "reconnecting") {
     return (
       <div className="h-9 w-28 rounded-lg border border-border-subtle bg-bg-elev" />
+    );
+  }
+
+  // Connected but on the wrong network — surface a switch CTA before the
+  // address pill so wrong-network is recoverable in-UI (audit #4.3).
+  if (status === "connected" && address && chainId !== baseSepolia.id) {
+    return (
+      <div className="relative">
+        <button
+          onClick={() => switchChain({ chainId: baseSepolia.id })}
+          disabled={isSwitching}
+          className={cx(
+            "inline-flex h-9 items-center gap-2 rounded-lg bg-skill px-4 text-sm font-semibold text-black transition",
+            isSwitching ? "opacity-60" : "hover:bg-yellow-400",
+          )}
+        >
+          {isSwitching ? "Switching…" : "Switch to Base Sepolia"}
+        </button>
+        {switchError && (
+          <p className="absolute right-0 mt-2 max-w-xs text-right text-xs text-red-400">
+            {parseWalletError(switchError).message}
+          </p>
+        )}
+      </div>
     );
   }
 
