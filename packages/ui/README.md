@@ -13,7 +13,7 @@ Shared React components and design primitives consumed by every game app and the
 - `DuelComingSoon` — `<DuelComingSoon />` placeholder served at every `/duel/*` route while duels are paused for Phase 2
 - `Timer`, `PopupHint`, `AddressDisplay`, `ReadyMarker` — utility primitives
 - `useBasename`, `useIsEmbedded`, `useMiniAppReady`, `useSoloRetry` — React hooks
-- `gameOgTemplate`, `splashTemplate` — text-only OG/splash content templates (client-safe)
+- `splashTemplate` — JSX template for the per-app `splash.png` route (client-safe; consumed by `next/og`'s `ImageResponse`)
 - `COACH_MODEL_DISPLAY`, `RECAP_MODEL_DISPLAY`, `ANTICHEAT_MODEL_DISPLAY` — model labels for AI attribution
 - Subpath `@skillbase/ui/og/game-card` — `next/og`-compatible OG image renderer (server-only); exposes `gameOgImage`, `GameOgCard`, `TileGlyph`
 
