@@ -17,12 +17,7 @@ export {
   type BasenameStatus,
   type UseBasenameReturn,
 } from "./useBasename";
-export {
-  gameOgTemplate,
-  type GameOgProps,
-  splashTemplate,
-  type SplashProps,
-} from "./og";
+export { splashTemplate, type SplashProps } from "./og";
 // NOTE: og/game-card is server-only (imports next/og → uses Node `fs`).
 // Re-exporting it from this client-safe barrel contaminates client
 // bundles (Next 14 webpack can't tree-shake across package boundaries
