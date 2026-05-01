@@ -15,8 +15,10 @@
     "trustedSigner": "0xf35c284D9aB07Abb4fc297C2af89B467E30f2273"
   },
   "verification": {
-    "status": "deferred",
-    "reason": "Etherscan V2 API bug for Base Sepolia (rejects bytecode-identical compilations)",
-    "retryCmd": "forge verify-contract <addr> <name> --chain-id 84532 --etherscan-api-key $BASESCAN_API_KEY --compiler-version v0.8.26+commit.8a97fa7a"
+    "status": "verified",
+    "verifier": "blockscout",
+    "verifiedAt": "2026-05-01T11:54:00Z",
+    "explorer": "https://base-sepolia.blockscout.com/",
+    "note": "Etherscan V2 API previously rejected bytecode-identical compilations; switched to Blockscout for successful verification. Verified contracts: TournamentPoolV21, SponsorReceiptSBT, SponsorshipModule (and v2.0 TournamentPool 0x5CadD... via point-in-time source from commit 9e0b593)."
   }
 }
