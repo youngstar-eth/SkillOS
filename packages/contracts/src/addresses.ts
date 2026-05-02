@@ -33,13 +33,18 @@ export const TOURNAMENT_POOL_ADDRESS = (process.env
   .NEXT_PUBLIC_TOURNAMENT_POOL_ADDRESS ??
   "0xc5d13168908E29496B7C5072b08d06C2c65290F8") as Address;
 
-// F4 TournamentPool v2 (solo submit primary + paid retry) — Base Sepolia, deployed 2026-04-23.
-// Basescan: https://sepolia.basescan.org/address/0x5CadD5557B7e5182216E4d7c50B35495D93aA9d1
+// TournamentPool v2.1 (drop-in superset of v2.0) — Base Sepolia, deployed 2026-04-29.
+// Adds permissionless fundPrizePool() + PrizePoolFunded event; storage layout
+// binary-identical to v2.0. Migrated stack default 2026-05-02 (post-sponsor-flow fix).
 // Architectural invariant: retry fees (feeCollected) isolated from prize pool.
 // submitSoloScore() enforces feePaidByPlayer ≥ priorSoloCount·RETRY_FEE on-chain.
+// Basescan: https://sepolia.basescan.org/address/0x52049b812780134d2F69D6c20C2ef881D49702da
+// Constant kept as TOURNAMENT_POOL_V2_ADDRESS for now (rename = post-YC backlog).
+// Legacy v2.0 (0x5CadD5557B7e5182216E4d7c50B35495D93aA9d1) holds in-flight tournaments
+// only; no new code paths route there.
 export const TOURNAMENT_POOL_V2_ADDRESS = (process.env
   .NEXT_PUBLIC_TOURNAMENT_POOL_V2_ADDRESS ??
-  "0x5CadD5557B7e5182216E4d7c50B35495D93aA9d1") as Address;
+  "0x52049b812780134d2F69D6c20C2ef881D49702da") as Address;
 
 export const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ??
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e") as Address;
