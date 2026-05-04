@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Header, Providers, ReadyMarker } from "@skillbase/ui";
+import { SimplAd } from "@/components/SimplAd";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -36,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased bg-bg text-neutral-100">
+        <SimplAd />
         <Providers>
           <ReadyMarker />
           <Header brand="Skillbase" />
