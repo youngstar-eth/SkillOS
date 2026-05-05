@@ -10,7 +10,7 @@ The locked architecture, phase roadmap, and pitch pack live in **claude.ai proje
 
 ## Companion repo: skillbase-apex
 
-The public-facing marketing site (`https://www.skillbase.games`) lives in a **separate repo** at `/Users/inancayvaz/skillbase-apex` — see its [`CLAUDE.md`](file:///Users/inancayvaz/skillbase-apex/CLAUDE.md) for apex conventions. Two routes share one Vercel scope but two separate codebases:
+The public-facing marketing site (`https://skillbase.games`) lives in a **separate repo** at `/Users/inancayvaz/skillbase-apex` — see its [`CLAUDE.md`](file:///Users/inancayvaz/skillbase-apex/CLAUDE.md) for apex conventions. Two routes share one Vercel scope but two separate codebases:
 
 - **MAS (this repo)** — six game apps + sponsor dashboard + Phase 1 protocol contracts. Source-of-truth for runtime systems and on-chain logic.
 - **skillbase-apex** — marketing site copy + OG image + locked-architecture narrative. Source-of-truth for **public messaging** (tagline, hero lede, OG metadata, 4-phase public roadmap).
@@ -83,7 +83,7 @@ Two systems coexist intentionally:
 | Frame | Where it lives | Phase 02 means | Phase 03 means |
 |---|---|---|---|
 | **Engineering-internal** | this repo's `README.md`, internal pitch | "in-progress" (solo polish, duel reactivation, SDK alpha) | "Q2 2026 mainnet (post-legal-review)" |
-| **Marketing-public** | apex `lib/apex.ts`, `https://www.skillbase.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
+| **Marketing-public** | apex `lib/apex.ts`, `https://skillbase.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
 
 Don't reconcile — the two audiences have different granularity needs. When writing **public-facing copy**, use the marketing-public system; when writing **internal docs / commit messages / GitHub issues**, use the engineering-internal system. README.md and apex are intentionally on different cadences.
 
