@@ -48,9 +48,8 @@ contracts/       — Foundry workspace (Solidity 0.8.26)
   src/           — Solidity sources
   test/          — Foundry tests (extend the settle-guard tripwire pattern)
   lib/           — vendored deps (openzeppelin-contracts, forge-std)
-  deployments/   — chain deploy artifacts
+  deployments/   — chain deploy artifacts (e.g. sponsor-stack-base-sepolia.json)
 
-deployments/             — chain deployment manifests (consumed by scripts + CI)
 supabase/migrations/     — Postgres migration files (forward-only)
 docs/                    — sponsor-flow.md, audit/, superpowers/
 reports/                 — point-in-time audits
@@ -80,7 +79,7 @@ Generation lives in `packages/ai-coach`. Per-flow handlers live in `packages/due
 
 Foundry workspace at `/contracts/`. Solidity 0.8.26, optimizer 200 runs, no via_ir. Chain ID 84532.
 
-Deployed v2.1 stack (April 29, 2026). Authoritative addresses live in [`deployments/sponsor-stack-base-sepolia.json`](deployments/sponsor-stack-base-sepolia.json):
+Deployed v2.1 stack (April 29, 2026). Authoritative addresses live in [`contracts/deployments/sponsor-stack-base-sepolia.json`](contracts/deployments/sponsor-stack-base-sepolia.json):
 
 | Contract | Address | Notes |
 |---|---|---|
