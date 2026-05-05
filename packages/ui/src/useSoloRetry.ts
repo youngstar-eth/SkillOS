@@ -474,6 +474,11 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
       return;
     }
     replayedRef.current = true;
+    // Restore finalScore from the pending submission so the result UI
+    // shows the originally-submitted score rather than falling back to
+    // result.bestScore on rehydrate (which can be a different number
+    // when this run was below the player's tournament best).
+    setFinalScore(pending.score);
     void submit(pending.score, pending.durationSeconds, pending.feeTxHash);
   }, [address, tournamentId, tournamentEndsAt, gameSlug, status, submit]);
 
