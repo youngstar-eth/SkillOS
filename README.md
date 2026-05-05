@@ -97,14 +97,7 @@ ABIs and address constants are exported from `@skillbase/contracts`.
 
 **Tests:** 156 Foundry tests passing across 6 test suites (`forge test`). The settle-guard suite is the tripwire for the storage-segregation invariant — extend, don't skip.
 
-**v2.2 (Phase 2 target — developer fee splitter):** moves the dev/platform split on-chain. Mainnet deployment is audit-gated; see Phase 2 below.
-
-Scope (canonical pre-ADR record — README is the home for this spec until `docs/adr/` lands in Phase 2):
-
-- New `createTournament(developerAddress, ...)` parameter — every tournament records the dev address that created it, on-chain.
-- Separate withdrawal entrypoints — `withdrawFeesToDev()` and `withdrawFeesToPlatform()` operate on independent storage accumulators.
-- Foundry invariant — `feeCollected_dev + feeCollected_platform == total_fees`, asserted in the storage-segregation test suite (same tripwire shape as the v2.1 settle-guard).
-- Soulbound dev-attribution NFT — issued to `developerAddress` per tournament for the audit trail.
+**v2.2 (Phase 2):** developer fee splitter with on-chain 70/30 enforcement and a Foundry invariant test for accumulator reconciliation. Full spec deferred to `docs/adr/0001-v22-fee-splitter.md` when the ADR system activates in Phase 2 — implementation details will follow contract auditor consultation. Mainnet deployment is audit-gated; see Phase 2 below.
 
 ## Architecture
 
@@ -124,7 +117,7 @@ Scope (canonical pre-ADR record — README is the home for this spec until `docs
 Two numbering systems coexist in the codebase: a **product roadmap** (Phase 1 → 5, this section) and **engineering-internal contract versions** (v2.0 → v2.1 → v2.2, Smart Contracts section above). Don't reconcile — the audiences differ. See [`CLAUDE.md`](./CLAUDE.md#two-phase-numbering-systems).
 
 - **Phase 1 — Shipped (now).** Testnet on Base Sepolia. Six games, three AI features, on-chain tournament settlement, permissionless sponsor MVP, Blockscout-verified v2.1 stack.
-- **Phase 2 — Mainnet activation (Q3 2026, audit-gated).** v2.2 developer fee splitter (on-chain 70/30), `@skillbase/sdk` public release, agent player-class API, SkillOS rebrand cutover, sponsor onboarding pipeline. Mainnet contingent on sweepstakes legal review.
+- **Phase 2 — Mainnet activation (H2 2026, audit-gated).** v2.2 developer fee splitter (on-chain 70/30), `@skillbase/sdk` public release, agent player-class API, SkillOS rebrand cutover, sponsor onboarding pipeline. Mainnet contingent on sweepstakes legal review. Public timeline tracks apex (`skillbase-apex`); internal sprints may target tighter dates.
 - **Phase 3+ (achievement-gated).** Dispute layer, Emergency Games Fund, ad revenue.
 - **Phase 4+ (achievement-gated, optional).** Substrate-maturity-gated decisions including potential governance token + opt-in data tokenization. Triggers: sustained adoption + regulatory clarity (Howey/MiCA) + organic economy maturity + lawyer review. The SP system can remain off-chain accounting indefinitely if the platform doesn't warrant tokenization. Optionality > obligation.
 - **Phase 5 (vision).** Substrate intelligence — native AI oracle, foundation models trained on anti-cheat-verified decision data.
