@@ -317,7 +317,15 @@ export default function SoloPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
               <Panel highlight>
                 <p className="text-sm font-semibold text-neutral-100">
-                  Score submitted ✓ {result.bestScore} points
+                  Score submitted ✓ {finalScore ?? result.bestScore} points
+                  {finalScore != null && finalScore === result.bestScore && (
+                    <span className="ml-2 text-xs font-mono text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded">
+                      NEW BEST
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  {tournament.cycleType === "daily" ? "Daily best" : "Weekly best"}: {result.bestScore}
                 </p>
                 <p className="mt-1 text-xs text-neutral-400">
                   Rank #{result.rank} · {result.matchCount}{" "}
