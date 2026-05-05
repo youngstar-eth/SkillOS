@@ -22,6 +22,7 @@ import { PLAY_WINDOW_MS } from "@skillbase/contracts";
 import {
   EmbedWalletFallback,
   PopupHint,
+  SoloResultCard,
   Timer,
   useIsEmbedded,
   useSoloRetry,
@@ -314,54 +315,28 @@ export default function SoloPage() {
           )}
 
           {status === "submitted" && result && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-              <Panel highlight>
-                <p className="text-sm font-semibold text-neutral-100">
-                  Score submitted ✓ {finalScore ?? result.bestScore} points
-                  {finalScore != null && finalScore === result.bestScore && (
-                    <span className="ml-2 text-xs font-mono text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded">
-                      NEW BEST
-                    </span>
-                  )}
-                </p>
-                <p className="mt-0.5 text-xs text-neutral-500">
-                  {tournament.cycleType === "daily" ? "Daily best" : "Weekly best"}: {result.bestScore}
-                </p>
-                <p className="mt-1 text-xs text-neutral-400">
-                  Rank #{result.rank} · {result.matchCount}{" "}
-                  {result.matchCount === 1 ? "run" : "runs"} submitted
-                  {result.isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
-                </p>
-                <div className="mt-3">
-                  <AIReviewedBadge
-                    matchId={result.soloRunId}
-                    context="solo"
-                  />
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={handlePlayAgain}
-                    disabled={walletBusy}
-                    className="flex-1 rounded-lg bg-skill px-3 py-2 text-sm font-semibold text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Play again (1.00 USDC)
-                  </button>
-                  <Link
-                    href="/tournament"
-                    className="flex-1 rounded-lg border border-border bg-bg-elev px-3 py-2 text-center text-sm font-semibold text-neutral-200 hover:bg-bg-elev2"
-                  >
-                    View tournament
-                  </Link>
-                </div>
-              </Panel>
-              <SPEarnedCard
-                kind="solo"
-                sourceId={result.soloRunId}
-                player={address}
-              />
-              <AIRecap matchId={result.soloRunId} context="solo" />
-              <AICoach matchId={result.soloRunId} context="solo" />
-            </div>
+            <SoloResultCard
+              finalScore={finalScore}
+              bestScore={result.bestScore}
+              cycleType={tournament.cycleType}
+              rank={result.rank}
+              matchCount={result.matchCount}
+              isPaidRetry={result.isPaidRetry}
+              onPlayAgain={handlePlayAgain}
+              walletBusy={walletBusy}
+              aiReviewedBadge={
+                <AIReviewedBadge matchId={result.soloRunId} context="solo" />
+              }
+              spEarnedCard={
+                <SPEarnedCard
+                  kind="solo"
+                  sourceId={result.soloRunId}
+                  player={address}
+                />
+              }
+              aiRecap={<AIRecap matchId={result.soloRunId} context="solo" />}
+              aiCoach={<AICoach matchId={result.soloRunId} context="solo" />}
+            />
           )}
 
           {status === "submission-queued" && (
