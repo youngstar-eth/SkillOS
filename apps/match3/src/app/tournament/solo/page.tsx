@@ -325,7 +325,7 @@ export default function SoloPage() {
                   )}
                 </p>
                 <p className="mt-0.5 text-xs text-neutral-500">
-                  Tournament best: {result.bestScore}
+                  {tournament.cycleType === "daily" ? "Daily best" : "Weekly best"}: {result.bestScore}
                 </p>
                 <p className="mt-1 text-xs text-neutral-400">
                   Rank #{result.rank} · {result.matchCount}{" "}
