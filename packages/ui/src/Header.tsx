@@ -30,7 +30,7 @@ export function Header({ brand = "Skillbase" }: HeaderProps) {
     <header className="sticky top-0 z-40 border-b border-border-subtle bg-bg/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link
-          href="/"
+          href="https://skillbase.games"
           className="flex items-center gap-2 text-sm font-semibold tracking-tight"
         >
           <SkillbaseMark size={28} />
