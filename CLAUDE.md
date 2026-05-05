@@ -137,7 +137,6 @@ Use CLI tools (vercel, gh, cast, forge, supabase, npm) over dashboard manual wor
 - Cron settle throughput refactor
 - Next.js 16.2.4 bump
 - TournamentCreated event indexer
-- mas-wordle Vercel auto-deploy disabled (workaround: vercel.json + cli promote)
 - VERCEL_AUTOMATION_BYPASS_SECRET setup for apex previews
 - 3 ambiguous MAS branches review (per-game-og-routes, v3-monorepo, v2-clean)
 
