@@ -106,6 +106,32 @@ Critical for any branch pushed to a Vercel-linked project (mas-* + skillbase-* p
 
 Use CLI tools (vercel, gh, cast, forge, supabase, npm) over dashboard manual work whenever possible. Dashboard is last resort, only when CLI/code-side fix is impossible.
 
+## Vercel build skip optimization (deferred to Phase 2)
+
+**Investigation completed May 5 2026; implementation NOT adopted; deferred to Phase 2.**
+
+The post-YC backlog item *"Turbo `--filter` pipeline optimization (skip unaffected app builds on packages/* changes)"* was investigated against all 7 Vercel projects (mas-2048, mas-wordle, mas-sudoku, mas-minesweeper, mas-match3, mas-clicker, skillbase-sponsor). Two findings made the obvious solution non-viable:
+
+1. **`turbo-ignore` is officially deprecated by Vercel.** When invoked during a deployment, it prints `"turbo-ignore" is deprecated. Use Vercel's built-in project skipping instead.` Adopting it adds a deprecation tail we'd have to migrate off later.
+2. **First-deploy-on-new-branch fallback semantics build, don't skip.** turbo-ignore looks for a previous successful deploy on the **same branch** to compare against. If none exists (first push on a new branch), it falls back to "build" as the safer default. This means turbo-ignore can't help with the first push of any PR branch — only with subsequent pushes on the same branch, which are typically rare in our workflow.
+
+The investigation set + verified + tested + rolled back the configuration cleanly via Vercel REST API (`PATCH /v9/projects/<name>` with `commandForIgnoringBuildStep`). All 7 projects ended at `null` (no skip configured). No platform-side residue.
+
+### Phase 2 follow-up
+
+Migrate to **Vercel's built-in monorepo skipping** (the feature the deprecation warning points at). Likely paths:
+
+- Path-based filters per project (Settings → Git → "Connected Git Repository" filters) so each project only deploys when files matching its `apps/<name>/**` or relevant `packages/**` paths change.
+- Or: deeper Turborepo Remote Cache integration so unchanged builds get cache-hit short-circuits at the function level rather than the deployment level.
+
+The shared-package fan-out concern is real either way: changes to `packages/ui/`, `packages/contracts/`, `packages/lib-shared/` SHOULD trigger all 7 builds. Whatever Phase 2 mechanism we adopt must preserve that fan-out; only changes whose blast radius doesn't intersect a given app's source should be skipped for that app.
+
+### Reference
+
+- This investigation: PR #32 (the discovery findings + REST API rollback procedure are preserved in the commit body and PR description as the durable artifact)
+- Vercel deprecation notice surfaced at runtime by `turbo-ignore` v2.9.9
+- [Vercel "Ignored Build Step" docs](https://vercel.com/docs/projects/overview#ignored-build-step) (the platform feature; `turbo-ignore` is one possible content for that field, not the only option)
+
 ## Engineering discipline (Phase 2 transition)
 
 **Currently honor-system. Phase 2 transition introduces:**
