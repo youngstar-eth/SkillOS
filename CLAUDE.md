@@ -132,7 +132,6 @@ Use CLI tools (vercel, gh, cast, forge, supabase, npm) over dashboard manual wor
 
 **Post-YC backlog** (don't auto-suggest mid-sprint):
 - SkillOS rebrand cutover (Phase 2 v2.2 mainnet window)
-- lucide-react dead dep removal
 - Apex CLAUDE.md drift sync (already done in apex PR #11)
 - Cron settle throughput refactor
 - Next.js 16.2.4 bump
