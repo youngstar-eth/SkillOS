@@ -346,12 +346,31 @@ export interface SettleTournamentsResult {
   errors: Array<{ dbId: string; message: string }>;
 }
 
-export async function runSettleTournaments(): Promise<SettleTournamentsResult> {
+/**
+ * Optional dependency overrides for runSettleTournaments. When omitted
+ * (production path), each falls back to the corresponding singleton in
+ * @skillbase/lib-shared / sibling sp/award module — preserving current
+ * behavior byte-for-byte.
+ *
+ * Tests pass mock objects matching the minimal call surface used by the
+ * runner. See packages/duel-backend/test/cron-settle.test.ts.
+ */
+export interface SettleDependencies {
+  supabase?: ReturnType<typeof getSupabaseService>;
+  walletClient?: ReturnType<typeof getWalletClient>;
+  publicClient?: ReturnType<typeof getPublicClient>;
+  awardSP?: typeof applySPAward;
+}
+
+export async function runSettleTournaments(
+  deps: SettleDependencies = {},
+): Promise<SettleTournamentsResult> {
   const result: SettleTournamentsResult = { settled: [], skipped: [], errors: [] };
 
-  const supabase = getSupabaseService();
-  const walletClient = getWalletClient();
-  const publicClient = getPublicClient();
+  const supabase = deps.supabase ?? getSupabaseService();
+  const walletClient = deps.walletClient ?? getWalletClient();
+  const publicClient = deps.publicClient ?? getPublicClient();
+  const awardSP = deps.awardSP ?? applySPAward;
 
   // Pick up tournaments whose window has ended but aren't settled yet.
   const { data: pendingRaw, error: readErr } = await supabase
@@ -490,7 +509,7 @@ export async function runSettleTournaments(): Promise<SettleTournamentsResult> {
       // so we can persist per-entry prize_won_usdc. Matches TournamentPool
       // _distributePrizes byte-for-byte.
       const n = ranking.length;
-      const pool = await readPrizePool(t.id);
+      const pool = await readPrizePool(supabase, t.id);
       const prizes = computePrizeDistribution(n, pool);
 
       // Persist settlement metadata.
@@ -526,7 +545,7 @@ export async function runSettleTournaments(): Promise<SettleTournamentsResult> {
       for (let i = 0; i < n; ++i) {
         const rank = i + 1;
         try {
-          await applySPAward({
+          await awardSP({
             userAddress: ranking[i],
             event: { kind: "tournament_rank_bonus", rank },
             counterDelta: {
@@ -562,8 +581,11 @@ export async function runSettleTournaments(): Promise<SettleTournamentsResult> {
   return result;
 }
 
-async function readPrizePool(tournamentDbId: string): Promise<bigint> {
-  const { data } = await getSupabaseService()
+async function readPrizePool(
+  supabase: ReturnType<typeof getSupabaseService>,
+  tournamentDbId: string,
+): Promise<bigint> {
+  const { data } = await supabase
     .from("v2_tournaments")
     .select("prize_pool_usdc")
     .eq("id", tournamentDbId)
