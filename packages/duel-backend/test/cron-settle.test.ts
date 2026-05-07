@@ -68,11 +68,18 @@ interface SupabaseMockOptions {
   duelsById?: Map<string, { plausibility_check: { verdict?: string } | null }>;
   /** Prize pool USDC (decimal) per tournament_id. */
   prizePoolByTournamentId?: Map<string, number>;
+  /**
+   * Override the total-pending count returned by the count: "exact"
+   * pending fetch. Defaults to opts.pending.length (zero-deferred). Use
+   * to simulate the overflow case where >20 tournaments match the WHERE
+   * but only 20 are returned.
+   */
+  totalPendingOverride?: number;
 }
 
 interface CapturedWrite {
   table: string;
-  op: "update" | "insert";
+  op: "update" | "insert" | "upsert";
   payload: unknown;
   filters: Record<string, unknown>;
 }
@@ -91,13 +98,14 @@ function makeSupabaseMock(opts: SupabaseMockOptions = {}) {
   function from(table: string) {
     const ctx = {
       table,
-      operation: "select" as "select" | "update" | "insert",
+      operation: "select" as "select" | "update" | "insert" | "upsert",
       payload: null as unknown,
       filters: {} as Record<string, unknown>,
     };
 
     const respond = async (): Promise<{
       data: unknown;
+      count?: number;
       error: { message: string } | null;
     }> => {
       if (ctx.operation === "update") {
@@ -118,15 +126,33 @@ function makeSupabaseMock(opts: SupabaseMockOptions = {}) {
         });
         return { data: ctx.payload, error: null };
       }
+      if (ctx.operation === "upsert") {
+        // A1: runSettleTournaments now batches per-entry prize writes via
+        // a single .upsert(rows, { onConflict }). Capture the array payload
+        // verbatim so tests can assert batching (one call, payload.length).
+        writes.push({
+          table,
+          op: "upsert",
+          payload: ctx.payload,
+          filters: { ...ctx.filters },
+        });
+        return { data: null, error: null };
+      }
 
       // SELECT routing based on table + filter shape used by the runner.
       if (table === "v2_tournaments") {
         if ("is:settled_at" in ctx.filters && "lt:ends_at" in ctx.filters) {
-          // Pending fetch
-          return { data: opts.pending ?? [], error: null };
+          // Pending fetch — count: "exact" returns total matching rows
+          // alongside the (capped) data slice. Default count = data.length
+          // (zero-deferred state); deferredCount option lets tests inject
+          // an overflow scenario for the deferred surface assertion.
+          const data = opts.pending ?? [];
+          const count = opts.totalPendingOverride ?? data.length;
+          return { data, count, error: null };
         }
         if ("eq:id" in ctx.filters) {
-          // readPrizePool single() select
+          // Legacy readPrizePool select branch — kept for forward-compat
+          // even though A2 inlined the read into the pending row scope.
           const id = ctx.filters["eq:id"] as string;
           const usd = opts.prizePoolByTournamentId?.get(id);
           return {
@@ -171,6 +197,11 @@ function makeSupabaseMock(opts: SupabaseMockOptions = {}) {
       },
       update: (payload: unknown) => {
         ctx.operation = "update";
+        ctx.payload = payload;
+        return builder;
+      },
+      upsert: (payload: unknown, _opts?: unknown) => {
+        ctx.operation = "upsert";
         ctx.payload = payload;
         return builder;
       },
@@ -289,12 +320,24 @@ function buildDeps(parts: {
 
 // ─── Fixture builders ──────────────────────────────────────────────────────
 
-function makeTournamentRow(overrides: Partial<{ id: string; on_chain_id: string; game: string; participation_bonus: number }> = {}) {
+function makeTournamentRow(
+  overrides: Partial<{
+    id: string;
+    on_chain_id: string;
+    game: string;
+    participation_bonus: number;
+    prize_pool_usdc: number;
+  }> = {},
+) {
   return {
     id: TOURNAMENT_DB_ID,
     on_chain_id: ON_CHAIN_ID,
     game: "2048",
     participation_bonus: 50,
+    // A2: prize_pool_usdc is now read from the pending row directly
+    // (no separate readPrizePool call). 10 USDC matches the existing
+    // prizePoolByTournamentId fixture default.
+    prize_pool_usdc: 10,
     ...overrides,
   };
 }
@@ -332,7 +375,12 @@ test("empty pending list → empty result, no chain calls", async () => {
     buildDeps({ supabase, wallet, publicClient, awardSP }),
   );
 
-  assert.deepEqual(result, { settled: [], skipped: [], errors: [] });
+  assert.deepEqual(result, {
+    settled: [],
+    skipped: [],
+    errors: [],
+    deferred: 0,
+  });
   assert.equal(wallet.writeContractCalls.length, 0);
   assert.equal(publicClient.waitForTransactionReceiptCalls.length, 0);
   assert.equal(awardSP.calls.length, 0);
@@ -384,21 +432,30 @@ test("happy path: 4 entries → settle on-chain + multi-rank prize writes", asyn
   const prizePaid = parseFloat(result.settled[0].prizePaidUsdc);
   assert.equal(prizePaid, 4); // 2.5 + 1.5
 
-  // Two prize update writes — one per paying rank (P1, P2).
-  const prizeUpdates = supabase.writes.filter(
+  // A1 invariant: ONE batched upsert call against v2_tournament_entries
+  // with an array payload of length 2 (P1 + P2 are the only paying ranks
+  // in n=4 / topN=2 prize curve). A regression to per-row updates would
+  // fail this assertion — that's the point.
+  const prizeUpserts = supabase.writes.filter(
     (w) =>
       w.table === "v2_tournament_entries" &&
-      w.op === "update" &&
-      typeof w.payload === "object" &&
-      w.payload !== null &&
-      "prize_won_usdc" in w.payload,
+      w.op === "upsert" &&
+      Array.isArray(w.payload),
   );
-  assert.equal(prizeUpdates.length, 2);
+  assert.equal(prizeUpserts.length, 1, "A1: prize writes must be one batched upsert call");
+  const prizePayload = prizeUpserts[0].payload as unknown[];
+  assert.equal(prizePayload.length, 2, "A1: upsert payload must contain exactly 2 paying-rank rows");
 
-  // SP awards: one per ranked participant (4).
+  // A3 invariant: SP awards issued via Promise.all — order-independent
+  // because parallel resolution may interleave. Assert set membership
+  // rather than positional rank.
   assert.equal(awardSP.calls.length, 4);
-  assert.equal(awardSP.calls[0].rank, 1);
-  assert.equal(awardSP.calls[3].rank, 4);
+  const ranksSeen = awardSP.calls.map((c) => c.rank).sort((a, b) => a - b);
+  assert.deepEqual(ranksSeen, [1, 2, 3, 4]);
+
+  // Deferred surface: pending = 1, totalPending defaults to data.length = 1
+  // → no overflow.
+  assert.equal(result.deferred, 0);
 });
 
 // ─── Test 3 ────────────────────────────────────────────────────────────────
@@ -458,6 +515,10 @@ test("parallel invocations: one settled, one skipped (idempotent)", async () => 
   const skippedRow = [...a.skipped, ...b.skipped][0];
   assert.match(skippedRow.reason, /already settled/);
   assert.equal(skippedRow.dbId, TOURNAMENT_DB_ID);
+
+  // Deferred surface: both invocations see the same single-row pending
+  // set, so neither has overflow.
+  assert.equal(a.deferred + b.deferred, 0);
 });
 
 // ─── Test 4 ────────────────────────────────────────────────────────────────
@@ -505,6 +566,8 @@ test("TournamentAlreadySettled revert → classified as skipped, not error", asy
     !("settle_tx_hash" in payload),
     "settle_tx_hash must be unset for already-settled-on-chain rows",
   );
+
+  assert.equal(result.deferred, 0);
 });
 
 // ─── Test 5 ────────────────────────────────────────────────────────────────
@@ -574,6 +637,8 @@ test("flagScore mid-list throw → partial DB flags, settle never attempted", as
 
   // No SP awards — settle never executed, so the SP loop never ran.
   assert.equal(awardSP.calls.length, 0);
+
+  assert.equal(result.deferred, 0);
 });
 
 // ─── Test 6 (skipped placeholder) ──────────────────────────────────────────
