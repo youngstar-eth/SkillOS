@@ -25,6 +25,15 @@ export { splashTemplate, type SplashProps } from "./og";
 //   import { gameOgImage } from "@skillbase/ui/og/game-card";
 export { ModeChooser, type ModeChooserProps } from "./ModeChooser";
 export { DuelComingSoon } from "./DuelComingSoon";
+export {
+  selectDuelResultBranch,
+  type DuelResultBranch,
+  type DuelResultBranchInput,
+} from "./duel-result-branch";
+export {
+  DuelResultCard,
+  type DuelResultCardProps,
+} from "./DuelResultCard";
 export { useIsEmbedded } from "./useIsEmbedded";
 export { Header, type HeaderProps } from "./Header";
 export { SkillbaseMark, type SkillbaseMarkProps } from "./SkillbaseMark";
