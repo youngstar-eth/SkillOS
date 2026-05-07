@@ -75,6 +75,13 @@ interface SupabaseMockOptions {
    * but only 20 are returned.
    */
   totalPendingOverride?: number;
+  /**
+   * PR #4 (C6) — simulate a held v2_cron_runs lock by returning a
+   * Postgres unique-violation (23505) on the insert. Default false: the
+   * insert succeeds (lock acquired). Tests for the lockSkipped path
+   * flip this to true.
+   */
+  cronRunsLockHeld?: boolean;
 }
 
 interface CapturedWrite {
@@ -124,6 +131,17 @@ function makeSupabaseMock(opts: SupabaseMockOptions = {}) {
           payload: ctx.payload,
           filters: { ...ctx.filters },
         });
+        // PR #4 (C6): simulate held lock by returning Postgres 23505.
+        if (table === "v2_cron_runs" && opts.cronRunsLockHeld) {
+          return {
+            data: null,
+            error: {
+              code: "23505",
+              message:
+                'duplicate key value violates unique constraint "v2_cron_runs_pkey"',
+            } as { code: string; message: string },
+          };
+        }
         return { data: ctx.payload, error: null };
       }
       if (ctx.operation === "upsert") {
@@ -270,15 +288,72 @@ function makeWalletClient(opts: WalletMockOptions = {}) {
   };
 }
 
-function makePublicClient() {
+interface PublicClientMockOptions {
+  /**
+   * PR #4 (B5) — settle-guard readContract response per onChainId.
+   * Default: ok-to-settle state (sponsor=STUDIO, settled=false,
+   * endsAt=1 (any past timestamp)). Tests for guard branches inject
+   * specific shapes here. Keyed by onChainId; "*" is the catch-all.
+   */
+  tournamentState?: Map<
+    string,
+    {
+      sponsor: `0x${string}`;
+      settled: boolean;
+      endsAt: bigint;
+    }
+  >;
+}
+
+const STUDIO_SPONSOR_DEFAULT = STUDIO;
+
+function makePublicClient(opts: PublicClientMockOptions = {}) {
   const waitForTransactionReceiptCalls: Array<{ hash: Hex }> = [];
+  const readContractCalls: Array<{ functionName: string; args: readonly unknown[] }> = [];
+
+  const readContract = async (args: {
+    functionName: string;
+    args: readonly unknown[];
+  }) => {
+    readContractCalls.push({
+      functionName: args.functionName,
+      args: args.args,
+    });
+    if (args.functionName === "getTournament") {
+      const id = args.args[0] as string;
+      const state =
+        opts.tournamentState?.get(id) ??
+        opts.tournamentState?.get("*") ?? {
+          sponsor: STUDIO_SPONSOR_DEFAULT,
+          settled: false,
+          endsAt: 1n, // any past timestamp — guard's ok-to-settle path
+        };
+      // Mirrors the on-chain Tournament struct shape (excluding fields the
+      // guard doesn't read — game, cycleType, startsAt, prizePool, etc.).
+      return {
+        sponsor: state.sponsor,
+        settled: state.settled,
+        endsAt: state.endsAt,
+        startsAt: 0n,
+        prizePool: 0n,
+        participationBonus: 0n,
+        participants: [],
+        game: "0x" + "00".repeat(32),
+        cycleType: 0,
+      };
+    }
+    return null;
+  };
+
   return {
     waitForTransactionReceiptCalls,
+    readContractCalls,
     client: {
       waitForTransactionReceipt: async (args: { hash: Hex; timeout?: number }) => {
         waitForTransactionReceiptCalls.push({ hash: args.hash });
         return { status: "success" as const };
       },
+      readContract,
     },
   };
 }
@@ -384,7 +459,21 @@ test("empty pending list → empty result, no chain calls", async () => {
   assert.equal(wallet.writeContractCalls.length, 0);
   assert.equal(publicClient.waitForTransactionReceiptCalls.length, 0);
   assert.equal(awardSP.calls.length, 0);
-  assert.equal(supabase.writes.length, 0);
+
+  // PR #4 (C6): the lock acquire/release pair writes two rows to
+  // v2_cron_runs even on a no-op sweep. Filter those out — the
+  // "no domain writes" invariant is what we care about here.
+  const domainWrites = supabase.writes.filter(
+    (w) => w.table !== "v2_cron_runs",
+  );
+  assert.equal(domainWrites.length, 0);
+
+  // Settle-guard's getTournament read shouldn't fire when there's nothing
+  // pending — the loop body is the only call site.
+  const guardReads = publicClient.readContractCalls.filter(
+    (c) => c.functionName === "getTournament",
+  );
+  assert.equal(guardReads.length, 0);
 });
 
 // ─── Test 2 ────────────────────────────────────────────────────────────────
@@ -661,3 +750,179 @@ test(
     assert.fail("placeholder body — should remain skipped until PR #5 lands");
   },
 );
+
+// ─── Test 7 (PR #4 — B5 settle-guard, already_settled) ─────────────────────
+
+test("settle-guard catches already-settled state pre-tx — settle never broadcast", async () => {
+  const supabase = makeSupabaseMock({
+    pending: [makeTournamentRow()],
+    entriesByTournament: new Map([
+      [TOURNAMENT_DB_ID, [makeEntry(P1, "2000"), makeEntry(P2, "1000")]],
+    ]),
+    prizePoolByTournamentId: new Map([[TOURNAMENT_DB_ID, 10]]),
+  });
+  const wallet = makeWalletClient();
+  const publicClient = makePublicClient({
+    tournamentState: new Map([
+      [
+        ON_CHAIN_ID,
+        { sponsor: STUDIO, settled: true, endsAt: 1n },
+      ],
+    ]),
+  });
+  const awardSP = makeAwardSP();
+
+  const result = await runSettleTournaments(
+    buildDeps({ supabase, wallet, publicClient, awardSP }),
+  );
+
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.settled.length, 0);
+  assert.equal(result.skipped.length, 1);
+  assert.equal(result.skipped[0].dbId, TOURNAMENT_DB_ID);
+  assert.match(result.skipped[0].reason, /pre-flight/);
+  assert.match(result.skipped[0].reason, /already settled/);
+
+  // The pre-flight skip path mirrors the post-tx already-settled path:
+  // mark settled_at, no settle_tx_hash (we don't own that tx).
+  const tournamentUpdates = supabase.writes.filter(
+    (w) => w.table === "v2_tournaments" && w.op === "update",
+  );
+  assert.equal(tournamentUpdates.length, 1);
+  const payload = tournamentUpdates[0].payload as Record<string, unknown>;
+  assert.ok("settled_at" in payload);
+  assert.ok(
+    !("settle_tx_hash" in payload),
+    "pre-flight skip must NOT set settle_tx_hash",
+  );
+
+  // Critical invariant: settle() never called → no gas burned.
+  const settleCalls = wallet.writeContractCalls.filter(
+    (c) => c.functionName === "settle",
+  );
+  assert.equal(settleCalls.length, 0, "B5: settle must NOT broadcast pre-flight");
+
+  // Guard read happened exactly once (one pending tournament).
+  const guardReads = publicClient.readContractCalls.filter(
+    (c) => c.functionName === "getTournament",
+  );
+  assert.equal(guardReads.length, 1);
+
+  // No SP awarded — settle never executed.
+  assert.equal(awardSP.calls.length, 0);
+});
+
+// ─── Test 8 (PR #4 — B5 settle-guard, not_found) ───────────────────────────
+
+test("settle-guard catches not-found state pre-tx — DB anomaly preserved", async () => {
+  const ZERO = "0x0000000000000000000000000000000000000000" as `0x${string}`;
+  const supabase = makeSupabaseMock({
+    pending: [makeTournamentRow()],
+    entriesByTournament: new Map([
+      [TOURNAMENT_DB_ID, [makeEntry(P1, "2000"), makeEntry(P2, "1000")]],
+    ]),
+    prizePoolByTournamentId: new Map([[TOURNAMENT_DB_ID, 10]]),
+  });
+  const wallet = makeWalletClient();
+  // sponsor === 0x0 ⇒ contract storage zero-init ⇒ tournament never created.
+  const publicClient = makePublicClient({
+    tournamentState: new Map([
+      [
+        ON_CHAIN_ID,
+        { sponsor: ZERO, settled: false, endsAt: 0n },
+      ],
+    ]),
+  });
+  const awardSP = makeAwardSP();
+
+  const result = await runSettleTournaments(
+    buildDeps({ supabase, wallet, publicClient, awardSP }),
+  );
+
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.settled.length, 0);
+  assert.equal(result.skipped.length, 1);
+  assert.match(result.skipped[0].reason, /not found/);
+
+  // Critical invariant: not_found does NOT mark DB settled. The DB row
+  // remains visible to ops as an anomaly to investigate.
+  const tournamentUpdates = supabase.writes.filter(
+    (w) => w.table === "v2_tournaments" && w.op === "update",
+  );
+  assert.equal(
+    tournamentUpdates.length,
+    0,
+    "not_found path must NOT mark DB settled — preserves anomaly",
+  );
+
+  // settle() never broadcast.
+  const settleCalls = wallet.writeContractCalls.filter(
+    (c) => c.functionName === "settle",
+  );
+  assert.equal(settleCalls.length, 0);
+  assert.equal(awardSP.calls.length, 0);
+});
+
+// ─── Test 9 (PR #4 — C6 advisory lock) ─────────────────────────────────────
+
+test("advisory lock held by other run → early exit with lockSkipped", async () => {
+  const supabase = makeSupabaseMock({
+    cronRunsLockHeld: true, // simulate Postgres 23505 unique-violation
+    pending: [makeTournamentRow()], // present but never read
+    entriesByTournament: new Map([
+      [TOURNAMENT_DB_ID, [makeEntry(P1, "2000")]],
+    ]),
+    prizePoolByTournamentId: new Map([[TOURNAMENT_DB_ID, 10]]),
+  });
+  const wallet = makeWalletClient();
+  const publicClient = makePublicClient();
+  const awardSP = makeAwardSP();
+
+  const result = await runSettleTournaments(
+    buildDeps({ supabase, wallet, publicClient, awardSP }),
+  );
+
+  // Result shape: lockSkipped flag set, all sweep-result arrays empty.
+  assert.equal(result.lockSkipped, true);
+  assert.equal(typeof result.lockReason, "string");
+  assert.match(
+    result.lockReason ?? "",
+    /settle-tournaments/,
+    "lock reason should name the cron",
+  );
+  assert.equal(result.settled.length, 0);
+  assert.equal(result.skipped.length, 0);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.deferred, 0);
+
+  // Critical invariant: NO domain side effects when the lock is held.
+  // The other run is doing the work — ours must be a clean no-op.
+  const settleCalls = wallet.writeContractCalls.filter(
+    (c) => c.functionName === "settle",
+  );
+  assert.equal(settleCalls.length, 0, "C6: settle must NOT broadcast under held lock");
+
+  // No pending fetch — runner bails before line 469's v2_tournaments select.
+  const tournamentReads = supabase.writes.filter(
+    (w) => w.table === "v2_tournaments",
+  );
+  assert.equal(tournamentReads.length, 0);
+
+  // No settle-guard read either — runner exits before per-tournament loop.
+  const guardReads = publicClient.readContractCalls.filter(
+    (c) => c.functionName === "getTournament",
+  );
+  assert.equal(guardReads.length, 0);
+
+  // No SP awards.
+  assert.equal(awardSP.calls.length, 0);
+
+  // The single v2_cron_runs insert attempt was made (and rejected by the
+  // mock with 23505) — there was NO update (release) because we never
+  // entered the try-finally body.
+  const cronRunsWrites = supabase.writes.filter(
+    (w) => w.table === "v2_cron_runs",
+  );
+  assert.equal(cronRunsWrites.length, 1);
+  assert.equal(cronRunsWrites[0].op, "insert");
+});

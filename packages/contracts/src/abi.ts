@@ -213,6 +213,32 @@ export const TOURNAMENT_POOL_ABI = [
     outputs: [{ name: "", type: "address[]" }],
   },
   {
+    // Pre-flight settle-guard: cron reads this before broadcasting settle()
+    // to catch already-settled / not-found / ends-after-now states without
+    // burning gas on a doomed tx. See packages/duel-backend/src/cron/settle-guard.ts.
+    type: "function",
+    name: "getTournament",
+    stateMutability: "view",
+    inputs: [{ name: "id", type: "bytes32" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "sponsor", type: "address" },
+          { name: "game", type: "bytes32" },
+          { name: "cycleType", type: "uint8" },
+          { name: "startsAt", type: "uint64" },
+          { name: "endsAt", type: "uint64" },
+          { name: "prizePool", type: "uint256" },
+          { name: "participationBonus", type: "uint256" },
+          { name: "settled", type: "bool" },
+          { name: "participants", type: "address[]" },
+        ],
+      },
+    ],
+  },
+  {
     type: "function",
     name: "effectiveScoreOf",
     stateMutability: "view",
