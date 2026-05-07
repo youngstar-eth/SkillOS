@@ -102,7 +102,9 @@ required to migrate testnet → mainnet.
 
 ## Indexer
 
-Cron at `apps/sponsor/api/cron/index-sponsor-events`:
+Cron at `apps/orchestrator/api/cron/index-sponsor-events` (migrated from
+`apps/sponsor` in PR #33; see `apps/orchestrator/README.md` for the full
+schedule table):
 - Reads `v2_sponsor_indexer_state.last_indexed_block` for the
   SponsorshipModule address.
 - Fetches `PoolSponsored` events from `lastIndexed + 1` to
@@ -117,7 +119,7 @@ upgrade to Pro or use an external scheduler hitting:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://sponsor.skillbase.games/api/cron/index-sponsor-events
+  https://skillbase-orchestrator.vercel.app/api/cron/index-sponsor-events
 ```
 
 ## Smart contract addresses (Base Sepolia, deployed 2026-04-29)
