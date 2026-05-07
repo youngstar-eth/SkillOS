@@ -259,21 +259,28 @@ interface WalletMockOptions {
   onWriteContract?: (args: {
     functionName: string;
     args: readonly unknown[];
+    nonce?: number;
   }) => Promise<Hex>;
 }
 
 function makeWalletClient(opts: WalletMockOptions = {}) {
+  // PR #5: capture nonce too — Test 6 asserts uniqueness across parallel
+  // settles. Optional because pre-PR #5 callers passed no nonce and
+  // we want the regression-existing tests to keep working unchanged.
   const writeContractCalls: Array<{
     functionName: string;
     args: readonly unknown[];
+    nonce?: number;
   }> = [];
   const writeContract = async (args: {
     functionName: string;
     args: readonly unknown[];
+    nonce?: number;
   }) => {
     writeContractCalls.push({
       functionName: args.functionName,
       args: args.args,
+      nonce: args.nonce,
     });
     if (opts.onWriteContract) return opts.onWriteContract(args);
     return TX_HASH_DEFAULT;
@@ -345,15 +352,52 @@ function makePublicClient(opts: PublicClientMockOptions = {}) {
     return null;
   };
 
+  // PR #5: multicall surface used by readSettleGuardBatch. Routes each
+  // contract call through the same getTournament resolver as readContract,
+  // so a test that sets tournamentState gets consistent verdicts whether
+  // its tournaments are queried singly or in a batch.
+  const multicallCalls: Array<{ contractCount: number }> = [];
+  const multicall = async (args: {
+    contracts: ReadonlyArray<{
+      address: `0x${string}`;
+      abi: readonly unknown[];
+      functionName: string;
+      args: readonly unknown[];
+    }>;
+    allowFailure?: boolean;
+  }) => {
+    multicallCalls.push({ contractCount: args.contracts.length });
+    const results: Array<
+      | { status: "success"; result: unknown }
+      | { status: "failure"; error: unknown }
+    > = [];
+    for (const c of args.contracts) {
+      try {
+        const result = await readContract({
+          address: c.address,
+          abi: c.abi,
+          functionName: c.functionName,
+          args: c.args,
+        });
+        results.push({ status: "success" as const, result });
+      } catch (err) {
+        results.push({ status: "failure" as const, error: err });
+      }
+    }
+    return results;
+  };
+
   return {
     waitForTransactionReceiptCalls,
     readContractCalls,
+    multicallCalls,
     client: {
       waitForTransactionReceipt: async (args: { hash: Hex; timeout?: number }) => {
         waitForTransactionReceiptCalls.push({ hash: args.hash });
         return { status: "success" as const };
       },
       readContract,
+      multicall,
     },
   };
 }
@@ -377,6 +421,30 @@ function makeAwardSP() {
   return { calls, fn };
 }
 
+/**
+ * PR #5: deterministic NonceManager for tests. Issues sequential
+ * integers starting at `start` (default 100 — chosen to be visibly
+ * non-zero so unset values stand out in failures). Records each
+ * .next() result for assertions.
+ */
+function makeNonceManager(start: number = 100) {
+  let counter = start;
+  const issued: number[] = [];
+  return {
+    issued,
+    manager: {
+      next: async () => {
+        const n = counter++;
+        issued.push(n);
+        return n;
+      },
+      refresh: async () => {
+        counter = start;
+      },
+    },
+  };
+}
+
 /** Build the SettleDependencies mock bundle for a test, casting through
  *  the shapes runSettleTournaments expects. */
 function buildDeps(parts: {
@@ -384,12 +452,17 @@ function buildDeps(parts: {
   wallet: ReturnType<typeof makeWalletClient>;
   publicClient: ReturnType<typeof makePublicClient>;
   awardSP: ReturnType<typeof makeAwardSP>;
+  nonceManager?: ReturnType<typeof makeNonceManager>;
+  concurrency?: number;
 }): SettleDependencies {
+  const nm = parts.nonceManager ?? makeNonceManager();
   return {
     supabase: parts.supabase as unknown as SettleDependencies["supabase"],
     walletClient: parts.wallet.client as unknown as SettleDependencies["walletClient"],
     publicClient: parts.publicClient.client as unknown as SettleDependencies["publicClient"],
     awardSP: parts.awardSP.fn as unknown as SettleDependencies["awardSP"],
+    nonceManager: nm.manager as unknown as SettleDependencies["nonceManager"],
+    concurrency: parts.concurrency,
   };
 }
 
@@ -738,18 +811,111 @@ test("flagScore mid-list throw → partial DB flags, settle never attempted", as
 // test. Once PR #5 introduces a NonceTracker (or equivalent), un-skip this
 // test and assert that 5 parallel runs emit 5 distinct nonces on
 // writeContract calls (hence no "nonce too low" reverts at scale).
-test(
-  "PLACEHOLDER (PR #5): parallel settles emit unique nonces via nonce manager",
-  { skip: "Pending PR #5 — nonce manager does not exist yet" },
-  async () => {
-    // Shape sketch for future activation:
-    //   const nonces = wallet.writeContractCalls.map((c) => c.nonce);
-    //   const unique = new Set(nonces);
-    //   assert.equal(unique.size, 5);
-    //   assert.equal(nonces.length, 5);
-    assert.fail("placeholder body — should remain skipped until PR #5 lands");
-  },
-);
+// Activated in PR #5 — proves NonceManager allocates distinct
+// consecutive integers across parallel settle broadcasts within a
+// single runSettleTournaments invocation. Without the manager, viem's
+// default writeContract would fetch getTransactionCount(pending) on
+// every call and hand back the same nonce to two concurrent callers,
+// reverting the second tx as "nonce too low".
+test("nonce manager: 5 parallel settles emit 5 distinct consecutive nonces", async () => {
+  // Five distinct tournaments — each gets its own DB row, on-chain id,
+  // entries, and prize pool. settleSweep processes them via p-limit(5)
+  // wrapped Promise.all → up to 5 concurrent writeContract calls.
+  const tournaments = Array.from({ length: 5 }, (_, i) => ({
+    dbId: `tour-${i}`,
+    onChainId: ("0x" + (10 + i).toString(16).padStart(64, "0")) as Hex,
+  }));
+
+  const pending = tournaments.map((tt) =>
+    makeTournamentRow({ id: tt.dbId, on_chain_id: tt.onChainId }),
+  );
+  const entriesByTournament = new Map(
+    tournaments.map((tt) => [
+      tt.dbId,
+      [makeEntry(P1, "2000"), makeEntry(P2, "1000")],
+    ]),
+  );
+  const prizePoolByTournamentId = new Map(
+    tournaments.map((tt) => [tt.dbId, 10]),
+  );
+
+  const supabase = makeSupabaseMock({
+    pending,
+    entriesByTournament,
+    prizePoolByTournamentId,
+  });
+  const wallet = makeWalletClient();
+  // Default tournament state (ok-to-settle) for every onChainId via the
+  // catch-all "*" key — saves declaring 5 separate entries.
+  const publicClient = makePublicClient({
+    tournamentState: new Map([
+      ["*", { sponsor: STUDIO, settled: false, endsAt: 1n }],
+    ]),
+  });
+  const awardSP = makeAwardSP();
+  const nonceManager = makeNonceManager(100);
+
+  const result = await runSettleTournaments(
+    buildDeps({
+      supabase,
+      wallet,
+      publicClient,
+      awardSP,
+      nonceManager,
+      concurrency: 5,
+    }),
+  );
+
+  // All 5 settled cleanly.
+  assert.equal(result.errors.length, 0, `unexpected errors: ${JSON.stringify(result.errors)}`);
+  assert.equal(result.skipped.length, 0);
+  assert.equal(result.settled.length, 5);
+
+  // Critical invariant — exactly 5 settle broadcasts, each carrying
+  // a distinct consecutive nonce. This is the core regression Test 6
+  // protects: a viem default-nonce path would emit duplicate or
+  // collision-prone values here.
+  const settleCalls = wallet.writeContractCalls.filter(
+    (c) => c.functionName === "settle",
+  );
+  assert.equal(settleCalls.length, 5, "must emit one settle per tournament");
+
+  const noncesIssued = settleCalls.map((c) => c.nonce);
+  // Every settle MUST have received an explicit nonce — undefined here
+  // means we forgot to pass it through writeContract args.
+  for (const n of noncesIssued) {
+    assert.equal(typeof n, "number", `settle missing explicit nonce: ${n}`);
+  }
+  // 5 distinct values.
+  const uniqueNonces = new Set(noncesIssued);
+  assert.equal(uniqueNonces.size, 5, `expected 5 unique nonces, got ${noncesIssued.join(",")}`);
+
+  // The nonce manager handed out exactly 5 sequential values starting
+  // at the seed (100). Sorting because Promise.all order is not
+  // deterministic across parallel resolution.
+  const sortedNonces = [...noncesIssued].sort((a, b) => (a ?? 0) - (b ?? 0));
+  assert.deepEqual(sortedNonces, [100, 101, 102, 103, 104]);
+
+  // Manager-side captured order: each next() call recorded. With 5
+  // tournaments running in parallel, the manager's mutex serializes
+  // them, so issued values are 100..104 in some order — and the count
+  // matches the number of writeContract calls issued.
+  assert.equal(nonceManager.issued.length, 5);
+  assert.deepEqual(
+    [...nonceManager.issued].sort((a, b) => a - b),
+    [100, 101, 102, 103, 104],
+  );
+
+  // Multicall pre-loop: ONE call carrying all 5 contracts.
+  assert.equal(publicClient.multicallCalls.length, 1);
+  assert.equal(publicClient.multicallCalls[0].contractCount, 5);
+
+  // SP awards: 2 entries × 5 tournaments = 10 fan-out calls.
+  assert.equal(awardSP.calls.length, 10);
+
+  // Cap removed: deferred is always 0 in PR #5+.
+  assert.equal(result.deferred, 0);
+});
 
 // ─── Test 7 (PR #4 — B5 settle-guard, already_settled) ─────────────────────
 
