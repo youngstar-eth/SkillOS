@@ -68,14 +68,19 @@ jobs:
         run: npm ci
       - name: Run TS tests (node:test via tsx)
         # Direct invocation matches the local developer pattern — no
-        # turbo `test` task defined. 6 test files: 4 in duel-backend
-        # plus 2 in sp-engine. Baseline: 91 pass + 4 documented skips.
+        # turbo `test` task defined. 9 test files: 6 in duel-backend,
+        # 2 in sp-engine, 1 in ui (pure-helper test, no RTL setup).
+        # No user-controlled input is interpolated below — only fixed
+        # repo-relative paths.
         run: |
           npx tsx --test \
             packages/duel-backend/test/cron-settle.test.ts \
             packages/duel-backend/test/settle-guard.test.ts \
             packages/duel-backend/test/settle-guard.integration.test.ts \
             packages/duel-backend/test/reconcile.test.ts \
+            packages/duel-backend/test/decide-winner.test.ts \
+            packages/duel-backend/test/reconcile-duels.test.ts \
+            packages/ui/test/duel-result-branch.test.ts \
             packages/sp-engine/src/engine.test.ts \
             packages/sp-engine/src/anchor.test.ts
 

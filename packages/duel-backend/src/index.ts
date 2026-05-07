@@ -1,4 +1,5 @@
 export * from "./settle";
+export * from "./decide-winner";
 export * from "./handlers";
 export * from "./api/coach";
 export * from "./api/recap";
@@ -15,6 +16,7 @@ export * from "./api/profile";
 export * from "./api/sp-earned";
 export * from "./cron/tournaments";
 export * from "./cron/sponsors";
+export * from "./cron/reconcile-duels";
 export * from "./api/sponsor/contributions";
 export * from "./api/sponsor/tournament-sponsors";
 export * from "./api/sponsor/tournament-list";

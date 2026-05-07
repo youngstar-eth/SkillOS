@@ -46,6 +46,7 @@ import {
   readChallengeGuard,
   type SettleGuardReason,
 } from "./settle-guard";
+import { decideWinner } from "./decide-winner";
 
 export interface SettleResult {
   settled: boolean;
@@ -85,37 +86,6 @@ async function readDuel(matchId: string): Promise<Duel | null> {
 function normalizeAddress(raw: string | null | undefined): Address {
   if (!raw) throw new Error("normalizeAddress: empty");
   return getAddress(raw);
-}
-
-/**
- * Pick winner between p1 (creator) and p2 (challenger).
- * Rules: higher score wins; tie → earlier submitted_at; null-submit loses.
- */
-function decideWinner(duel: Duel): Address {
-  const p1 = normalizeAddress(duel.player1_address);
-  if (!duel.player2_address) {
-    throw new Error("decideWinner: player2 not set");
-  }
-  const p2 = normalizeAddress(duel.player2_address);
-  const s1 = duel.player1_score;
-  const s2 = duel.player2_score;
-
-  if (s1 == null && s2 == null) {
-    throw new Error("decideWinner: neither submitted");
-  }
-  if (s1 == null) return p2;
-  if (s2 == null) return p1;
-  if (s1 > s2) return p1;
-  if (s2 > s1) return p2;
-
-  // Tie → earlier submitted_at wins.
-  const t1 = duel.player1_submitted_at
-    ? new Date(duel.player1_submitted_at).getTime()
-    : Infinity;
-  const t2 = duel.player2_submitted_at
-    ? new Date(duel.player2_submitted_at).getTime()
-    : Infinity;
-  return t1 <= t2 ? p1 : p2;
 }
 
 function challengeIdFor(duel: Duel): Hex {
