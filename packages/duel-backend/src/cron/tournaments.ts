@@ -16,15 +16,25 @@
 //   runSettleTournaments()
 //     Currently scheduled daily at 00:05 UTC. For tournaments whose
 //     ends_at has passed:
-//     (1) cross-checks each entry's source_duel_ids against v2_duels
+//     (1) acquires v2_cron_runs lock for the current minute window —
+//     overlapping runs exit cleanly with lockSkipped (PR #4);
+//     (2) reads on-chain state for ALL pending tournaments in a single
+//     Multicall3 RPC via readSettleGuardBatch — skips already-settled /
+//     not-found / ends-after-now states pre-tx (PR #4 + PR #5);
+//     (3) cross-checks each entry's source_duel_ids against v2_duels
 //     plausibility verdicts — flags 'implausible' contributors on-chain;
-//     (2) reads on-chain getTournament(id) via settle-guard to skip
-//     already-settled / not-found / ends-after-now states pre-tx (PR #4);
-//     (3) builds the sorted ranking, calls settle() on the contract;
-//     (4) updates DB with prize amounts and tx hashes.
+//     (4) builds the sorted ranking and calls settle() on the contract,
+//     using an in-memory NonceManager to allow safe parallel broadcasts
+//     up to a p-limit(5) in-flight cap (PR #5);
+//     (5) updates DB with prize amounts and tx hashes.
 //     Idempotent: settle() reverts TournamentAlreadySettled if run twice,
-//     and we re-sync DB settled_at from receipt. Coordinates against
-//     overlapping invocations via v2_cron_runs lock (PR #4).
+//     and we re-sync DB settled_at from receipt.
+//
+//     Throughput: PR #5 removed the legacy .limit(20) governor on the
+//     pending fetch. Concurrency is now bounded by p-limit(5) wall-time
+//     (≤ 5 in-flight tx ≤ 5 mempool slots ≤ 5 RPC calls), not by
+//     truncating the pending list. result.deferred is preserved on the
+//     public API but always 0.
 //
 // Both functions return a structured result the cron route JSON-serializes
 // directly. Errors are collected per-tournament so a single bad row
@@ -51,12 +61,14 @@ import {
   getSupabaseService,
   getWalletClient,
 } from "@skillbase/lib-shared";
-import { readSettleGuard } from "./settle-guard";
+import { readSettleGuardBatch, type CronSettleGuardResult } from "./settle-guard";
 import {
   acquireCronLock,
   currentMinuteWindow,
   releaseCronLock,
 } from "./run-lock";
+import { createNonceManager, type NonceManager } from "./nonce-manager";
+import { createLimit } from "./p-limit";
 
 // ─── Canonical config ──────────────────────────────────────────────────────
 
@@ -358,9 +370,10 @@ export interface SettleTournamentsResult {
   errors: Array<{ dbId: string; message: string }>;
   /**
    * Count of tournaments matching the pending criteria (settled_at null +
-   * ends_at past) that this run did NOT process because the .limit(20) cap
-   * was hit. Surfaces overflow visibility for Phase 2 SDK fan-in. The cap
-   * itself is preserved — removal is bundled with PR #5 (B4 + nonce mgr).
+   * ends_at past) that this run did NOT process because of an upstream
+   * cap. Preserved as part of the public API for backward compat, but as
+   * of PR #5 it is always 0: the .limit(20) cap was removed and overflow
+   * is bounded by p-limit(5) wall-time, not pending-list truncation.
    */
   deferred: number;
   /**
@@ -388,6 +401,19 @@ export interface SettleDependencies {
   walletClient?: ReturnType<typeof getWalletClient>;
   publicClient?: ReturnType<typeof getPublicClient>;
   awardSP?: typeof applySPAward;
+  /**
+   * PR #5: explicit nonce manager for parallel-safe writeContract calls.
+   * Default: lazy-instantiated inside runSettleTournaments from the
+   * walletClient.account.address + publicClient. Tests pass a mock to
+   * assert nonce-allocation behavior.
+   */
+  nonceManager?: NonceManager;
+  /**
+   * PR #5: in-flight tx concurrency cap. Default: createLimit(5).
+   * Tests can pass a smaller value (e.g. 1) to force sequential
+   * execution and assert ordering invariants.
+   */
+  concurrency?: number;
 }
 
 export async function runSettleTournaments(
@@ -404,6 +430,22 @@ export async function runSettleTournaments(
   const walletClient = deps.walletClient ?? getWalletClient();
   const publicClient = deps.publicClient ?? getPublicClient();
   const awardSP = deps.awardSP ?? applySPAward;
+  // PR #5: lazy NonceManager bound to the signing account. One instance
+  // per cron invocation — discarded at end of run, re-seeded on the next.
+  // Lazy default avoids triggering getTransactionCount in tests that pass
+  // their own mock nonce manager.
+  const nonceManager =
+    deps.nonceManager ??
+    createNonceManager({
+      publicClient,
+      address: walletClient.account?.address ??
+        (() => {
+          throw new Error(
+            "runSettleTournaments: walletClient has no account; cannot derive nonce manager address",
+          );
+        })(),
+    });
+  const concurrency = deps.concurrency ?? 5;
 
   // C6: Acquire v2_cron_runs lock for this minute-window. If another run
   // already inserted the (cron_name, run_window_start) row, bail without
@@ -427,6 +469,8 @@ export async function runSettleTournaments(
       walletClient,
       publicClient,
       awardSP,
+      nonceManager,
+      concurrency,
     });
   } finally {
     // Best-effort completion mark. Lock effectiveness is in the unique key,
@@ -457,23 +501,27 @@ async function settleSweep(args: {
   walletClient: ReturnType<typeof getWalletClient>;
   publicClient: ReturnType<typeof getPublicClient>;
   awardSP: typeof applySPAward;
+  nonceManager: NonceManager;
+  concurrency: number;
 }): Promise<SettleTournamentsResult> {
-  const { result, supabase, walletClient, publicClient, awardSP } = args;
-
-  // Pick up tournaments whose window has ended but aren't settled yet.
-  // count: "exact" returns the total matching count alongside the capped
-  // data slice, surfacing overflow without a second round-trip.
   const {
-    data: pendingRaw,
-    count: totalPending,
-    error: readErr,
-  } = await supabase
+    result,
+    supabase,
+    walletClient,
+    publicClient,
+    awardSP,
+    nonceManager,
+    concurrency,
+  } = args;
+
+  // PR #5: pending fetch is now unbounded. Throughput is bounded by the
+  // p-limit(concurrency) wall-time below, not by truncating the list.
+  const { data: pendingRaw, error: readErr } = await supabase
     .from("v2_tournaments")
-    .select("*", { count: "exact" })
+    .select("*")
     .is("settled_at", null)
     .lt("ends_at", new Date().toISOString())
-    .order("ends_at", { ascending: true })
-    .limit(20);
+    .order("ends_at", { ascending: true });
   if (readErr) throw new Error(`runSettleTournaments: ${readErr.message}`);
 
   type TournamentRow = {
@@ -485,265 +533,295 @@ async function settleSweep(args: {
   };
   const pending = (pendingRaw ?? []) as TournamentRow[];
 
-  for (const t of pending) {
-    try {
-      const onChainId = t.on_chain_id as Hex;
+  // PR #5: pre-loop multicall — read on-chain state for all pending
+  // tournaments in ONE RPC. Per-tournament handlers below look up their
+  // verdict from this map instead of issuing N separate RPCs.
+  const guardMap = await readSettleGuardBatch(
+    publicClient,
+    pending.map((t) => t.on_chain_id as Hex),
+  );
 
-      const { data: entriesRaw, error: eErr } = await supabase
-        .from("v2_tournament_entries")
-        .select("*")
-        .eq("tournament_id", t.id);
-      if (eErr) throw new Error(`entries: ${eErr.message}`);
-      const entries = (entriesRaw ?? []) as EntryForSettle[];
+  const limit = createLimit(concurrency);
 
-      // Cross-check plausibility. If any source duel for an entry has
-      // verdict='implausible' in v2_duels.plausibility_check, flag + exclude.
-      const allDuelIds = new Set<string>();
-      for (const e of entries) for (const d of e.source_duel_ids) allDuelIds.add(d);
-      const duelIdList = Array.from(allDuelIds);
+  // Process all pending tournaments concurrently, capped at `concurrency`
+  // in-flight. Each handler runs independently — Array.push to result
+  // arrays is race-free under JS's single-threaded event loop.
+  await Promise.all(
+    pending.map((t) =>
+      limit(() => settleOneTournament({
+        t,
+        guard: guardMap.get(t.on_chain_id as Hex),
+        result,
+        supabase,
+        walletClient,
+        publicClient,
+        awardSP,
+        nonceManager,
+      })),
+    ),
+  );
 
-      const implausibleDuels = new Set<string>();
-      if (duelIdList.length > 0) {
-        const { data: dRows, error: dErr } = await supabase
-          .from("v2_duels")
-          .select("id, plausibility_check")
-          .in("id", duelIdList);
-        if (dErr) throw new Error(`plausibility read: ${dErr.message}`);
-        for (const row of dRows ?? []) {
-          const verdict = (row as { plausibility_check: { verdict?: string } | null })
-            .plausibility_check?.verdict;
-          if (verdict === "implausible") {
-            implausibleDuels.add((row as { id: string }).id);
-          }
-        }
-      }
+  // PR #5: deferred always 0 — cap removed, full pending list processed.
+  result.deferred = 0;
+  return result;
+}
 
-      // Flag on-chain + DB for entries tied to any implausible duel.
-      const toFlag: EntryForSettle[] = [];
-      for (const e of entries) {
-        if (e.excluded) continue;
-        if (e.source_duel_ids.some((d) => implausibleDuels.has(d))) {
-          toFlag.push(e);
-        }
-      }
-      for (const e of toFlag) {
-        const player = getAddress(e.player_address);
-        try {
-          const flagHash = await walletClient.writeContract({
-            address: TOURNAMENT_POOL_V2_ADDRESS,
-            abi: TOURNAMENT_POOL_ABI,
-            functionName: "flagScore",
-            args: [onChainId, player],
-            account: walletClient.account ?? null,
-            chain: walletClient.chain,
-          });
-          await publicClient.waitForTransactionReceipt({
-            hash: flagHash,
-            timeout: 60_000,
-          });
-        } catch (err) {
-          // Log + continue — the DB mark still happens so ranking is correct
-          // even if on-chain flag missed. Settle might then revert
-          // (contract still sees this entry as unexcluded). We surface the
-          // error and bail this tournament for the current cycle.
-          const msg = err instanceof Error ? err.message : "unknown";
-          throw new Error(`flagScore(${player}) failed: ${msg}`);
-        }
+/**
+ * Per-tournament handler — extracted so the parallel loop reads as a
+ * single Promise.all + p-limit composition. Side effects identical to
+ * the original sequential body: pushes to result.settled / .skipped /
+ * .errors and writes to the supabase client passed in.
+ *
+ * The `guard` argument comes from the multicall pre-loop; if undefined
+ * (defensive — shouldn't happen since we built the map from this same
+ * id list), we treat it as not_found.
+ */
+async function settleOneTournament(args: {
+  t: {
+    id: string;
+    on_chain_id: string;
+    game: string;
+    participation_bonus: number;
+    prize_pool_usdc: string | number | null;
+  };
+  guard: CronSettleGuardResult | undefined;
+  result: SettleTournamentsResult;
+  supabase: ReturnType<typeof getSupabaseService>;
+  walletClient: ReturnType<typeof getWalletClient>;
+  publicClient: ReturnType<typeof getPublicClient>;
+  awardSP: typeof applySPAward;
+  nonceManager: NonceManager;
+}): Promise<void> {
+  const {
+    t,
+    guard,
+    result,
+    supabase,
+    walletClient,
+    publicClient,
+    awardSP,
+    nonceManager,
+  } = args;
+  try {
+    const onChainId = t.on_chain_id as Hex;
+
+    // PR #5: consume the cached guard verdict from the pre-loop multicall.
+    const effectiveGuard: CronSettleGuardResult = guard ?? {
+      ok: false,
+      reason: "not_found",
+      settled: false,
+      endsAt: 0n,
+      sponsor: "0x0000000000000000000000000000000000000000",
+    };
+    if (!effectiveGuard.ok) {
+      if (effectiveGuard.reason === "already_settled") {
         await supabase
-          .from("v2_tournament_entries")
-          .update({ excluded: true, excluded_reason: "anticheat_implausible" })
-          .eq("id", e.id);
-        e.excluded = true; // in-memory mirror for sort below
-      }
-
-      // Build sorted ranking from non-excluded entries.
-      const ranking = entries
-        .filter((e) => !e.excluded)
-        .sort((a, b) => {
-          // Compare as bigint to be safe against numeric(20,4) scientific
-          // notation from PostgREST.
-          const ea = BigInt(Math.round(Number(a.effective_rank_score)));
-          const eb = BigInt(Math.round(Number(b.effective_rank_score)));
-          if (ea === eb) return 0;
-          return ea > eb ? -1 : 1;
-        })
-        .map((e) => getAddress(e.player_address) as Address);
-
-      // B5: Pre-flight settle-guard — read on-chain state before broadcast.
-      // Catches already-settled / not-found / ends-after-now states without
-      // burning gas on a doomed tx. Mirrors duel.ts settle-guard pattern.
-      // Multicall optimization deferred to PR #5 (paired with cap removal).
-      const guard = await readSettleGuard(publicClient, onChainId);
-      if (!guard.ok) {
-        if (guard.reason === "already_settled") {
-          // Symmetric with the post-tx already-settled path (~line 592):
-          // mark DB settled, leave tx hash null (we don't own that tx).
-          await supabase
-            .from("v2_tournaments")
-            .update({ settled_at: new Date().toISOString() })
-            .eq("id", t.id)
-            .is("settled_at", null);
-          result.skipped.push({
-            dbId: t.id,
-            reason: "on-chain already settled (pre-flight)",
-          });
-          continue;
-        }
-        if (guard.reason === "not_found") {
-          // DB has on_chain_id but contract storage doesn't. Surface for
-          // ops diagnosis — don't mark settled, this is a data anomaly.
-          result.skipped.push({
-            dbId: t.id,
-            reason: "on-chain not found",
-          });
-          continue;
-        }
-        // ends_after_now: defense-in-depth. Pending fetch already filters
-        // ends_at < now; reaching here would require contract endsAt that
-        // disagrees with DB. Skip and surface for investigation.
+          .from("v2_tournaments")
+          .update({ settled_at: new Date().toISOString() })
+          .eq("id", t.id)
+          .is("settled_at", null);
         result.skipped.push({
           dbId: t.id,
-          reason: "on-chain ends_at still in future",
+          reason: "on-chain already settled (pre-flight)",
         });
-        continue;
+        return;
       }
+      if (effectiveGuard.reason === "not_found") {
+        result.skipped.push({ dbId: t.id, reason: "on-chain not found" });
+        return;
+      }
+      // ends_after_now: defense-in-depth (pending fetch already filters)
+      result.skipped.push({
+        dbId: t.id,
+        reason: "on-chain ends_at still in future",
+      });
+      return;
+    }
 
-      // Settle on-chain.
-      let settleHash: Hex;
+    const { data: entriesRaw, error: eErr } = await supabase
+      .from("v2_tournament_entries")
+      .select("*")
+      .eq("tournament_id", t.id);
+    if (eErr) throw new Error(`entries: ${eErr.message}`);
+    const entries = (entriesRaw ?? []) as EntryForSettle[];
+
+    // Cross-check plausibility. If any source duel for an entry has
+    // verdict='implausible' in v2_duels.plausibility_check, flag + exclude.
+    const allDuelIds = new Set<string>();
+    for (const e of entries) for (const d of e.source_duel_ids) allDuelIds.add(d);
+    const duelIdList = Array.from(allDuelIds);
+
+    const implausibleDuels = new Set<string>();
+    if (duelIdList.length > 0) {
+      const { data: dRows, error: dErr } = await supabase
+        .from("v2_duels")
+        .select("id, plausibility_check")
+        .in("id", duelIdList);
+      if (dErr) throw new Error(`plausibility read: ${dErr.message}`);
+      for (const row of dRows ?? []) {
+        const verdict = (row as { plausibility_check: { verdict?: string } | null })
+          .plausibility_check?.verdict;
+        if (verdict === "implausible") {
+          implausibleDuels.add((row as { id: string }).id);
+        }
+      }
+    }
+
+    // Flag on-chain + DB for entries tied to any implausible duel.
+    const toFlag: EntryForSettle[] = [];
+    for (const e of entries) {
+      if (e.excluded) continue;
+      if (e.source_duel_ids.some((d) => implausibleDuels.has(d))) {
+        toFlag.push(e);
+      }
+    }
+    for (const e of toFlag) {
+      const player = getAddress(e.player_address);
       try {
-        settleHash = await walletClient.writeContract({
+        // PR #5: explicit nonce from in-memory NonceManager — required
+        // for parallel-safe writeContract under p-limit(N>1).
+        const nonce = await nonceManager.next();
+        const flagHash = await walletClient.writeContract({
           address: TOURNAMENT_POOL_V2_ADDRESS,
           abi: TOURNAMENT_POOL_ABI,
-          functionName: "settle",
-          args: [onChainId, ranking],
+          functionName: "flagScore",
+          args: [onChainId, player],
           account: walletClient.account ?? null,
           chain: walletClient.chain,
+          nonce,
         });
         await publicClient.waitForTransactionReceipt({
-          hash: settleHash,
+          hash: flagHash,
           timeout: 60_000,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "unknown";
-        if (msg.includes("TournamentAlreadySettled")) {
-          // Idempotent: someone else already settled. Mark DB settled but
-          // leave settle_tx_hash null — we didn't own that tx.
-          await supabase
-            .from("v2_tournaments")
-            .update({ settled_at: new Date().toISOString() })
-            .eq("id", t.id)
-            .is("settled_at", null);
-          result.skipped.push({ dbId: t.id, reason: "already settled on-chain" });
-          continue;
-        }
-        throw new Error(`settle: ${msg}`);
+        throw new Error(`flagScore(${player}) failed: ${msg}`);
       }
-
-      // Compute prize amounts per the same top-50% curve the contract uses,
-      // so we can persist per-entry prize_won_usdc. Matches TournamentPool
-      // _distributePrizes byte-for-byte.
-      //
-      // A2: prize_pool_usdc is already in scope from the pending fetch
-      // above — no separate read needed. PostgREST may return numeric as
-      // string; Number() coerces both shapes.
-      const n = ranking.length;
-      const pool = BigInt(
-        Math.round(Number(t.prize_pool_usdc ?? 0) * 1_000_000),
-      );
-      const prizes = computePrizeDistribution(n, pool);
-
-      // Persist settlement metadata.
       await supabase
-        .from("v2_tournaments")
-        .update({
-          settled_at: new Date().toISOString(),
-          settle_tx_hash: settleHash,
-        })
-        .eq("id", t.id);
+        .from("v2_tournament_entries")
+        .update({ excluded: true, excluded_reason: "anticheat_implausible" })
+        .eq("id", e.id);
+      e.excluded = true; // in-memory mirror for sort below
+    }
 
-      // A1: batched per-entry prize upsert.
-      // Original code issued N sequential UPDATEs (one per paying rank).
-      // Single upsert collapses that to one round-trip. Conflict key
-      // (tournament_id, player_address) targets the existing entry rows;
-      // omitted columns are preserved by Supabase on the UPDATE path
-      // (same invariant submit.ts:381-385 documents). Zero-prize ranks
-      // are filtered out to match the original `if (amt <= 0n) continue;`
-      // semantics — outside-top-50% losers don't get a prize_tx_hash.
-      const prizeRows: Array<{
-        tournament_id: string;
-        player_address: Address;
-        prize_won_usdc: number;
-        prize_tx_hash: Hex;
-      }> = [];
-      for (let i = 0; i < n; ++i) {
-        const amt = prizes[i];
-        if (amt <= 0n) continue;
-        prizeRows.push({
-          tournament_id: t.id,
-          player_address: ranking[i],
-          prize_won_usdc: Number(amt) / 1_000_000,
-          prize_tx_hash: settleHash,
-        });
-      }
-      if (prizeRows.length > 0) {
-        await supabase
-          .from("v2_tournament_entries")
-          .upsert(prizeRows, { onConflict: "tournament_id,player_address" });
-      }
+    // Build sorted ranking from non-excluded entries.
+    const ranking = entries
+      .filter((e) => !e.excluded)
+      .sort((a, b) => {
+        const ea = BigInt(Math.round(Number(a.effective_rank_score)));
+        const eb = BigInt(Math.round(Number(b.effective_rank_score)));
+        if (ea === eb) return 0;
+        return ea > eb ? -1 : 1;
+      })
+      .map((e) => getAddress(e.player_address) as Address);
 
-      // Award SP rank bonus + tournament counters to every ranked
-      // participant. Top-50 gets (51 - rank) * 2 SP; rank-1 flips the
-      // tournaments_won counter. Implausible entries were already excluded
-      // up at line ~440, so a rank bonus here is by construction against
-      // plausibility-clean rows — no multiplier applies at settle time.
-      //
-      // A3: fan-out via Promise.all. Each award targets a distinct
-      // ranking[i] address (no shared-row race). Per-promise .catch()
-      // preserves error containment — one failed UPSERT doesn't strip
-      // downstream entries' SP, matching the original try/catch semantics.
-      // Wall-time collapses from O(N×rtt) to O(max-of-N).
-      await Promise.all(
-        ranking.map((address, i) =>
-          awardSP({
-            userAddress: address,
-            event: { kind: "tournament_rank_bonus", rank: i + 1 },
-            counterDelta: {
-              tournamentsParticipated: 1,
-              tournamentsWon: i === 0 ? 1 : 0,
-            },
-          }).catch((err) => {
-            console.warn(
-              "[sp-award] tournament-settle failed",
-              t.id,
-              address,
-              err,
-            );
-          }),
-        ),
-      );
-
-      const distributed = prizes.reduce((acc, p) => acc + p, 0n);
-      result.settled.push({
-        dbId: t.id,
-        onChainId,
-        settleTxHash: settleHash,
-        participantsSettled: n,
-        excluded: toFlag.length,
-        prizePaidUsdc: (Number(distributed) / 1_000_000).toFixed(6),
+    // Settle on-chain.
+    let settleHash: Hex;
+    try {
+      // PR #5: explicit nonce from NonceManager — see flagScore comment.
+      const nonce = await nonceManager.next();
+      settleHash = await walletClient.writeContract({
+        address: TOURNAMENT_POOL_V2_ADDRESS,
+        abi: TOURNAMENT_POOL_ABI,
+        functionName: "settle",
+        args: [onChainId, ranking],
+        account: walletClient.account ?? null,
+        chain: walletClient.chain,
+        nonce,
+      });
+      await publicClient.waitForTransactionReceipt({
+        hash: settleHash,
+        timeout: 60_000,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown";
-      result.errors.push({ dbId: t.id, message: msg });
+      if (msg.includes("TournamentAlreadySettled")) {
+        // Idempotent: someone else already settled. Mark DB settled but
+        // leave settle_tx_hash null — we didn't own that tx.
+        await supabase
+          .from("v2_tournaments")
+          .update({ settled_at: new Date().toISOString() })
+          .eq("id", t.id)
+          .is("settled_at", null);
+        result.skipped.push({ dbId: t.id, reason: "already settled on-chain" });
+        return;
+      }
+      throw new Error(`settle: ${msg}`);
     }
+
+    const n = ranking.length;
+    const pool = BigInt(
+      Math.round(Number(t.prize_pool_usdc ?? 0) * 1_000_000),
+    );
+    const prizes = computePrizeDistribution(n, pool);
+
+    // Persist settlement metadata.
+    await supabase
+      .from("v2_tournaments")
+      .update({
+        settled_at: new Date().toISOString(),
+        settle_tx_hash: settleHash,
+      })
+      .eq("id", t.id);
+
+    // A1: batched per-entry prize upsert.
+    const prizeRows: Array<{
+      tournament_id: string;
+      player_address: Address;
+      prize_won_usdc: number;
+      prize_tx_hash: Hex;
+    }> = [];
+    for (let i = 0; i < n; ++i) {
+      const amt = prizes[i];
+      if (amt <= 0n) continue;
+      prizeRows.push({
+        tournament_id: t.id,
+        player_address: ranking[i],
+        prize_won_usdc: Number(amt) / 1_000_000,
+        prize_tx_hash: settleHash,
+      });
+    }
+    if (prizeRows.length > 0) {
+      await supabase
+        .from("v2_tournament_entries")
+        .upsert(prizeRows, { onConflict: "tournament_id,player_address" });
+    }
+
+    // A3: parallel SP awards across ranking — each address is distinct.
+    await Promise.all(
+      ranking.map((address, i) =>
+        awardSP({
+          userAddress: address,
+          event: { kind: "tournament_rank_bonus", rank: i + 1 },
+          counterDelta: {
+            tournamentsParticipated: 1,
+            tournamentsWon: i === 0 ? 1 : 0,
+          },
+        }).catch((err) => {
+          console.warn(
+            "[sp-award] tournament-settle failed",
+            t.id,
+            address,
+            err,
+          );
+        }),
+      ),
+    );
+
+    const distributed = prizes.reduce((acc, p) => acc + p, 0n);
+    result.settled.push({
+      dbId: t.id,
+      onChainId,
+      settleTxHash: settleHash,
+      participantsSettled: n,
+      excluded: toFlag.length,
+      prizePaidUsdc: (Number(distributed) / 1_000_000).toFixed(6),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "unknown";
+    result.errors.push({ dbId: t.id, message: msg });
   }
-
-  // Deferred surface: how many pending tournaments did the limit(20) cap
-  // leave behind for the next cron run? totalPending comes from the
-  // count: "exact" option on the pending fetch above. Cap removal itself
-  // is PR #5 scope — see SettleTournamentsResult.deferred docstring.
-  result.deferred = Math.max(0, (totalPending ?? 0) - pending.length);
-
-  return result;
 }
 
 /** Mirrors TournamentPool._distributePrizes for DB-side prize bookkeeping.
