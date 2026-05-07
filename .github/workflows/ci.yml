@@ -1,0 +1,114 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Skillbase MAS — CI gate.
+#
+# Closes the honor-system gap CLAUDE.md identifies: every PR to main runs
+# through typecheck + TS tests + Foundry tests + lint before a human
+# reviewer can merge. Status check names below are referenced in the
+# branch protection rules (applied via GitHub UI post-merge — see PR
+# body for the checklist).
+#
+# Four jobs run in parallel to minimize feedback latency. Re-pushes to
+# the same PR cancel any in-flight run via the concurrency block.
+#
+# Pinned to Node 20.x to match the package.json engines floor and the
+# Vercel deploy runtime — CI mirrors prod.
+#
+# Security note: this workflow does NOT interpolate any user-controlled
+# input (issue/PR titles/bodies, commit messages, branch names) into
+# `run:` shells. Only GitHub-internal metadata (github.workflow,
+# github.ref) is used, and only in the concurrency `group:` key — never
+# in a shell context. See:
+# https://github.blog/security/vulnerability-research/how-to-catch-github-actions-workflow-injections-before-attackers-do/
+# ─────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    # Defense-in-depth: even after branch protection lands, main pushes
+    # (e.g. squash-merges) re-validate the gate. Also primes the npm
+    # cache so the next PR's first run is fast.
+    branches: [main]
+
+# Cancel any superseded run for the same ref. PR re-pushes won't pile up;
+# main pushes never cancel an in-flight PR (different ref).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Status check name: typecheck
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck all workspaces (turbo-orchestrated)
+        run: npm run typecheck
+
+  # Status check name: test-ts
+  test-ts:
+    name: test-ts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run TS tests (node:test via tsx)
+        # Direct invocation matches the local developer pattern — no
+        # turbo `test` task defined. 6 test files: 4 in duel-backend
+        # plus 2 in sp-engine. Baseline: 91 pass + 4 documented skips.
+        run: |
+          npx tsx --test \
+            packages/duel-backend/test/cron-settle.test.ts \
+            packages/duel-backend/test/settle-guard.test.ts \
+            packages/duel-backend/test/settle-guard.integration.test.ts \
+            packages/duel-backend/test/reconcile.test.ts \
+            packages/sp-engine/src/engine.test.ts \
+            packages/sp-engine/src/anchor.test.ts
+
+  # Status check name: test-foundry
+  test-foundry:
+    name: test-foundry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # Vendored libs (forge-std, openzeppelin-contracts) are committed
+        # under contracts/lib/ — no submodules to fetch.
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Run Foundry tests
+        working-directory: contracts
+        run: forge test -vvv
+
+  # Status check name: lint
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint all apps (turbo-orchestrated)
+        # `npm run lint` runs `next lint` per app (8 apps). Packages do
+        # not declare a lint task; turbo skips them. next lint exits 0
+        # on warnings, non-zero on errors — the gate enforces error-free
+        # but doesn't block on warnings (matches Vercel build behavior).
+        run: npm run lint
