@@ -1,24 +1,30 @@
 // ───────────────────────────────────────────────────────────────────────────
 // Tournament cron logic — create + settle.
 //
-// Two entry points, both intended to be called from a Vercel Cron route:
+// Two entry points, both intended to be called from a Vercel Cron route.
+// Actual schedules live in apps/orchestrator/vercel.json — that file is
+// the source of truth; the cadence notes below are descriptive only.
 //
 //   runCreateTournaments()
-//     Scheduled hourly. Creates one daily tournament per game if none
-//     active, and one weekly tournament every Monday. Idempotent: a
-//     deterministic bytes32 id (keccak256(game|cycle|startsAt)) makes
-//     the on-chain createTournament call revert with TournamentAlreadyExists
-//     on retry, which we swallow cleanly. DB insert uses on_chain_id as
-//     the dedupe key.
+//     Currently scheduled daily at 00:00 UTC. Creates one daily tournament
+//     per game if none active, and one weekly tournament every Monday.
+//     Idempotent: a deterministic bytes32 id
+//     (keccak256(game|cycle|startsAt)) makes the on-chain createTournament
+//     call revert with TournamentAlreadyExists on retry, which we swallow
+//     cleanly. DB insert uses on_chain_id as the dedupe key.
 //
 //   runSettleTournaments()
-//     Scheduled every minute. For tournaments whose ends_at has passed:
+//     Currently scheduled daily at 00:05 UTC. For tournaments whose
+//     ends_at has passed:
 //     (1) cross-checks each entry's source_duel_ids against v2_duels
 //     plausibility verdicts — flags 'implausible' contributors on-chain;
-//     (2) builds the sorted ranking, calls settle() on the contract;
-//     (3) updates DB with prize amounts and tx hashes.
+//     (2) reads on-chain getTournament(id) via settle-guard to skip
+//     already-settled / not-found / ends-after-now states pre-tx (PR #4);
+//     (3) builds the sorted ranking, calls settle() on the contract;
+//     (4) updates DB with prize amounts and tx hashes.
 //     Idempotent: settle() reverts TournamentAlreadySettled if run twice,
-//     and we re-sync DB settled_at from receipt. Safe to race.
+//     and we re-sync DB settled_at from receipt. Coordinates against
+//     overlapping invocations via v2_cron_runs lock (PR #4).
 //
 // Both functions return a structured result the cron route JSON-serializes
 // directly. Errors are collected per-tournament so a single bad row
@@ -45,6 +51,12 @@ import {
   getSupabaseService,
   getWalletClient,
 } from "@skillbase/lib-shared";
+import { readSettleGuard } from "./settle-guard";
+import {
+  acquireCronLock,
+  currentMinuteWindow,
+  releaseCronLock,
+} from "./run-lock";
 
 // ─── Canonical config ──────────────────────────────────────────────────────
 
@@ -351,6 +363,15 @@ export interface SettleTournamentsResult {
    * itself is preserved — removal is bundled with PR #5 (B4 + nonce mgr).
    */
   deferred: number;
+  /**
+   * True when this run exited early because the v2_cron_runs lock was
+   * held by another in-flight run (PR #4). Distinct from per-tournament
+   * skipped: lockSkipped means we did NO work this tick. Caller can use
+   * this to suppress alerting on intentional no-ops.
+   */
+  lockSkipped?: boolean;
+  /** Human-readable lock-acquisition outcome when lockSkipped === true. */
+  lockReason?: string;
 }
 
 /**
@@ -383,6 +404,61 @@ export async function runSettleTournaments(
   const walletClient = deps.walletClient ?? getWalletClient();
   const publicClient = deps.publicClient ?? getPublicClient();
   const awardSP = deps.awardSP ?? applySPAward;
+
+  // C6: Acquire v2_cron_runs lock for this minute-window. If another run
+  // already inserted the (cron_name, run_window_start) row, bail without
+  // doing any work. Eliminates the wasted-gas race where two overlapping
+  // runs both observe settled_at IS NULL and both broadcast settle().
+  const cronName = "settle-tournaments";
+  const windowStart = currentMinuteWindow();
+  const lock = await acquireCronLock({ supabase, cronName, windowStart });
+  if (!lock.acquired) {
+    return {
+      ...result,
+      lockSkipped: true,
+      lockReason: lock.reason ?? "lock not acquired",
+    };
+  }
+
+  try {
+    return await settleSweep({
+      result,
+      supabase,
+      walletClient,
+      publicClient,
+      awardSP,
+    });
+  } finally {
+    // Best-effort completion mark. Lock effectiveness is in the unique key,
+    // not the completion update, so a release failure doesn't reintroduce
+    // the race.
+    await releaseCronLock({
+      supabase,
+      cronName,
+      windowStart,
+      summary: {
+        settled: result.settled.length,
+        skipped: result.skipped.length,
+        errors: result.errors.length,
+        deferred: result.deferred,
+      },
+    });
+  }
+}
+
+/**
+ * Inner sweep — extracted from runSettleTournaments so the lock acquire/
+ * release wrapper can stay readable. Mutates the result in place AND
+ * returns it (covers both call patterns).
+ */
+async function settleSweep(args: {
+  result: SettleTournamentsResult;
+  supabase: ReturnType<typeof getSupabaseService>;
+  walletClient: ReturnType<typeof getWalletClient>;
+  publicClient: ReturnType<typeof getPublicClient>;
+  awardSP: typeof applySPAward;
+}): Promise<SettleTournamentsResult> {
+  const { result, supabase, walletClient, publicClient, awardSP } = args;
 
   // Pick up tournaments whose window has ended but aren't settled yet.
   // count: "exact" returns the total matching count alongside the capped
@@ -492,6 +568,45 @@ export async function runSettleTournaments(
           return ea > eb ? -1 : 1;
         })
         .map((e) => getAddress(e.player_address) as Address);
+
+      // B5: Pre-flight settle-guard — read on-chain state before broadcast.
+      // Catches already-settled / not-found / ends-after-now states without
+      // burning gas on a doomed tx. Mirrors duel.ts settle-guard pattern.
+      // Multicall optimization deferred to PR #5 (paired with cap removal).
+      const guard = await readSettleGuard(publicClient, onChainId);
+      if (!guard.ok) {
+        if (guard.reason === "already_settled") {
+          // Symmetric with the post-tx already-settled path (~line 592):
+          // mark DB settled, leave tx hash null (we don't own that tx).
+          await supabase
+            .from("v2_tournaments")
+            .update({ settled_at: new Date().toISOString() })
+            .eq("id", t.id)
+            .is("settled_at", null);
+          result.skipped.push({
+            dbId: t.id,
+            reason: "on-chain already settled (pre-flight)",
+          });
+          continue;
+        }
+        if (guard.reason === "not_found") {
+          // DB has on_chain_id but contract storage doesn't. Surface for
+          // ops diagnosis — don't mark settled, this is a data anomaly.
+          result.skipped.push({
+            dbId: t.id,
+            reason: "on-chain not found",
+          });
+          continue;
+        }
+        // ends_after_now: defense-in-depth. Pending fetch already filters
+        // ends_at < now; reaching here would require contract endsAt that
+        // disagrees with DB. Skip and surface for investigation.
+        result.skipped.push({
+          dbId: t.id,
+          reason: "on-chain ends_at still in future",
+        });
+        continue;
+      }
 
       // Settle on-chain.
       let settleHash: Hex;
