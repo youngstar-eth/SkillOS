@@ -344,6 +344,13 @@ export interface SettleTournamentsResult {
   }>;
   skipped: Array<{ dbId: string; reason: string }>;
   errors: Array<{ dbId: string; message: string }>;
+  /**
+   * Count of tournaments matching the pending criteria (settled_at null +
+   * ends_at past) that this run did NOT process because the .limit(20) cap
+   * was hit. Surfaces overflow visibility for Phase 2 SDK fan-in. The cap
+   * itself is preserved — removal is bundled with PR #5 (B4 + nonce mgr).
+   */
+  deferred: number;
 }
 
 /**
@@ -365,7 +372,12 @@ export interface SettleDependencies {
 export async function runSettleTournaments(
   deps: SettleDependencies = {},
 ): Promise<SettleTournamentsResult> {
-  const result: SettleTournamentsResult = { settled: [], skipped: [], errors: [] };
+  const result: SettleTournamentsResult = {
+    settled: [],
+    skipped: [],
+    errors: [],
+    deferred: 0,
+  };
 
   const supabase = deps.supabase ?? getSupabaseService();
   const walletClient = deps.walletClient ?? getWalletClient();
@@ -373,9 +385,15 @@ export async function runSettleTournaments(
   const awardSP = deps.awardSP ?? applySPAward;
 
   // Pick up tournaments whose window has ended but aren't settled yet.
-  const { data: pendingRaw, error: readErr } = await supabase
+  // count: "exact" returns the total matching count alongside the capped
+  // data slice, surfacing overflow without a second round-trip.
+  const {
+    data: pendingRaw,
+    count: totalPending,
+    error: readErr,
+  } = await supabase
     .from("v2_tournaments")
-    .select("*")
+    .select("*", { count: "exact" })
     .is("settled_at", null)
     .lt("ends_at", new Date().toISOString())
     .order("ends_at", { ascending: true })
@@ -387,6 +405,7 @@ export async function runSettleTournaments(
     on_chain_id: string;
     game: string;
     participation_bonus: number;
+    prize_pool_usdc: string | number | null;
   };
   const pending = (pendingRaw ?? []) as TournamentRow[];
 
@@ -508,8 +527,14 @@ export async function runSettleTournaments(
       // Compute prize amounts per the same top-50% curve the contract uses,
       // so we can persist per-entry prize_won_usdc. Matches TournamentPool
       // _distributePrizes byte-for-byte.
+      //
+      // A2: prize_pool_usdc is already in scope from the pending fetch
+      // above — no separate read needed. PostgREST may return numeric as
+      // string; Number() coerces both shapes.
       const n = ranking.length;
-      const pool = await readPrizePool(supabase, t.id);
+      const pool = BigInt(
+        Math.round(Number(t.prize_pool_usdc ?? 0) * 1_000_000),
+      );
       const prizes = computePrizeDistribution(n, pool);
 
       // Persist settlement metadata.
@@ -521,17 +546,34 @@ export async function runSettleTournaments(
         })
         .eq("id", t.id);
 
+      // A1: batched per-entry prize upsert.
+      // Original code issued N sequential UPDATEs (one per paying rank).
+      // Single upsert collapses that to one round-trip. Conflict key
+      // (tournament_id, player_address) targets the existing entry rows;
+      // omitted columns are preserved by Supabase on the UPDATE path
+      // (same invariant submit.ts:381-385 documents). Zero-prize ranks
+      // are filtered out to match the original `if (amt <= 0n) continue;`
+      // semantics — outside-top-50% losers don't get a prize_tx_hash.
+      const prizeRows: Array<{
+        tournament_id: string;
+        player_address: Address;
+        prize_won_usdc: number;
+        prize_tx_hash: Hex;
+      }> = [];
       for (let i = 0; i < n; ++i) {
         const amt = prizes[i];
         if (amt <= 0n) continue;
+        prizeRows.push({
+          tournament_id: t.id,
+          player_address: ranking[i],
+          prize_won_usdc: Number(amt) / 1_000_000,
+          prize_tx_hash: settleHash,
+        });
+      }
+      if (prizeRows.length > 0) {
         await supabase
           .from("v2_tournament_entries")
-          .update({
-            prize_won_usdc: Number(amt) / 1_000_000,
-            prize_tx_hash: settleHash,
-          })
-          .eq("tournament_id", t.id)
-          .eq("player_address", ranking[i]);
+          .upsert(prizeRows, { onConflict: "tournament_id,player_address" });
       }
 
       // Award SP rank bonus + tournament counters to every ranked
@@ -540,28 +582,30 @@ export async function runSettleTournaments(
       // up at line ~440, so a rank bonus here is by construction against
       // plausibility-clean rows — no multiplier applies at settle time.
       //
-      // Errors per-entry are logged and swallowed so a single failed
-      // UPSERT doesn't strip downstream entries' SP.
-      for (let i = 0; i < n; ++i) {
-        const rank = i + 1;
-        try {
-          await awardSP({
-            userAddress: ranking[i],
-            event: { kind: "tournament_rank_bonus", rank },
+      // A3: fan-out via Promise.all. Each award targets a distinct
+      // ranking[i] address (no shared-row race). Per-promise .catch()
+      // preserves error containment — one failed UPSERT doesn't strip
+      // downstream entries' SP, matching the original try/catch semantics.
+      // Wall-time collapses from O(N×rtt) to O(max-of-N).
+      await Promise.all(
+        ranking.map((address, i) =>
+          awardSP({
+            userAddress: address,
+            event: { kind: "tournament_rank_bonus", rank: i + 1 },
             counterDelta: {
               tournamentsParticipated: 1,
-              tournamentsWon: rank === 1 ? 1 : 0,
+              tournamentsWon: i === 0 ? 1 : 0,
             },
-          });
-        } catch (err) {
-          console.warn(
-            "[sp-award] tournament-settle failed",
-            t.id,
-            ranking[i],
-            err,
-          );
-        }
-      }
+          }).catch((err) => {
+            console.warn(
+              "[sp-award] tournament-settle failed",
+              t.id,
+              address,
+              err,
+            );
+          }),
+        ),
+      );
 
       const distributed = prizes.reduce((acc, p) => acc + p, 0n);
       result.settled.push({
@@ -578,20 +622,13 @@ export async function runSettleTournaments(
     }
   }
 
-  return result;
-}
+  // Deferred surface: how many pending tournaments did the limit(20) cap
+  // leave behind for the next cron run? totalPending comes from the
+  // count: "exact" option on the pending fetch above. Cap removal itself
+  // is PR #5 scope — see SettleTournamentsResult.deferred docstring.
+  result.deferred = Math.max(0, (totalPending ?? 0) - pending.length);
 
-async function readPrizePool(
-  supabase: ReturnType<typeof getSupabaseService>,
-  tournamentDbId: string,
-): Promise<bigint> {
-  const { data } = await supabase
-    .from("v2_tournaments")
-    .select("prize_pool_usdc")
-    .eq("id", tournamentDbId)
-    .single();
-  const usd = Number((data as { prize_pool_usdc: string | number } | null)?.prize_pool_usdc ?? 0);
-  return BigInt(Math.round(usd * 1_000_000));
+  return result;
 }
 
 /** Mirrors TournamentPool._distributePrizes for DB-side prize bookkeeping.
