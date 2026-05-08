@@ -22,13 +22,13 @@ export interface SkillbaseMarkProps
 
 export const SkillbaseMark = ({ size = 42, ...rest }: SkillbaseMarkProps) => (
   <svg
+    {...rest}
     width={size}
     height={(size * 5) / 7}
     viewBox="0 0 7 5"
     shapeRendering="crispEdges"
     role="img"
     aria-label="Skillbase"
-    {...rest}
   >
     <title>Skillbase</title>
     <g fill="#FFC72C">
