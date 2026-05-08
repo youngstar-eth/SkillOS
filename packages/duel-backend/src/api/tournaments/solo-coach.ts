@@ -67,9 +67,9 @@ function isCoachResponse(v: unknown): v is CoachResponse {
 export function createSoloCoachHandler(config: SoloCoachHandlerConfig) {
   return async function POST(
     _req: NextRequest,
-    ctx: { params: { runId: string } },
+    ctx: { params: Promise<{ runId: string }> },
   ): Promise<Response> {
-    const runId = ctx.params.runId;
+    const { runId } = await ctx.params;
     if (!isUuid(runId)) {
       return jsonError("invalid_run_id", "runId must be a uuid v4", 400);
     }

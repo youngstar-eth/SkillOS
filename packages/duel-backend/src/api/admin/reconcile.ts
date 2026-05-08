@@ -208,7 +208,7 @@ export async function findTerminalTxHash(
 
 export async function adminReconcileHandler(
   req: NextRequest,
-  ctx: { params: { id: string } },
+  ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   // ─── auth ──────────────────────────────────────────────────────────
   const configToken = process.env.ADMIN_API_TOKEN;
@@ -222,7 +222,7 @@ export async function adminReconcileHandler(
   if (!safeEqual(providedToken, configToken)) return unauthorized();
 
   // ─── input ─────────────────────────────────────────────────────────
-  const matchId = ctx.params.id;
+  const { id: matchId } = await ctx.params;
   if (!isUuid(matchId)) {
     return Response.json(
       { error: "invalid_match_id", message: "matchId must be a uuid v4" },

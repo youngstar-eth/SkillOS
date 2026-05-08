@@ -87,9 +87,9 @@ function isCoachResponse(v: unknown): v is CoachResponse {
 export function createCoachHandler(config: CoachHandlerConfig) {
   return async function POST(
     req: NextRequest,
-    ctx: { params: { id: string } },
+    ctx: { params: Promise<{ id: string }> },
   ): Promise<Response> {
-    const matchId = ctx.params.id;
+    const { id: matchId } = await ctx.params;
     if (!isUuid(matchId)) {
       return jsonError("invalid_match_id", "matchId must be a uuid v4", 400);
     }

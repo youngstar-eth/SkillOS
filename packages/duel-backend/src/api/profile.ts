@@ -116,9 +116,10 @@ function extractVerdict(
 export function createProfileHandler() {
   return async function GET(
     _req: NextRequest,
-    ctx: { params: { address: string } },
+    ctx: { params: Promise<{ address: string }> },
   ): Promise<Response> {
-    const addr = parseAddress(ctx.params.address);
+    const { address } = await ctx.params;
+    const addr = parseAddress(address);
     if (!addr) {
       return jsonError(
         "invalid_address",

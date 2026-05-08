@@ -173,7 +173,7 @@ test("401 when ADMIN_API_TOKEN is not set (fail-closed on misconfig)", async () 
     // Even with a matching-looking Bearer header, no config → 401.
     const res = await adminReconcileHandler(
       makeReq({ Authorization: "Bearer whatever" }) as unknown as never,
-      { params: { id: MATCH_ID } },
+      { params: Promise.resolve({ id: MATCH_ID }) },
     );
     assert.equal(res.status, 401);
     const body = await res.json();
@@ -189,7 +189,7 @@ test("401 when header missing entirely", async () => {
   try {
     const res = await adminReconcileHandler(
       makeReq() as unknown as never,
-      { params: { id: MATCH_ID } },
+      { params: Promise.resolve({ id: MATCH_ID }) },
     );
     assert.equal(res.status, 401);
   } finally {
@@ -204,7 +204,7 @@ test("401 when Bearer value is wrong", async () => {
   try {
     const res = await adminReconcileHandler(
       makeReq({ Authorization: "Bearer nope" }) as unknown as never,
-      { params: { id: MATCH_ID } },
+      { params: Promise.resolve({ id: MATCH_ID }) },
     );
     assert.equal(res.status, 401);
   } finally {
@@ -219,7 +219,7 @@ test("401 when scheme is not Bearer", async () => {
   try {
     const res = await adminReconcileHandler(
       makeReq({ Authorization: "Basic secret-token-1234" }) as unknown as never,
-      { params: { id: MATCH_ID } },
+      { params: Promise.resolve({ id: MATCH_ID }) },
     );
     assert.equal(res.status, 401);
   } finally {
@@ -241,7 +241,7 @@ test("400 when matchId is not a uuid (auth passes first, then param check)", asy
     );
     const res = await adminReconcileHandler(
       req as unknown as never,
-      { params: { id: "not-a-uuid" } },
+      { params: Promise.resolve({ id: "not-a-uuid" }) },
     );
     assert.equal(res.status, 400);
     const body = await res.json();
