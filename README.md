@@ -121,6 +121,13 @@ Two numbering systems coexist in the codebase: a **product roadmap** (Phase 1 �
 - **Phase 4+ (achievement-gated, optional).** Substrate-maturity-gated decisions including potential governance token + opt-in data tokenization. Triggers: sustained adoption + regulatory clarity (Howey/MiCA) + organic economy maturity + lawyer review. The SP system can remain off-chain accounting indefinitely if the platform doesn't warrant tokenization. Optionality > obligation.
 - **Phase 5 (vision).** Substrate intelligence — native AI oracle, foundation models trained on anti-cheat-verified decision data.
 
+**Deferred to Phase 2 v2.2 mainnet cutover:**
+- Existing `@skillbase/*` package names remain locked until v2.2 deploy + Vercel project rename + DNS migration
+- Future packages (e.g., `@skillos/sdk`) will be minted directly under the new namespace at publication time
+- Live `*.skillbase.games` URLs locked until DNS cutover
+- `SkillbaseAnchor.sol` and other contract identifier renames locked until v2.2 deploy
+- `apps/2048` x402 paid-API response strings (`via-skillbase` → `via-skillos`) flip with route handler changes
+
 ## Development setup
 
 **Requirements:**

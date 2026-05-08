@@ -43,7 +43,7 @@ Response on 200 (`category: gaming-data`, tags include `aggregate`,
 ```json
 {
   "generated_at": "2026-04-24T21:38:13.913Z",
-  "source": "SkillOS — 6 games, verified human decisions",
+  "source": "Skillbase — 6 games, verified human decisions",
   "total_verified_players": 38,
   "total_decisions_recorded": 0,
   "tier_distribution": {
@@ -111,8 +111,8 @@ Response on 200 (`category: ai-inference`, tags include `gaming-ai`,
     "actionable_tip": "…"
   },
   "meta": {
-    "model": "claude-sonnet-4-6-via-skillos",
-    "sample_note": "Same Coach pipeline as live SkillOS games…",
+    "model": "claude-sonnet-4-6-via-skillbase",
+    "sample_note": "Same Coach pipeline as live Skillbase games…",
     "rate_limit_note": "Sample endpoint — 30 req/min per IP."
   }
 }

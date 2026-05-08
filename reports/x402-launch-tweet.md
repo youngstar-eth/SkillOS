@@ -1,11 +1,13 @@
 # x402 Launch Tweet — Draft
 
+> **Note:** Drafted pre-rebrand (April–May 2026). The brand was "Skillbase" at this date. Project rebranded to "SkillOS" starting 2026-05-08. Historical content preserved verbatim for audit-trail integrity.
+
 For the `@skillbase_games` announcement when we flip the switch on
 public availability of the six x402 endpoints.
 
 ## Primary tweet (280 chars)
 
-> SkillOS is live on @x402foundation.
+> Skillbase is live on @x402foundation.
 >
 > Six production endpoints. USDC on Base Sepolia via the @base + @coinbasedev CDP facilitator. Agents pay per call, retrieve verified gaming-decision data + AI Coach inference. No accounts, no API keys, no handshake.
 >
@@ -46,7 +48,7 @@ public availability of the six x402 endpoints.
 
 *Screenshot of /x402 page:* "Three endpoint cards listing sp-tier-distribution ($0.01), decision-sample tier-filtered ($0.01–$0.10), coach-sample ($0.05), each with curl example and Bazaar category chip. Dark Linear-style UI with Base blue and gold accents."
 
-*Screenshot of BaseScan tx:* "A Base Sepolia transferWithAuthorization transaction showing 10000 μUSDC ($0.01) moving from test wallet to SkillOS payTo address, status success."
+*Screenshot of BaseScan tx:* "A Base Sepolia transferWithAuthorization transaction showing 10000 μUSDC ($0.01) moving from test wallet to Skillbase payTo address, status success."
 
 ## Tag list (pin this)
 
