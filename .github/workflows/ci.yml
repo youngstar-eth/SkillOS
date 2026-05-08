@@ -80,6 +80,7 @@ jobs:
             packages/duel-backend/test/reconcile.test.ts \
             packages/duel-backend/test/decide-winner.test.ts \
             packages/duel-backend/test/reconcile-duels.test.ts \
+            packages/duel-backend/test/index-tournaments-created.test.ts \
             packages/ui/test/duel-result-branch.test.ts \
             packages/sp-engine/src/engine.test.ts \
             packages/sp-engine/src/anchor.test.ts
