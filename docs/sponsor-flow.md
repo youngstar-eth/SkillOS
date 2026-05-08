@@ -1,6 +1,6 @@
 # Permissionless Sponsor Pool — Flow Documentation
 
-> Skillbase tournaments are funded by sponsors. As of Phase 2 (sprint
+> SkillOS tournaments are funded by sponsors. As of Phase 2 (sprint
 > completed 2026-04-29), sponsorship is **permissionless on-chain** — anyone
 > can fund any active tournament's prize pool by signing one transaction.
 > No application, no Tally form, no manual review. Sanctions screening is
