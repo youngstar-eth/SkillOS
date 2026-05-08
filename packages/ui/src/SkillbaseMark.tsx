@@ -12,12 +12,12 @@
 // `fill` are all in satori's supported subset.
 // ───────────────────────────────────────────────────────────────────────────
 
-import type { SVGProps } from "react";
+import type { ComponentProps } from "react";
 
-export interface SkillbaseMarkProps extends SVGProps<SVGSVGElement> {
+export type SkillbaseMarkProps = ComponentProps<"svg"> & {
   /** Rendered width in px. Height auto-computes to size × 5/7. Default 42. */
   size?: number;
-}
+};
 
 export const SkillbaseMark = ({
   size = 42,
