@@ -50,7 +50,7 @@ Weighted average (assuming uniform 1:1:1:1:1:1 call distribution): ~$0.040 net
 per call, so 10k tx/mo ≈ **$400 gross revenue, ~$30 operational cost, ~$370 net**.
 
 Coach-sample is the highest variable cost (hits real Claude Haiku — roughly
-$0.01/call on Anthropic at Skillbase's current prompt size), so its effective
+$0.01/call on Anthropic at SkillOS's current prompt size), so its effective
 margin is ~$0.037/call, not $0.047. Still positive.
 
 ## Pre-flight checklist

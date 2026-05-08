@@ -1,6 +1,6 @@
-# Skillbase MAS Monorepo
+# SkillOS MAS Monorepo
 
-Multi-app skillbase monorepo — 7 game apps + 1 sponsor app + 7 shared packages + Foundry contracts + Supabase migrations. Each app deploys to its own Vercel project under scope `simpl3s-projects`. Production: `*.skillbase.games` subdomains; chain: Base Sepolia.
+Multi-app SkillOS monorepo — 7 game apps + 1 sponsor app + 7 shared packages + Foundry contracts + Supabase migrations. Each app deploys to its own Vercel project under scope `simpl3s-projects`. Production: `*.skillbase.games` subdomains; chain: Base Sepolia.
 
 For strategic narrative (3-sided platform thesis, AI pillars, revenue streams, full phase roadmap), see [`README.md`](./README.md). **This file is agent-operational guidance only — it does not duplicate `README.md`.**
 

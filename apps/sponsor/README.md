@@ -2,7 +2,7 @@
 
 Permissionless tournament prize-pool funding dashboard. Deployed at <https://sponsor.skillbase.games>.
 
-Anyone with a wallet can fund any active Skillbase tournament prize pool on-chain via the `SponsorshipModule` contract. A soulbound `SponsorReceipt` SBT is minted per sponsorship.
+Anyone with a wallet can fund any active SkillOS tournament prize pool on-chain via the `SponsorshipModule` contract. A soulbound `SponsorReceipt` SBT is minted per sponsorship.
 
 ## Run locally
 

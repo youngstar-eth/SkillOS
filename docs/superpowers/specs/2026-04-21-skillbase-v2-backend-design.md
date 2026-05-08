@@ -1,4 +1,4 @@
-# Skillbase V2 — Backend + Contract Integration Design
+# SkillOS V2 — Backend + Contract Integration Design
 
 **Owner:** Agent 2 (Opus)
 **Date:** 2026-04-21
