@@ -36,7 +36,8 @@ export {
 } from "./DuelResultCard";
 export { useIsEmbedded } from "./useIsEmbedded";
 export { Header, type HeaderProps } from "./Header";
-export { SkillbaseMark, type SkillbaseMarkProps } from "./SkillbaseMark";
+export { SkillosMark, type SkillosMarkProps } from "./SkillosMark";
+export { SkillosMark as SkillbaseMark, type SkillosMarkProps as SkillbaseMarkProps } from "./SkillosMark";
 export { SoloResultCard, type SoloResultCardProps } from "./SoloResultCard";
 export { useMiniAppReady } from "./useMiniAppReady";
 export { ReadyMarker } from "./ReadyMarker";
