@@ -55,6 +55,7 @@ import {
 } from "@skillbase/lib-shared";
 import type { Duel } from "@skillbase/game-types";
 import { CHALLENGE_STATUS } from "../../settle-guard";
+import { decideWinner } from "../../decide-winner";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -164,31 +165,14 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-function decideWinnerFromDuel(duel: Duel): Address {
-  // Duplicates settle.ts's decideWinner — kept local to avoid cross-module
-  // coupling with the settle hot path (which does its own decideWinner).
-  const p1 = getAddress(duel.player1_address);
-  if (!duel.player2_address) throw new Error("no player 2");
-  const p2 = getAddress(duel.player2_address);
-  const s1 = duel.player1_score;
-  const s2 = duel.player2_score;
-  if (s1 == null && s2 == null) throw new Error("neither score submitted");
-  if (s1 == null) return p2;
-  if (s2 == null) return p1;
-  if (s1 > s2) return p1;
-  if (s2 > s1) return p2;
-  const t1 = duel.player1_submitted_at
-    ? new Date(duel.player1_submitted_at).getTime()
-    : Infinity;
-  const t2 = duel.player2_submitted_at
-    ? new Date(duel.player2_submitted_at).getTime()
-    : Infinity;
-  return t1 <= t2 ? p1 : p2;
-}
-
 /** Best-effort lookup of the terminal tx hash via event log scan. Returns
- *  null if not found — not fatal, admin can view on Basescan directly. */
-async function findTerminalTxHash(
+ *  null if not found — not fatal, admin can view on Basescan directly.
+ *
+ *  Exported so the reconcile-duels cron sweep (cron/reconcile-duels.ts)
+ *  can re-use the same lookup heuristics without re-implementing the
+ *  ~100k-block scan window.
+ */
+export async function findTerminalTxHash(
   challengeId: Hex,
   onChainStatus: number,
 ): Promise<Hex | null> {
@@ -383,7 +367,7 @@ export async function adminReconcileHandler(
     }
   } else if (decision.action === "drive-settle") {
     // Broadcast settle() with the correct winner.
-    const winner = decideWinnerFromDuel(duel);
+    const winner = decideWinner(duel);
     const creatorScore = BigInt(duel.player1_score ?? 0);
     const challengerScore = BigInt(duel.player2_score ?? 0);
     const signature = await signSettleAttestation({
