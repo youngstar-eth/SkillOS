@@ -1,5 +1,7 @@
 # Ultrareview — YC S26 Submission Readiness
 
+> **Note:** Generated 2026-05-01. The brand was "Skillbase" at this date. Project rebranded to "SkillOS" starting 2026-05-08. Historical content preserved verbatim for audit-trail integrity.
+
 **Date:** 2026-05-01 (T-3 days to YC deadline 2026-05-04 8pm PT)
 **Scope:** MAS monorepo (`/Users/inancayvaz/MAS`) + skillbase-apex (`/Users/inancayvaz/skillbase-apex`) + skillbase-demo-video.
 **Mode:** Read-only. No fixes applied. Findings + severity + recommendations only.
@@ -48,7 +50,7 @@ Rationale:
 | 1.3 | `/api/tournaments/active` returns 400 expecting UUID + 1.4-2.2s slow | MED | All 6 games: `{"error":"invalid_tournament_id"}`; naming mismatch with "list active" semantics | Rename or add a true list endpoint. Investigate cold-start vs query plan for the 1.4-2.2s response. Post-YC. |
 | 1.4 | React 18 (MAS) vs React 19 (apex) skew + Tailwind 3 (MAS) vs 4 (sponsor) skew via shared `@skillbase/ui` | MED | `npm outdated` apex: react 19.2.4; MAS: 18.3.1. `apps/sponsor/node_modules/tailwindcss` 4.2.4; rest 3.4.19 | Reconcile during v2.1 migration to prevent hydration mismatches. |
 | 1.5 | axios SSRF chain via `@coinbase/cdp-sdk` | MED | `npm audit`: GHSA-3p68-rc4w-qgx5, GHSA-fvcv-3m26-pcqx; `fixAvailable: true` | `npm audit fix` (non-major). Bounded to route handlers per `next14_middleware_runtime` memo. |
-| 1.6 | postcss <8.5.10 XSS via unescaped `</style>` | MED | GHSA-qx2v-qp2m-jg93 (CVSS 6.1, requires user interaction) | Resolves with next bump. Low real-world risk; SkillOS doesn't accept user-controlled CSS. |
+| 1.6 | postcss <8.5.10 XSS via unescaped `</style>` | MED | GHSA-qx2v-qp2m-jg93 (CVSS 6.1, requires user interaction) | Resolves with next bump. Low real-world risk; Skillbase doesn't accept user-controlled CSS. |
 | 1.7 | 2048 mobile fails Lighthouse `color-contrast` audit (a11y 0.96 vs apex 1.00) | MED | `lh-2048.json`: `color-contrast` 0 | Identify offending text/background pair; invoke `2048-design` skill for token review. Apex passes. |
 | 1.8 | @anthropic-ai/sdk 0.40.1 in `packages/ai-coach` (50+ versions behind 0.92.0) | LOW | `npm outdated` MAS | Bump post-YC; preserve prompt caching per `claude-api` skill. |
 | 1.9 | Vercel error logs (7 days) UNVERIFIED | LOW | `vercel logs --no-follow` hangs in CLI v52; `--output raw` flag removed | Manual review in Vercel dashboard pre-submit. Filter Status=5xx, last 7 days, on `/api/duel/`, `/api/tournaments/`, `/api/cron/`, paymaster routes. |
@@ -142,7 +144,7 @@ Rationale:
 | 5.4 | "30% platform fee auto-collected on-chain" misleading | MED | `apex.ts:73`; `withdrawFees` is owner-pull, not auto-split | Reword to "30% platform fee accumulated on-chain, withdrawn periodically by ops". |
 | 5.5 | Thesis statement varies across 5 surfaces | MED | README "AI-powered infrastructure for skill gaming"; apex.ts "The data layer for gaming AI"; constants.ts (legacy) same; demo script.ts:9 "AI-powered infrastructure"; demo script.ts:14 "Infrastructure first. Games as the wedge. Data as the moat." | Pick one canonical line for YC. Recommended: "The data layer for gaming AI" — distinctive, aligns with Software-for-Agents RFS hook. |
 | 5.6 | Adjacent file contradiction: legacy `constants.ts:179` says **80/20 dev-favorable**, live `apex.ts:64,134-135` says **70/30** | MED | Two files in same dir contradict | Delete `lib/constants.ts` (per CLAUDE.md "Legacy aliases deleted with components/sections/* at Gate 5") OR sync the numbers. |
-| 5.7 | No `@skillos/sdk` package; SDK is aspirational; apex doesn't hedge | MED | `packages/` listing has no `sdk` subdir; `apex.ts:57` "Deploy any skill game via SDK"; legacy `constants.ts:201` correctly hedges "Public SDK ships in Phase 2" | Add Phase 2 hedge to apex actor card OR cut "Deploy via SDK" bullet. Mention existing internal packages as proto-SDK. |
+| 5.7 | No `@skillbase/sdk` package; SDK is aspirational; apex doesn't hedge | MED | `packages/` listing has no `sdk` subdir; `apex.ts:57` "Deploy any skill game via SDK"; legacy `constants.ts:201` correctly hedges "Public SDK ships in Phase 2" | Add Phase 2 hedge to apex actor card OR cut "Deploy via SDK" bullet. Mention existing internal packages as proto-SDK. |
 | 5.8 | Live testnet uses `MockSanctionsOracle` | LOW | `contracts/src/MockSanctionsOracle.sol`; `ISanctionsOracle.sol:7-8` documents mainnet Chainalysis address | Disclose: "testnet mock; mainnet swap is one address change to Chainalysis". Don't claim Chainalysis is wired today. |
 | 5.9 | "AI Reviewed Badge" framed as 4th AI pillar — actually a UX surface, not separate model | LOW | `lib/constants.ts:113-118` | Reframe as "transparency layer" if asked at interview, or accept as fair UX-side branding. |
 | 5.10 | x402 has 0 lifetime calls on data endpoints | MED | `total_decisions_recorded: 0` | Either drive a few real calls via smoke script and report honestly, or frame as "infrastructure ready, traction Phase 2". Honesty > fiction. |
@@ -156,7 +158,7 @@ Rationale:
 |---|---|---|
 | Players | Connect any wallet, no KYC, free entry or 1 USDC retry | **PROVABLE** — 6 game apps live; `RETRY_FEE = 1 USDC` (line 128) |
 | Devs | Deploy via SDK, earn 70% of retry fees direct on-chain | **OVERSTATED** — no SDK package; 70% has no on-chain enforcement |
-| SkillOS | No custody, no KYC, 30% platform fee, sweepstakes-safe by storage | **SOFT** — segregation is real; "30% auto-collected" is misleading |
+| Skillbase | No custody, no KYC, 30% platform fee, sweepstakes-safe by storage | **SOFT** — segregation is real; "30% auto-collected" is misleading |
 | Sponsors | Permissionless funding, soulbound receipt, sanctions-gated | **PROVABLE** — SponsorshipModule + SBT + sponsor app all live |
 | AI Labs | x402 endpoints, tier-classified decision data | **PROVABLE infra, ZERO traction** — endpoints work, 0 calls so far |
 
@@ -168,7 +170,7 @@ Rationale:
 
 | Field | Hard cap | Reusable from |
 |---|---|---|
-| Company name | short text | "SkillOS" |
+| Company name | short text | "Skillbase" |
 | Company URL | single field | https://skillbase.games |
 | One-liner ("what your company does") | **50 chars** | Pick: "AI-powered infrastructure for skill gaming" (50 chars exactly?) or "The data layer for gaming AI" (29 chars). **CONTRADICTION 5.5 must be resolved before this field.** |
 | What you're building | ~200 words | MAS README:34-39 has the 4-layer revenue narrative ready |
