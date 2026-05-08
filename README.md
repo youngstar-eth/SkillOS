@@ -1,4 +1,4 @@
-# Skillbase
+# SkillOS
 
 > Skill economy infrastructure for the agent era.
 
@@ -10,11 +10,11 @@ The marketing site (`https://www.skillbase.games`) lives in a **separate repo** 
 
 ## Overview
 
-Skillbase is a 5-actor protocol:
+SkillOS is a 5-actor protocol:
 
 - **Players** compete in daily skill tournaments and earn USDC from sponsor-funded prize pools. Free first entry, optional retry fees.
 - **Developers** plug into the tournament framework and AI features to ship skill games without infra overhead. Public SDK is Phase 2 (see below).
-- **Skillbase** runs the substrate: cron-driven tournament create + settle, attestation signer, anti-cheat review pipeline.
+- **SkillOS** runs the substrate: cron-driven tournament create + settle, attestation signer, anti-cheat review pipeline.
 - **Sponsors** fund prize pools permissionlessly via `SponsorshipModule`. Soulbound `SponsorReceipt` (ERC-5192) issued per sponsorship.
 - **AI Labs** access anti-cheat-verified decision sequences via x402 per-call settlement (no subscription tier).
 
@@ -55,7 +55,7 @@ docs/                    — sponsor-flow.md, audit/, superpowers/
 reports/                 — point-in-time audits
 scripts/                 — backfill-sp, jury-tournaments seed, x402-smoke
 
-@skillbase/sdk           — planned Phase 2 public release. Not yet scaffolded on disk;
+@skillos/sdk           — planned Phase 2 public release. Not yet scaffolded on disk;
                            do not import from this name yet.
 ```
 
@@ -116,7 +116,7 @@ ABIs and address constants are exported from `@skillbase/contracts`.
 Two numbering systems coexist in the codebase: a **product roadmap** (Phase 1 → 5, this section) and **engineering-internal contract versions** (v2.0 → v2.1 → v2.2, Smart Contracts section above). Don't reconcile — the audiences differ. See [`CLAUDE.md`](./CLAUDE.md#two-phase-numbering-systems).
 
 - **Phase 1 — Shipped (now).** Testnet on Base Sepolia. Six games, three AI features, on-chain tournament settlement, permissionless sponsor MVP, Blockscout-verified v2.1 stack.
-- **Phase 2 — Mainnet activation (H2 2026, audit-gated).** v2.2 developer fee splitter (on-chain 70/30), `@skillbase/sdk` public release, agent player-class API, SkillOS rebrand cutover, sponsor onboarding pipeline. Mainnet contingent on sweepstakes legal review. Public timeline tracks apex (`skillbase-apex`); internal sprints may target tighter dates.
+- **Phase 2 — Mainnet activation (H2 2026, audit-gated).** v2.2 developer fee splitter (on-chain 70/30), `@skillos/sdk` public release, agent player-class API, SkillOS rebrand cutover, sponsor onboarding pipeline. Mainnet contingent on sweepstakes legal review. Public timeline tracks apex (`skillbase-apex`); internal sprints may target tighter dates.
 - **Phase 3+ (achievement-gated).** Dispute layer, Emergency Games Fund, ad revenue.
 - **Phase 4+ (achievement-gated, optional).** Substrate-maturity-gated decisions including potential governance token + opt-in data tokenization. Triggers: sustained adoption + regulatory clarity (Howey/MiCA) + organic economy maturity + lawyer review. The SP system can remain off-chain accounting indefinitely if the platform doesn't warrant tokenization. Optionality > obligation.
 - **Phase 5 (vision).** Substrate intelligence — native AI oracle, foundation models trained on anti-cheat-verified decision data.

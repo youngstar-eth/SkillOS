@@ -4,11 +4,11 @@ Shared React components and design primitives consumed by every game app and the
 
 ## Exports
 
-- `Header` — top-bar with Skillbase brand + per-app slot
+- `Header` — top-bar with SkillOS brand + per-app slot
 - `Providers` — wagmi + react-query + theme provider stack
 - `wagmiConfig` — pre-configured wagmi client
 - `WalletButton`, `EmbedWalletFallback` — wallet connect UI (with miniapp-aware fallback)
-- `SkillbaseMark` — canonical brand monogram (SVG, sized via prop)
+- `SkillosMark` — canonical brand monogram (SVG, sized via prop)
 - `ModeChooser` — solo / duel mode toggle (duel disabled in Phase 2)
 - `DuelComingSoon` — `<DuelComingSoon />` placeholder served at every `/duel/*` route while duels are paused for Phase 2
 - `Timer`, `PopupHint`, `AddressDisplay`, `ReadyMarker` — utility primitives

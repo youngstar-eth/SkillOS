@@ -1,7 +1,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 // splashTemplate — 512×512 launch splash served at /splash.png. Shown by
 // Base App / Warpcast clients while a Mini App is bootstrapping. Brand
-// styling: dark bg, brand+gold radial wash, SkillbaseMark wordmark glyph.
+// styling: dark bg, brand+gold radial wash, SkillosMark wordmark glyph.
 // The game/app name is the only varying string.
 //
 // (The companion `gameOgTemplate` previously lived here too. After PR #3
@@ -11,7 +11,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { ReactElement } from "react";
-import { SkillbaseMark } from "./SkillbaseMark";
+import { SkillosMark } from "./SkillosMark";
 
 const SANS_FONT_STACK =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
@@ -51,7 +51,7 @@ export function splashTemplate({ name }: SplashProps): ReactElement {
         }}
       />
       <div style={{ display: "flex", zIndex: 1 }}>
-        <SkillbaseMark size={140} style={{ display: "block" }} />
+        <SkillosMark size={140} style={{ display: "block" }} />
       </div>
       <div
         style={{

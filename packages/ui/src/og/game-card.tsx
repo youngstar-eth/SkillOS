@@ -49,7 +49,7 @@ const DEFAULT_EYEBROW = "SKILLBASE.GAMES · LIVE ON BASE SEPOLIA";
 
 // Canonical 7×5 SB monogram. Inlined as base64 SVG so satori treats it
 // as a raster image; the shape primitives then bypass any text-rendering
-// path. Geometry mirrors SkillbaseMark.tsx (single source of truth for
+// path. Geometry mirrors SkillosMark.tsx (single source of truth for
 // the rect set).
 const SB_MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 5" shape-rendering="crispEdges">
   <g fill="${GOLD}">

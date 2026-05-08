@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Port the DecisionAnchor pattern from ceos.run into Skillbase MAS as a flat-mapping snapshot anchor for the SP ledger, deployed to Base Sepolia. Ships Gates 1-8 of the parent spec; Gates 9-13 (x402 endpoint, apex copy, smoke matrix, atomic apex commit) deferred to a follow-up sprint.
+**Goal:** Port the DecisionAnchor pattern from ceos.run into SkillOS MAS as a flat-mapping snapshot anchor for the SP ledger, deployed to Base Sepolia. Ships Gates 1-8 of the parent spec; Gates 9-13 (x402 endpoint, apex copy, smoke matrix, atomic apex commit) deferred to a follow-up sprint.
 
 **Architecture:** A Solidity contract (`contracts/src/SkillbaseAnchor.sol`) with a flat `snapshots[timestamp_unix] → bytes32 hash` mapping, paired with an off-chain canonicalization service (`packages/sp-engine/src/anchor.ts`) producing deterministic SHA-256 hashes of SP ledger snapshots. A daily cron in `apps/2048` reads the SP ledger, canonicalizes it, persists to Supabase `sp_snapshots`, and anchors the hash on-chain. Reuses STUDIO_PRIVATE_KEY for the anchor wallet (testnet trust model — Phase 2 mainnet sprint will introduce role separation).
 
@@ -56,7 +56,7 @@ pragma solidity ^0.8.26;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/// @title SkillbaseAnchor — On-chain provenance for Skillbase SP ledger snapshots
+/// @title SkillbaseAnchor — On-chain provenance for SkillOS SP ledger snapshots
 /// @notice Stores SHA-256 snapshot hashes per timestamp.
 ///         Provides cryptographic proof that a specific SP ledger state existed at a
 ///         specific moment without exposing raw wallet data on-chain.

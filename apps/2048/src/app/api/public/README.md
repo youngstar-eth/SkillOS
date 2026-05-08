@@ -1,6 +1,6 @@
 # Public x402 API — `/api/public/*`
 
-Production x402-paid endpoints for autonomous agent access to Skillbase
+Production x402-paid endpoints for autonomous agent access to SkillOS
 gaming data + AI inference. All six routes live at
 <https://2048.skillbase.games>, priced in USDC on Base Sepolia via the
 Coinbase CDP facilitator, and auto-discoverable through the x402 Bazaar.
@@ -28,7 +28,7 @@ Bazaar discovery: <https://api.cdp.coinbase.com/platform/v2/x402/discovery/resou
 
 ### `GET /api/public/data/sp-tier-distribution` — $0.01 USDC
 
-Aggregate histogram of Skillbase players bucketed by level across all
+Aggregate histogram of SkillOS players bucketed by level across all
 six Phase-1 games. Decisions column is filtered to plausibility_verdict
 = 'plausible' only. No PII — no wallet addresses or per-player rows.
 
@@ -43,7 +43,7 @@ Response on 200 (`category: gaming-data`, tags include `aggregate`,
 ```json
 {
   "generated_at": "2026-04-24T21:38:13.913Z",
-  "source": "Skillbase — 6 games, verified human decisions",
+  "source": "SkillOS — 6 games, verified human decisions",
   "total_verified_players": 38,
   "total_decisions_recorded": 0,
   "tier_distribution": {
@@ -84,7 +84,7 @@ seller just has no inventory for that query.
 ### `GET /api/public/ai/coach-sample?game={slug}&score={int}` — $0.05 USDC
 
 AI Coach inference sample. Reuses the exact same solo-coach pipeline
-Skillbase uses in production: Claude Sonnet 4.6, 6-tone strict enum, single
+SkillOS uses in production: Claude Sonnet 4.6, 6-tone strict enum, single
 retry on enum-violation, hide-badge fallback. Returns 2 improvement
 areas + 1 actionable tip.
 
@@ -111,8 +111,8 @@ Response on 200 (`category: ai-inference`, tags include `gaming-ai`,
     "actionable_tip": "…"
   },
   "meta": {
-    "model": "claude-sonnet-4-6-via-skillbase",
-    "sample_note": "Same Coach pipeline as live Skillbase games…",
+    "model": "claude-sonnet-4-6-via-skillos",
+    "sample_note": "Same Coach pipeline as live SkillOS games…",
     "rate_limit_note": "Sample endpoint — 30 req/min per IP."
   }
 }

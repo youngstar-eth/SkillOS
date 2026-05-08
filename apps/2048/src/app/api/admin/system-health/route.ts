@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// System health snapshot for the Skillbase v2 testnet stack.
+// System health snapshot for the SkillOS v2 testnet stack.
 //
 // Combines wallet balance + cron health into a single JSON envelope so
 // external schedulers (cron-job.org, Pingdom, Hetrix, etc.) can hit one

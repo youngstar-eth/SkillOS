@@ -4,21 +4,21 @@ import { SimplAd } from "@/components/SimplAd";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase — On-chain skill duels on Base",
+  title: "SkillOS — On-chain skill duels on Base",
   description:
     "Stake 1 USDC, match a player, play 2048 for 2 minutes. Higher score wins the pool.",
   openGraph: {
-    title: "2048 · Skillbase",
+    title: "2048 · SkillOS",
     description: "Merge tiles. Prove skill. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "2048 · Skillbase",
+    title: "2048 · SkillOS",
     description: "Merge tiles. Prove skill. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
     "base:app_id": "69f1e761bbed26bd8fc51c5e",
   },
 };
@@ -40,7 +40,7 @@ export default function RootLayout({
         <SimplAd />
         <Providers>
           <ReadyMarker />
-          <Header brand="Skillbase" />
+          <Header brand="SkillOS" />
           <div className="mx-auto max-w-5xl px-4">{children}</div>
         </Providers>
       </body>

@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// SkillbaseMark — the canonical brand mark.
+// SkillosMark — the canonical brand mark.
 //
 // 7×5 pixel-art "S + E" monogram. Gold S (cols 0–2) sits shoulder-to-shoulder
 // with Blue E (cols 3–6); the two letters do NOT overlap.
@@ -14,12 +14,12 @@
 
 import type { ComponentProps } from "react";
 
-export type SkillbaseMarkProps = ComponentProps<"svg"> & {
+export type SkillosMarkProps = ComponentProps<"svg"> & {
   /** Rendered width in px. Height auto-computes to size × 5/7. Default 42. */
   size?: number;
 };
 
-export const SkillbaseMark = ({
+export const SkillosMark = ({
   size = 42,
   width,
   height,
@@ -27,7 +27,7 @@ export const SkillbaseMark = ({
   shapeRendering,
   role,
   ...rest
-}: SkillbaseMarkProps) => (
+}: SkillosMarkProps) => (
   // @ts-ignore -- Node 20 + React 19 + @types/react@19.2.x surfaces a
   // false-positive SVGProps type mismatch on this spread + explicit-prop
   // pattern (only fires on CI Node 20; local Node 25 typechecks cleanly).

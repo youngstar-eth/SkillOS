@@ -29,7 +29,7 @@ function SimplLogoMark({ size = 28 }: { size?: number }) {
 }
 
 /**
- * Top-of-page corporate banner surfacing the Skillbase ↔ Simpl3
+ * Top-of-page corporate banner surfacing the SkillOS ↔ Simpl3
  * parent-product relationship. Used in YC S26 demo recording.
  *
  * Editorial dark theme; mobile collapses tagline + AD label.
