@@ -85,9 +85,9 @@ function jsonWithCache(body: unknown, cache: "HIT" | "MISS"): Response {
 export function createRecapHandler(config: RecapHandlerConfig) {
   return async function POST(
     _req: NextRequest,
-    ctx: { params: { id: string } },
+    ctx: { params: Promise<{ id: string }> },
   ): Promise<Response> {
-    const matchId = ctx.params.id;
+    const { id: matchId } = await ctx.params;
     if (!isUuid(matchId)) return softError("invalid_match_id");
 
     // ─── read duel ──────────────────────────────────────────────────────

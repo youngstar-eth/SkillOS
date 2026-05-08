@@ -211,9 +211,9 @@ export function createTournamentActiveHandler(config: TournamentReadHandlerConfi
 export function createTournamentDetailHandler(config: TournamentReadHandlerConfig) {
   return async function GET(
     _req: NextRequest,
-    ctx: { params: { id: string } },
+    ctx: { params: Promise<{ id: string }> },
   ): Promise<Response> {
-    const id = ctx.params.id;
+    const { id } = await ctx.params;
     if (!isUuid(id)) {
       return jsonError("invalid_tournament_id", "tournament id must be a uuid v4", 400);
     }

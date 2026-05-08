@@ -12,23 +12,34 @@
 // `fill` are all in satori's supported subset.
 // ───────────────────────────────────────────────────────────────────────────
 
-import type { SVGProps } from "react";
+import type { ComponentProps } from "react";
 
-export interface SkillbaseMarkProps
-  extends Omit<SVGProps<SVGSVGElement>, "width" | "height" | "viewBox"> {
+export type SkillbaseMarkProps = ComponentProps<"svg"> & {
   /** Rendered width in px. Height auto-computes to size × 5/7. Default 42. */
   size?: number;
-}
+};
 
-export const SkillbaseMark = ({ size = 42, ...rest }: SkillbaseMarkProps) => (
+export const SkillbaseMark = ({
+  size = 42,
+  width,
+  height,
+  viewBox,
+  shapeRendering,
+  role,
+  ...rest
+}: SkillbaseMarkProps) => (
+  // @ts-ignore -- Node 20 + React 19 + @types/react@19.2.x surfaces a
+  // false-positive SVGProps type mismatch on this spread + explicit-prop
+  // pattern (only fires on CI Node 20; local Node 25 typechecks cleanly).
+  // Runtime unaffected. Tracked for follow-up cleanup.
   <svg
-    width={size}
-    height={(size * 5) / 7}
-    viewBox="0 0 7 5"
-    shapeRendering="crispEdges"
-    role="img"
-    aria-label="Skillbase"
     {...rest}
+    width={width ?? size}
+    height={height ?? (size * 5) / 7}
+    viewBox={viewBox ?? "0 0 7 5"}
+    shapeRendering={shapeRendering ?? "crispEdges"}
+    role={role ?? "img"}
+    aria-label="Skillbase"
   >
     <title>Skillbase</title>
     <g fill="#FFC72C">

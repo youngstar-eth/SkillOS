@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -19,16 +19,16 @@
     "@supabase/supabase-js": "^2.104.0",
     "@tanstack/react-query": "^5.99.2",
     "ethers": "^6.16.0",
-    "next": "^14.2.35",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "next": "^16.2.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "viem": "^2.48.1",
     "wagmi": "^3.6.3"
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",

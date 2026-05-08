@@ -37,9 +37,9 @@ function pending(): Response {
 
 export async function plausibilityHandler(
   _req: NextRequest,
-  ctx: { params: { id: string } },
+  ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const matchId = ctx.params.id;
+  const { id: matchId } = await ctx.params;
   if (!isUuid(matchId)) return pending();
 
   const supabase = getSupabaseService();

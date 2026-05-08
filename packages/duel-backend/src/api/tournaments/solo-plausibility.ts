@@ -35,9 +35,9 @@ function pending(): Response {
 
 export async function soloPlausibilityHandler(
   _req: NextRequest,
-  ctx: { params: { runId: string } },
+  ctx: { params: Promise<{ runId: string }> },
 ): Promise<Response> {
-  const runId = ctx.params.runId;
+  const { runId } = await ctx.params;
   if (!isUuid(runId)) return pending();
 
   const supabase = getSupabaseService();

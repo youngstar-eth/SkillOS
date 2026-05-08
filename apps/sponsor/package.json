@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3007",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,17 +17,17 @@
     "@skillbase/ui": "*",
     "@supabase/supabase-js": "^2.104.0",
     "@tanstack/react-query": "^5.99.2",
-    "next": "^14.2.35",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "next": "^16.2.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "viem": "^2.48.1",
     "wagmi": "^3.6.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "postcss": "^8.4.47",
     "tailwindcss": "^4",
     "typescript": "^5.6.3"

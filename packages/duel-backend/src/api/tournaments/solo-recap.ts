@@ -63,9 +63,9 @@ function jsonWithCache(body: unknown, cache: "HIT" | "MISS"): Response {
 export function createSoloRecapHandler(config: SoloRecapHandlerConfig) {
   return async function POST(
     _req: NextRequest,
-    ctx: { params: { runId: string } },
+    ctx: { params: Promise<{ runId: string }> },
   ): Promise<Response> {
-    const runId = ctx.params.runId;
+    const { runId } = await ctx.params;
     if (!isUuid(runId)) return softError("invalid_run_id");
 
     const supabase = getSupabaseService();

@@ -1,4 +1,5 @@
-"use client";
+"use client";;
+import { use } from "react";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Global profile page — any address, no auth gate. Jury-visible surface for
@@ -61,11 +62,12 @@ async function fetchProfile(address: string): Promise<ProfileDTO> {
   return await res.json();
 }
 
-export default function ProfilePage({
-  params,
-}: {
-  params: { address: string };
-}) {
+export default function ProfilePage(
+  props: {
+    params: Promise<{ address: string }>;
+  }
+) {
+  const params = use(props.params);
   const { data, isLoading, error } = useQuery({
     queryKey: ["profile", params.address.toLowerCase()],
     queryFn: () => fetchProfile(params.address),

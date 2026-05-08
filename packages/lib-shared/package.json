@@ -16,13 +16,13 @@
   },
   "peerDependencies": {
     "@supabase/supabase-js": "^2.104.0",
-    "next": "^14.2.35",
+    "next": "^16.2.4",
     "viem": "^2.48.1"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.104.0",
     "@types/node": "^20",
-    "next": "^14.2.35",
+    "next": "^16.2.4",
     "typescript": "^5.6.3",
     "viem": "^2.48.1"
   }

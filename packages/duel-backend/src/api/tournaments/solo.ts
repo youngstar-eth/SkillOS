@@ -257,9 +257,9 @@ export function createTournamentSoloHandler(
 ) {
   return async function POST(
     req: NextRequest,
-    ctx: { params: { id: string } },
+    ctx: { params: Promise<{ id: string }> },
   ): Promise<Response> {
-    const tournamentId = ctx.params.id;
+    const { id: tournamentId } = await ctx.params;
     if (!isUuid(tournamentId)) {
       return jsonError(
         "invalid_tournament_id",

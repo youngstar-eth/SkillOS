@@ -1,4 +1,5 @@
-"use client";
+"use client";;
+import { use } from "react";
 
 // Per-tournament detail view — used for archive deep-links.
 // Renders the same TournamentSection layout as /tournament but for a
@@ -43,11 +44,12 @@ async function fetchDetail(
   return await res.json();
 }
 
-export default function TournamentDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function TournamentDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = use(props.params);
   const { address } = useAccount();
   const { data, isLoading, error } = useQuery({
     queryKey: ["tournament", params.id],
