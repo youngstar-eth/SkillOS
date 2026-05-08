@@ -14,20 +14,27 @@
 
 import type { SVGProps } from "react";
 
-export interface SkillbaseMarkProps
-  extends Omit<SVGProps<SVGSVGElement>, "width" | "height" | "viewBox"> {
+export interface SkillbaseMarkProps extends SVGProps<SVGSVGElement> {
   /** Rendered width in px. Height auto-computes to size × 5/7. Default 42. */
   size?: number;
 }
 
-export const SkillbaseMark = ({ size = 42, ...rest }: SkillbaseMarkProps) => (
+export const SkillbaseMark = ({
+  size = 42,
+  width,
+  height,
+  viewBox,
+  shapeRendering,
+  role,
+  ...rest
+}: SkillbaseMarkProps) => (
   <svg
     {...rest}
-    width={size}
-    height={(size * 5) / 7}
-    viewBox="0 0 7 5"
-    shapeRendering="crispEdges"
-    role="img"
+    width={width ?? size}
+    height={height ?? (size * 5) / 7}
+    viewBox={viewBox ?? "0 0 7 5"}
+    shapeRendering={shapeRendering ?? "crispEdges"}
+    role={role ?? "img"}
     aria-label="Skillbase"
   >
     <title>Skillbase</title>
