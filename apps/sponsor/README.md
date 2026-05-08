@@ -19,7 +19,9 @@ npm run dev -w @skillbase/app-sponsor
 - `/dashboard` — connected-wallet sponsorship history (reads `SponsorReceipt` SBT events)
 - `/api/sponsor/tournaments` — active tournaments JSON, joined with sponsor counts
 - `/api/sponsor/tournament/[id]/sponsors` — per-tournament sponsor list
-- `/api/cron/index-sponsor-events` — daily sponsorship event indexer (gated on `CRON_SECRET`)
+
+The sponsor event indexer cron has moved to `apps/orchestrator` (PR #33).
+This app now only serves UI + read APIs — no cron schedules.
 
 ## Deployment
 
