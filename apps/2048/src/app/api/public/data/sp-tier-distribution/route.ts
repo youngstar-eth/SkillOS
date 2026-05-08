@@ -1,6 +1,6 @@
 // ───────────────────────────────────────────────────────────────────────────
 // x402-paid endpoint — $0.01 USDC per call.
-// Aggregate tier histogram across 6 Skillbase games. Anonymized.
+// Aggregate tier histogram across 6 SkillOS games. Anonymized.
 //
 // Payment is handled inline by withX402 (verify + settle via CDP
 // facilitator). Inner runs only after payment verifies; settlement
