@@ -4,7 +4,7 @@ Shared React components and design primitives consumed by every game app and the
 
 ## Exports
 
-- `Header` — top-bar with Skillbase brand + per-app slot
+- `Header` — top-bar with SkillOS brand + per-app slot
 - `Providers` — wagmi + react-query + theme provider stack
 - `wagmiConfig` — pre-configured wagmi client
 - `WalletButton`, `EmbedWalletFallback` — wallet connect UI (with miniapp-aware fallback)

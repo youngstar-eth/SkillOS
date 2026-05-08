@@ -307,16 +307,16 @@ No `subscription`, `subscribers`, `premium tier`, `monthly plan`, `pro plan`, `D
 - H1_HEADLINE: `"AI-powered infrastructure for skill gaming"`
 - SUBHEADING: `"Where players earn, AI learns, and developers build."`
 - CTA_PRIMARY: `"Start playing"` (href `#games`)
-- CTA_SECONDARY: `"Build on Skillbase"` (href `#developer`)
+- CTA_SECONDARY: `"Build on SkillOS"` (href `#developer`)
 
 ### L2 — Meta tags (`app/layout.tsx:20-55`)
-- TITLE_DEFAULT: `"Skillbase — AI-powered infrastructure for skill gaming"`
+- TITLE_DEFAULT: `"SkillOS — AI-powered infrastructure for skill gaming"`
 - DESCRIPTION: `"Where players earn, AI learns, and developers build. Three-sided platform: skill gaming as consumer wedge, AI APIs for developers, decision data marketplace for AI labs."`
-- OG_TITLE: `"Skillbase — AI-powered infrastructure for skill gaming"`
+- OG_TITLE: `"SkillOS — AI-powered infrastructure for skill gaming"`
 - OG_DESCRIPTION: `"Where players earn, AI learns, and developers build. Live on Base Sepolia."`
-- TWITTER_TITLE: `"Skillbase"`
+- TWITTER_TITLE: `"SkillOS"`
 - TWITTER_DESCRIPTION: `"AI-powered infrastructure for skill gaming."`
-- KEYWORDS: `["skill gaming", "AI gaming", "Base blockchain", "USDC tournaments", "RLHF data", "human decision data", "sweepstakes", "skillbase"]`
+- KEYWORDS: `["skill gaming", "AI gaming", "Base blockchain", "USDC tournaments", "RLHF data", "human decision data", "sweepstakes", "skillos"]`
 
 ### L3 — Opengraph image (`app/opengraph-image.tsx:43-98`)
 - PILL_LABEL: `"Live on Base · Testnet"`
@@ -325,7 +325,7 @@ No `subscription`, `subscribers`, `premium tier`, `monthly plan`, `pro plan`, `D
 - BOTTOM_STATS: `"6 games"` · `"4 ai pillars"` · `"1.2M+ decisions"`
 
 ### L4 — Site constants (`lib/constants.ts:1-7`)
-- SITE_NAME: `"Skillbase"`
+- SITE_NAME: `"SkillOS"`
 - SITE_TAGLINE: `"AI-powered infrastructure for skill gaming"`
 - SITE_SUBTITLE: `"Where players earn, AI learns, and developers build."`
 - SITE_NETWORK: `"Base Sepolia"`
@@ -405,7 +405,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 
 ### L12 — Flywheel section (`components/sections/Flywheel.tsx:8-22`)
 - LABEL: `"§ 05 · How it works"`
-- TITLE: `"How Skillbase compounds"`
+- TITLE: `"How SkillOS compounds"`
 - SUBTITLE: `"Every player strengthens the platform. Every improvement attracts more players."`
 - FOOTER_TEXT: `"1.2M+ decisions · 6 games · 4 AI pillars · growing daily"`
 
@@ -414,7 +414,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 - NODE_2: `"DATA"`
 - NODE_3: `"AI"`
 - NODE_4: `"BETTER GAMES"`
-- DIAGRAM_TITLE: `"Skillbase flywheel: play generates data, data trains AI, AI powers better games, better games attract more play."`
+- DIAGRAM_TITLE: `"SkillOS flywheel: play generates data, data trains AI, AI powers better games, better games attract more play."`
 
 ### L14 — AI Pillars section (`components/sections/AiPillars.tsx:150-158`)
 - LABEL: `"§ 06 · AI pillars"`
@@ -445,7 +445,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 **Pillar 4 — On-chain Tournaments**
 - TITLE: `"On-chain Tournaments"`
 - DESCRIPTION: `"Sponsored prize pools, transparent settlements, anti-cheat integrated."`
-- EXAMPLE_TOURNAMENT: `"Daily · 2048"` · TIME_LEFT: `"2h 29m left"` · PRIZE: `"10 USDC"` · PLAYERS: `"12"` · SPONSOR: `"Skillbase"`
+- EXAMPLE_TOURNAMENT: `"Daily · 2048"` · TIME_LEFT: `"2h 29m left"` · PRIZE: `"10 USDC"` · PLAYERS: `"12"` · SPONSOR: `"SkillOS"`
 - STATUS: `"Live"` — POWERED_BY: `"Base Sepolia"`
 
 ### L15 — Tournaments section (`components/sections/Tournaments.tsx:14-66`)
@@ -453,7 +453,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 - TITLE: `"Free to compete. Sponsored to win."`
 - SUBTITLE: `"Daily tournaments across all 6 games. Prize pools funded by sponsors, not players."`
 - HEADLINE: `"No entry fee. No consideration."`
-- BODY: `"Skillbase tournaments are sweepstakes-safe by design. Sponsors fund prize pools to reach engaged skill-gaming audiences. Players compete freely, improve their skills, and earn USDC based on ranking."`
+- BODY: `"SkillOS tournaments are sweepstakes-safe by design. Sponsors fund prize pools to reach engaged skill-gaming audiences. Players compete freely, improve their skills, and earn USDC based on ranking."`
 - BULLETS: `["Free first entry per tournament, always", "Sponsored prize pools — no player deposits to prizes", "Top 50% of players earn rewards", "AI anti-cheat on every submission"]`
 - LEGAL_NOTE: `"Mainnet deployment gates on sweepstakes legal review — Q2 2026"`
 
@@ -471,7 +471,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 
 ### L17 — Developer section (`components/sections/Developer.tsx:44-71`)
 - LABEL: `"§ 09 · Developers"`
-- TITLE: `"Build on Skillbase"`
+- TITLE: `"Build on SkillOS"`
 - SUBTITLE: `"Turn any skill game into a tournament-ready, AI-enhanced, USDC-earning product."`
 
 **Feature 1 — Tournament API**
@@ -497,7 +497,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 - Step 1 comment: `"Create a daily tournament, funded by a sponsor"`
 - Step 2 comment: `"Submit a score — AI-reviewed before it hits the board"`
 - Step 3 comment: `"Inspect the anti-cheat verdict inline"`
-- Example tokens: `import { Skillbase } from '@skillbase/sdk'` · game `'reaction-time-2048'` · currency `'USDC'` · antiCheat `'strict'` · status `'flagged'`
+- Example tokens: `import { SkillOS } from '@skillos/sdk'` · game `'reaction-time-2048'` · currency `'USDC'` · antiCheat `'strict'` · status `'flagged'`
 
 ### L19 — DataLab section (`components/sections/DataLab.tsx:74-122`)
 - LABEL: `"§ 10 · AI labs"`
@@ -535,7 +535,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 
 ### L20 — WhyNow section (`components/sections/WhyNow.tsx:34-72`)
 - LABEL: `"§ 11 · Why now"`
-- TITLE: `"Why Skillbase, why now"`
+- TITLE: `"Why SkillOS, why now"`
 - SUBTITLE: `"Three tectonic shifts converging at once — and the first team at the intersection takes the market."`
 
 **Pillar 1**
@@ -546,7 +546,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 **Pillar 2**
 - THEME: `"Skill-gaming regulation clarity"`
 - STAT: `"30+"` · LABEL: `"US states where skill gaming is explicitly legal"`
-- BODY: `"DFS (DraftKings, FanDuel) cleared the regulatory path for skill-based real-money gaming. Skillbase operates within the established framework — sweepstakes-safe architecture is the first-line defense."`
+- BODY: `"DFS (DraftKings, FanDuel) cleared the regulatory path for skill-based real-money gaming. SkillOS operates within the established framework — sweepstakes-safe architecture is the first-line defense."`
 
 **Pillar 3**
 - THEME: `"Crypto payment rails mature"`
@@ -577,9 +577,9 @@ Renders from `STATS` constant — see L6. No additional copy.
 
 ### L22 — About section (`components/sections/About.tsx:9-48`)
 - LABEL: `"§ 13 · Mission"`
-- TITLE: `"Why Skillbase exists"`
+- TITLE: `"Why SkillOS exists"`
 - BODY_1: `"Skill gaming generates billions of decisions per day — valuable training signal for AI, engagement surface for players, distribution channel for developers. But the economy is broken: players generate value, companies capture it, platforms mediate. We're fixing the flow with three-sided infrastructure."`
-- BODY_2: `"Skillbase is where skill gets rewarded three ways: players earn USDC for performance, developers build without infra overhead, AI labs access training data at unprecedented quality. Every part reinforces the others."`
+- BODY_2: `"SkillOS is where skill gets rewarded three ways: players earn USDC for performance, developers build without infra overhead, AI labs access training data at unprecedented quality. Every part reinforces the others."`
 - BODY_3: `"We believe the best AI of 2030 will be trained not on scraped text, but on real human decisions collected in real competitive contexts. That's what we're building — starting with six games, one platform, and an architecture designed to scale."`
 - FOUNDER_ATTRIBUTION: `"— İnanç Ayvaz, Founder · @youngstar-eth on Farcaster →"`
 - FOUNDER_FARCASTER_LINK: `"https://warpcast.com/youngstar-eth"`
@@ -588,7 +588,7 @@ Renders from `STATS` constant — see L6. No additional copy.
 - FOOTER_BRAND_TAGLINE: `"AI-powered infrastructure for skill gaming."`
 - SOCIAL_LABELS: `["Twitter", "Farcaster", "Discord"]`
 - BUILD_BADGE: `"Built on Base"`
-- COPYRIGHT: `"© 2026 Skillbase. All rights reserved."`
+- COPYRIGHT: `"© 2026 SkillOS. All rights reserved."`
 - NETWORK_STATUS: `"Live on Base Sepolia"`
 - MAINNET_TIMELINE: `"Mainnet Q2 2026"`
 - PRODUCT_LINKS: `["Games", "Pricing", "Developers", "AI Labs", "Tournaments"]`

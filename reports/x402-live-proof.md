@@ -1,4 +1,4 @@
-# x402 Live Proof — Skillbase on Base Sepolia
+# x402 Live Proof — SkillOS on Base Sepolia
 
 **Generated:** 2026-04-24T21:38Z
 **Base domain:** https://2048.skillbase.games
@@ -62,7 +62,7 @@ payment-required (base64-decoded):
 ```json
 {
   "generated_at": "2026-04-24T21:38:13.913Z",
-  "source": "Skillbase — 6 games, verified human decisions",
+  "source": "SkillOS — 6 games, verified human decisions",
   "total_verified_players": 38,
   "total_decisions_recorded": 0,
   "tier_distribution": {
@@ -137,8 +137,8 @@ payment-required (base64-decoded):
     "actionable_tip": "…"
   },
   "meta": {
-    "model": "claude-haiku-via-skillbase",
-    "sample_note": "Same Coach pipeline as live Skillbase games. For production SDK access with tier-aware prompts and volume pricing, contact sales@simpl3.ai.",
+    "model": "claude-haiku-via-skillos",
+    "sample_note": "Same Coach pipeline as live SkillOS games. For production SDK access with tier-aware prompts and volume pricing, contact sales@simpl3.ai.",
     "rate_limit_note": "Sample endpoint — 30 req/min per IP."
   }
 }

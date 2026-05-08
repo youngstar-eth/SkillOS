@@ -69,7 +69,7 @@ scripts/         — one-shot ops (backfill-sp, seed-jury-tournaments, *-smoke.s
 These are non-negotiable. Any change risking these requires explicit founder discussion before merge.
 
 1. **Sweepstakes safety.** Retry fees and prize pools live on **separate storage slots** in `TournamentPool`. Sponsor wallets fund pools directly via `sponsorPool()`. Foundation treasury **never** funds prize pools. A buggy module physically cannot corrupt segregated accumulators. The `settle-guard` integration tests are the tripwire — extend them, don't skip them.
-2. **Pure infrastructure.** Skillbase smart contracts are non-custodial. No KYC at the protocol layer. Sanctions oracle is the only gate.
+2. **Pure infrastructure.** SkillOS smart contracts are non-custodial. No KYC at the protocol layer. Sanctions oracle is the only gate.
 3. **Agent participation is a class, not a feature flag.** Players field includes both human and agent participants on the same arena. SP-tier-classified data flows uniformly across classes.
 4. **No subscription tier.** All AI-data licensing flows through x402 per-call settlement. No enterprise quote, no monthly tier.
 5. **AI is fire-on-mount, not blocking.** Coach/Recap routes POST from the result page mount, not from the submission path. Tournament settlement never depends on AI availability.
