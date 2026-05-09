@@ -24,7 +24,7 @@ const ASSOCIATION = {
 
 const MANIFEST = {
   version: "1",
-  name: 'Skillbase Clicker',
+  name: 'SkillOS Clicker',
   iconUrl: "https://clicker.skillbase.games/icon",
   homeUrl: "https://clicker.skillbase.games/tournament/solo",
   imageUrl: "https://clicker.skillbase.games/opengraph-image",
@@ -36,7 +36,7 @@ const MANIFEST = {
   primaryCategory: "games",
   tags: ["skill", "reflex", "fast", "ai", "base"],
   tagline: "Skill data layer",
-  ogTitle: "Skillbase Clicker on Base",
+  ogTitle: "SkillOS Clicker on Base",
   ogDescription: "Pay to play, skill-rewarded. AI coach, plausibility-verified scoring.",
 } as const;
 

@@ -113,7 +113,7 @@ export default function TournamentDetailPage(
             />
             <MiniStat
               label="Sponsor"
-              value={tournament.sponsorName ?? "Skillbase"}
+              value={tournament.sponsorName ?? "SkillOS"}
             />
           </div>
 

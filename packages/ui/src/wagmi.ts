@@ -15,7 +15,7 @@ export const wagmiConfig = createConfig({
   connectors: [
     farcasterMiniApp(),
     coinbaseWallet({
-      appName: "Skillbase Duel",
+      appName: "SkillOS Duel",
       preference: { options: "smartWalletOnly" },
     }),
     injected(),

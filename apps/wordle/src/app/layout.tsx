@@ -3,21 +3,21 @@ import { Header, Providers, ReadyMarker } from "@skillbase/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase Wordle — On-chain word duels on Base",
+  title: "SkillOS Wordle — On-chain word duels on Base",
   description:
     "Stake 1 USDC, match a player, guess the same 5-letter target in 6 tries. Best score wins the pool.",
   openGraph: {
-    title: "Wordle · Skillbase",
+    title: "Wordle · SkillOS",
     description: "Guess smarter. Score higher. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Wordle · Skillbase",
+    title: "Wordle · SkillOS",
     description: "Guess smarter. Score higher. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
     "base:app_id": "69f4ff0a3b51d26eb105fb6c",
   },
 };
@@ -38,7 +38,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased bg-bg text-neutral-100">
         <Providers>
           <ReadyMarker />
-          <Header brand="Skillbase · Wordle" />
+          <Header brand="SkillOS · Wordle" />
           <div className="mx-auto max-w-5xl px-4">{children}</div>
         </Providers>
       </body>
