@@ -114,6 +114,13 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         CycleType cycleType;
         uint64 startsAt;
         uint64 endsAt;
+        /// @dev Snapshot at settle time, NOT live balance. Captures the prize pool at the
+        ///      moment of last write (createTournament + any fundPrizePool top-ups). On
+        ///      settle, USDC is distributed/refunded out of the contract but this field is
+        ///      NOT zeroed — view-layer staleness only, not a safety concern (`settled`
+        ///      boolean gates re-settlement). Off-chain readers should gate liveness
+        ///      display via `settled`. Canonical post-settle liveness signal =
+        ///      (TournamentSettled event log + settled boolean).
         uint256 prizePool;
         uint256 participationBonus;
         bool settled;
