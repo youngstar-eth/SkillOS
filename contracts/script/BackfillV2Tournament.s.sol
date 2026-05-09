@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { Script, console2 } from "forge-std/Script.sol";
-import { TournamentPool } from "../src/TournamentPool.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {TournamentPool} from "../src/TournamentPool.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title BackfillV2Tournament
 /// @notice One-shot backfill of today's cron-missed tournament on the v2 pool.
@@ -48,12 +48,11 @@ contract BackfillV2Tournament is Script {
     address constant USDC_SEPOLIA = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
 
     // Exact values from v2_tournaments row id=41dbaa20-2ee9-4d28-b312-5d021d041567.
-    bytes32 constant TOURNAMENT_ID =
-        0x70a1b897e2cc00e9ab2538536c6c84d5bce09bb68fcb28a12b02a4443d4cc6d0;
+    bytes32 constant TOURNAMENT_ID = 0x70a1b897e2cc00e9ab2538536c6c84d5bce09bb68fcb28a12b02a4443d4cc6d0;
     bytes32 constant GAME_2048 = keccak256("2048");
     uint64 constant STARTS_AT = 1_776_902_400; // 2026-04-23T00:00:00Z
-    uint64 constant ENDS_AT = 1_776_988_800;   // 2026-04-24T00:00:00Z
-    uint256 constant PRIZE_POOL = 1_000_000;   // 1 USDC
+    uint64 constant ENDS_AT = 1_776_988_800; // 2026-04-24T00:00:00Z
+    uint256 constant PRIZE_POOL = 1_000_000; // 1 USDC
     uint256 constant PARTICIPATION_BONUS = 50;
 
     function run() external {
@@ -95,9 +94,14 @@ contract BackfillV2Tournament is Script {
         }
 
         // 2. Create the tournament with the exact id the DB already has.
+        // NOTE: This is a historical v2.1 backfill script. Re-running against
+        //       v2.2 is not intended; v2.1 already holds this tournament id.
+        //       devAddr is set to deployer so the script compiles against the
+        //       v2.2 source ABI without changing the v2.1 deployment behavior.
         console2.log("Creating tournament on v2...");
         pool.createTournament(
             TOURNAMENT_ID,
+            deployer,
             GAME_2048,
             TournamentPool.CycleType.Daily,
             STARTS_AT,

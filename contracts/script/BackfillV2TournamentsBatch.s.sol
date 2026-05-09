@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { Script, console2 } from "forge-std/Script.sol";
-import { TournamentPool } from "../src/TournamentPool.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {TournamentPool} from "../src/TournamentPool.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title BackfillV2TournamentsBatch
 /// @notice Reconcile the 5 non-2048 daily tournaments that were created on v1
@@ -37,35 +37,30 @@ contract BackfillV2TournamentsBatch is Script {
     address constant USDC_SEPOLIA = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
 
     uint64 constant STARTS_AT = 1_776_902_400; // 2026-04-23T00:00:00Z
-    uint64 constant ENDS_AT   = 1_776_988_800; // 2026-04-24T00:00:00Z
-    uint256 constant PRIZE_POOL = 1_000_000;   // 1 USDC each
+    uint64 constant ENDS_AT = 1_776_988_800; // 2026-04-24T00:00:00Z
+    uint256 constant PRIZE_POOL = 1_000_000; // 1 USDC each
     uint256 constant TOTAL_PRIZE_NEEDED = 5_000_000; // 5 USDC for all 5
 
     // ─── Tournament params, copied from v2_tournaments DB rows ────────────
 
     // clicker: id 0x2bfe7ade…, bonus 1
-    bytes32 constant ID_CLICKER =
-        0x2bfe7adea994b00f5e6c2639f05a268dff43bbb9d8846f8ad9e9bf0513505047;
+    bytes32 constant ID_CLICKER = 0x2bfe7adea994b00f5e6c2639f05a268dff43bbb9d8846f8ad9e9bf0513505047;
     uint256 constant BONUS_CLICKER = 1;
 
     // match3: id 0x77d971f6…, bonus 15
-    bytes32 constant ID_MATCH3 =
-        0x77d971f6937999e794267d16a2b0b2d76caf5771db820f1eef7b9a61c7f0400b;
+    bytes32 constant ID_MATCH3 = 0x77d971f6937999e794267d16a2b0b2d76caf5771db820f1eef7b9a61c7f0400b;
     uint256 constant BONUS_MATCH3 = 15;
 
     // minesweeper: id 0xb489b0f9…, bonus 20
-    bytes32 constant ID_MINESWEEPER =
-        0xb489b0f9ef46fa6a0a1629a47cba11725edf0e20ecce4da2768ebe961cbdd90a;
+    bytes32 constant ID_MINESWEEPER = 0xb489b0f9ef46fa6a0a1629a47cba11725edf0e20ecce4da2768ebe961cbdd90a;
     uint256 constant BONUS_MINESWEEPER = 20;
 
     // sudoku: id 0x4478fa2d…, bonus 10
-    bytes32 constant ID_SUDOKU =
-        0x4478fa2dda6bf90bf21a52ddbd8b78c247b688c5aedab4f9c6f114f32e556989;
+    bytes32 constant ID_SUDOKU = 0x4478fa2dda6bf90bf21a52ddbd8b78c247b688c5aedab4f9c6f114f32e556989;
     uint256 constant BONUS_SUDOKU = 10;
 
     // wordle: id 0x60ebce49…, bonus 200
-    bytes32 constant ID_WORDLE =
-        0x60ebce49f92ae1132be51cc341d02bee3f26b007300b6129b991e138d9587a79;
+    bytes32 constant ID_WORDLE = 0x60ebce49f92ae1132be51cc341d02bee3f26b007300b6129b991e138d9587a79;
     uint256 constant BONUS_WORDLE = 200;
 
     function run() external {
@@ -105,11 +100,11 @@ contract BackfillV2TournamentsBatch is Script {
             console2.log("Allowance already sufficient; skipping approve.");
         }
 
-        _create(pool, "clicker",     ID_CLICKER,     keccak256("clicker"),     BONUS_CLICKER);
-        _create(pool, "match3",      ID_MATCH3,      keccak256("match3"),      BONUS_MATCH3);
+        _create(pool, "clicker", ID_CLICKER, keccak256("clicker"), BONUS_CLICKER);
+        _create(pool, "match3", ID_MATCH3, keccak256("match3"), BONUS_MATCH3);
         _create(pool, "minesweeper", ID_MINESWEEPER, keccak256("minesweeper"), BONUS_MINESWEEPER);
-        _create(pool, "sudoku",      ID_SUDOKU,      keccak256("sudoku"),      BONUS_SUDOKU);
-        _create(pool, "wordle",      ID_WORDLE,      keccak256("wordle"),      BONUS_WORDLE);
+        _create(pool, "sudoku", ID_SUDOKU, keccak256("sudoku"), BONUS_SUDOKU);
+        _create(pool, "wordle", ID_WORDLE, keccak256("wordle"), BONUS_WORDLE);
 
         vm.stopBroadcast();
 
@@ -119,38 +114,24 @@ contract BackfillV2TournamentsBatch is Script {
         console2.log("USDC left :", balanceAfter);
 
         // Post-write verification — read back each one.
-        _verify(pool, "clicker",     ID_CLICKER,     BONUS_CLICKER);
-        _verify(pool, "match3",      ID_MATCH3,      BONUS_MATCH3);
+        _verify(pool, "clicker", ID_CLICKER, BONUS_CLICKER);
+        _verify(pool, "match3", ID_MATCH3, BONUS_MATCH3);
         _verify(pool, "minesweeper", ID_MINESWEEPER, BONUS_MINESWEEPER);
-        _verify(pool, "sudoku",      ID_SUDOKU,      BONUS_SUDOKU);
-        _verify(pool, "wordle",      ID_WORDLE,      BONUS_WORDLE);
+        _verify(pool, "sudoku", ID_SUDOKU, BONUS_SUDOKU);
+        _verify(pool, "wordle", ID_WORDLE, BONUS_WORDLE);
     }
 
-    function _create(
-        TournamentPool pool,
-        string memory label,
-        bytes32 id,
-        bytes32 game,
-        uint256 bonus
-    ) internal {
+    function _create(TournamentPool pool, string memory label, bytes32 id, bytes32 game, uint256 bonus) internal {
+        // Historical v2.1 backfill — devAddr defaults to msg.sender (deployer)
+        // so the script compiles against the v2.2 source ABI. Not intended for
+        // re-run against v2.2.
         console2.log("Creating tournament:", label);
         pool.createTournament(
-            id,
-            game,
-            TournamentPool.CycleType.Daily,
-            STARTS_AT,
-            ENDS_AT,
-            PRIZE_POOL,
-            bonus
+            id, msg.sender, game, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, bonus
         );
     }
 
-    function _verify(
-        TournamentPool pool,
-        string memory label,
-        bytes32 id,
-        uint256 expectedBonus
-    ) internal view {
+    function _verify(TournamentPool pool, string memory label, bytes32 id, uint256 expectedBonus) internal view {
         TournamentPool.Tournament memory t = pool.getTournament(id);
         console2.log("[verify]", label);
         console2.log("  sponsor           :", t.sponsor);

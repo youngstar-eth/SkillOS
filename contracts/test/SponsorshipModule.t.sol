@@ -1,20 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { Test } from "forge-std/Test.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Test} from "forge-std/Test.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { TournamentPool } from "../src/TournamentPool.sol";
-import { MockSanctionsOracle } from "../src/MockSanctionsOracle.sol";
-import { SponsorReceiptSBT } from "../src/SponsorReceiptSBT.sol";
-import { SponsorshipModule, ITournamentPool } from "../src/SponsorshipModule.sol";
-import { ISanctionsOracle } from "../src/ISanctionsOracle.sol";
+import {TournamentPool} from "../src/TournamentPool.sol";
+import {MockSanctionsOracle} from "../src/MockSanctionsOracle.sol";
+import {SponsorReceiptSBT} from "../src/SponsorReceiptSBT.sol";
+import {SponsorshipModule, ITournamentPool} from "../src/SponsorshipModule.sol";
+import {ISanctionsOracle} from "../src/ISanctionsOracle.sol";
 
 contract MockUSDC is ERC20 {
     constructor() ERC20("USD Coin", "USDC") {}
-    function mint(address to, uint256 amount) external { _mint(to, amount); }
-    function decimals() public pure override returns (uint8) { return 6; }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
 }
 
 contract SponsorshipModuleTest is Test {
@@ -51,10 +57,7 @@ contract SponsorshipModuleTest is Test {
         address predictedModule = vm.computeCreateAddress(self, vm.getNonce(self) + 1);
         receipt = new SponsorReceiptSBT(predictedModule);
         module = new SponsorshipModule(
-            IERC20(address(usdc)),
-            ITournamentPool(address(pool)),
-            receipt,
-            ISanctionsOracle(address(oracle))
+            IERC20(address(usdc)), ITournamentPool(address(pool)), receipt, ISanctionsOracle(address(oracle))
         );
         require(address(module) == predictedModule, "test setup: module address mismatch");
 
@@ -73,10 +76,14 @@ contract SponsorshipModuleTest is Test {
         return keccak256(abi.encodePacked("tournament", seed));
     }
 
+    /// @dev v2.2: createTournament requires devAddr; tests in this suite don't exercise
+    ///      dev-attribution semantics, so we pass a fixed sentinel.
+    address internal constant DEFAULT_DEV = address(0xDE7de7de7De7dE7de7De7De7DE7De7De7dE7dE7D);
+
     function _createTournament(bytes32 id) internal {
         vm.prank(originalSponsor);
         pool.createTournament(
-            id, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
+            id, DEFAULT_DEV, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
         );
     }
 
@@ -204,8 +211,10 @@ contract SponsorshipModuleTest is Test {
         _fundAndApprove(sponsorA, 4_000_000);
         _fundAndApprove(sponsorB, 6_000_000);
 
-        vm.prank(sponsorA); module.sponsorPool(id, 4_000_000);
-        vm.prank(sponsorB); module.sponsorPool(id, 6_000_000);
+        vm.prank(sponsorA);
+        module.sponsorPool(id, 4_000_000);
+        vm.prank(sponsorB);
+        module.sponsorPool(id, 6_000_000);
 
         TournamentPool.Tournament memory t = pool.getTournament(id);
         assertEq(t.prizePool, PRIZE_POOL + 10_000_000, "pool sum");
@@ -223,8 +232,10 @@ contract SponsorshipModuleTest is Test {
         _createTournament(id);
 
         _fundAndApprove(sponsorA, 2_000_000 + 3_000_000);
-        vm.prank(sponsorA); module.sponsorPool(id, 2_000_000);
-        vm.prank(sponsorA); module.sponsorPool(id, 3_000_000);
+        vm.prank(sponsorA);
+        module.sponsorPool(id, 2_000_000);
+        vm.prank(sponsorA);
+        module.sponsorPool(id, 3_000_000);
 
         assertEq(module.sponsorContributions(id, sponsorA), 5_000_000, "cumulative");
         assertEq(module.totalSponsorsByTournament(id), 1, "unique still 1");
