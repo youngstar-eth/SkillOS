@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Tailwind v4 default content scanning only sees this package. The shared
-   `@skillbase/ui` workspace (Header, WalletButton, SkillosMark, …) lives
+   `@skillbase/ui` workspace (Header, WalletButton, SkillOSWordmark, …) lives
    four levels up — declare it as a source so its utility classes compile. */
 @source "../../../../packages/ui/src";
 

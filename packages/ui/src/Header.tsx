@@ -15,10 +15,10 @@
 import Link from "next/link";
 import { WalletButton } from "./WalletButton";
 import { useIsEmbedded } from "./useIsEmbedded";
-import { SkillosMark } from "./SkillosMark";
+import { SkillOSWordmark } from "./SkillOSWordmark";
 
 export interface HeaderProps {
-  /** Brand text shown next to the dot, e.g. "SkillOS · Wordle". Defaults to "SkillOS". */
+  /** Brand text rendered as the canonical SkillOS wordmark, e.g. "SkillOS · Wordle". Defaults to "SkillOS". */
   brand?: string;
 }
 
@@ -31,10 +31,9 @@ export function Header({ brand = "SkillOS" }: HeaderProps) {
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link
           href="https://skillbase.games"
-          className="flex items-center gap-2 text-sm font-semibold tracking-tight"
+          className="inline-flex items-center text-fg-1"
         >
-          <SkillosMark size={28} />
-          <span>{brand}</span>
+          <SkillOSWordmark size={20}>{brand}</SkillOSWordmark>
         </Link>
         <WalletButton />
       </div>
