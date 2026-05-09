@@ -4,6 +4,9 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {TournamentPool} from "../src/TournamentPool.sol";
 import {DevAttributionNFT} from "../src/DevAttributionNFT.sol";
+import {MaliciousMockDevNFT} from "./mocks/MaliciousMockDevNFT.sol";
+import {MaliciousReentrantDev} from "./mocks/MaliciousReentrantDev.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -1743,22 +1746,6 @@ contract TournamentPoolTest is Test {
         assertTrue(pool.devNFTMinted(devB));
     }
 
-    function test_createTournament_postCondition_cacheAndNFTBothSet() public {
-        // Post-condition check after a successful createTournament: the cache flag
-        // is set AND the NFT is minted. This test pins only the final state — it
-        // does NOT verify the cache-before-mint ordering inside the function body.
-        // Proper ordering verification (with a malicious mock NFT observing pool
-        // state mid-callback) is scoped into PR 5 alongside the reentrancy
-        // mock infrastructure.
-        bytes32 id = _tournamentId(505);
-        address dev = _devAddr(54);
-
-        _createTournamentWithDev(id, dev);
-
-        assertTrue(pool.devNFTMinted(dev));
-        assertEq(devNFT.balanceOf(dev), 1);
-    }
-
     function test_createTournament_revert_zeroDevAddr_doesNotTouchNFTState() public {
         // The zero-address guard fires before any NFT interaction — the revert
         // is the proof that no partial state mutation occurred. (We don't check
@@ -1770,5 +1757,384 @@ contract TournamentPoolTest is Test {
         pool.createTournament(
             id, address(0), GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
         );
+    }
+
+    // ─── F4 (PR 5) — cache-before-mint ordering verification via observer mock ─
+
+    /// @notice Deploys a SEPARATE pool bound to a MaliciousMockDevNFT observer.
+    ///         The observer reads `pool.devNFTMinted(dev)` inside its mint() and
+    ///         records what it saw. If `cacheTrueAtMintTime == true` post-call,
+    ///         the cache flip preceded the external mint invocation (CEI ordering
+    ///         intact). This is the proper rewrite of the deleted
+    ///         `test_createTournament_postCondition_cacheAndNFTBothSet` test which
+    ///         only checked final state.
+    function test_createTournament_cacheFlippedBefore_externalMint() public {
+        // Build a fresh pool bound to the observer mock (cannot reuse the standard
+        // pool from setUp — that one is bound to the real DevAttributionNFT).
+        address self = address(this);
+        address predictedPool = vm.computeCreateAddress(self, vm.getNonce(self) + 1);
+        MaliciousMockDevNFT mock = new MaliciousMockDevNFT(predictedPool);
+        TournamentPool observerPool = new TournamentPool(IERC20(address(usdc)), trustedSigner, address(mock));
+        require(address(observerPool) == predictedPool, "predicted-pool mismatch");
+
+        // Fund + approve the sponsor for this fresh pool.
+        usdc.mint(sponsor, 1_000_000_000);
+        vm.prank(sponsor);
+        usdc.approve(address(observerPool), type(uint256).max);
+
+        bytes32 id = keccak256("F4-ordering-test");
+        address dev = _devAddr(700);
+
+        // Pre-conditions: mock has not been called yet.
+        assertEq(mock.mintCallCount(), 0, "mock untouched pre-call");
+        assertFalse(mock.cacheTrueAtMintTime(), "default false");
+
+        vm.prank(sponsor);
+        observerPool.createTournament(
+            id, dev, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
+        );
+
+        // Post-conditions: mock saw cache == true at mint time, proving the cache
+        // flip preceded the external invocation.
+        assertEq(mock.mintCallCount(), 1, "mint called exactly once");
+        assertEq(mock.observedDev(), dev, "mock saw correct dev arg");
+        assertTrue(mock.cacheTrueAtMintTime(), "cache must read TRUE inside mint() callback -- proves CEI ordering");
+        // And the pool's cache is also true post-call (sanity).
+        assertTrue(observerPool.devNFTMinted(dev));
+    }
+
+    /// @notice Cache-hit semantics via observer mock: second tournament for the
+    ///         same dev does NOT call mock.mint() (mintCallCount stays at 1).
+    ///         Pins the gas-optimization claim that the cache skips the external
+    ///         call on subsequent createTournament invocations per dev.
+    function test_createTournament_observerMock_notCalledOnCacheHit() public {
+        address self = address(this);
+        address predictedPool = vm.computeCreateAddress(self, vm.getNonce(self) + 1);
+        MaliciousMockDevNFT mock = new MaliciousMockDevNFT(predictedPool);
+        TournamentPool observerPool = new TournamentPool(IERC20(address(usdc)), trustedSigner, address(mock));
+        require(address(observerPool) == predictedPool, "predicted-pool mismatch");
+
+        usdc.mint(sponsor, 1_000_000_000);
+        vm.prank(sponsor);
+        usdc.approve(address(observerPool), type(uint256).max);
+
+        bytes32 id1 = keccak256("F4-cache-hit-1");
+        bytes32 id2 = keccak256("F4-cache-hit-2");
+        address dev = _devAddr(710);
+
+        vm.prank(sponsor);
+        observerPool.createTournament(
+            id1, dev, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
+        );
+        assertEq(mock.mintCallCount(), 1, "mock called once on first tournament");
+
+        vm.prank(sponsor);
+        observerPool.createTournament(
+            id2, dev, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
+        );
+        assertEq(mock.mintCallCount(), 1, "mock NOT called twice -- cache hit skips external call (gas optimization)");
+    }
+
+    // ─── F5 (PR 5) — receiver-hook reentrancy coverage on nonReentrant funcs ──
+
+    /// @notice MaliciousReentrantDev's onERC721Received tries to recurse into 5
+    ///         nonReentrant-protected pool functions. Each attempt MUST revert
+    ///         with `ReentrancyGuardReentrantCall`. The whole createTournament
+    ///         tx still succeeds (the malicious dev's hook returns the canonical
+    ///         selector after recording each revert).
+    function test_createTournament_receiverHook_reentrancyCoverage() public {
+        MaliciousReentrantDev malDev = new MaliciousReentrantDev(pool);
+
+        // Pre-fund + approve the malicious dev so any USDC pulls inside the
+        // recursive calls reach the reentrancy check, not an allowance failure.
+        usdc.mint(address(malDev), 1_000_000_000);
+        vm.prank(address(malDev));
+        usdc.approve(address(pool), type(uint256).max);
+
+        bytes32 id = _tournamentId(900);
+        malDev.setExpectedTournamentId(id);
+
+        // Trigger: createTournament with devAddr = malDev. _safeMint -> onERC721Received
+        // -> 5 recursive attempts, all caught and recorded.
+        _createTournamentWithDev(id, address(malDev));
+
+        // Outer createTournament succeeded; NFT minted to malDev.
+        assertTrue(pool.devNFTMinted(address(malDev)), "outer createTournament succeeded");
+        assertEq(devNFT.balanceOf(address(malDev)), 1, "NFT minted to malDev");
+
+        // Each recursive attempt reverted with ReentrancyGuardReentrantCall.
+        bytes4 expected = ReentrancyGuard.ReentrancyGuardReentrantCall.selector;
+
+        assertTrue(malDev.createTournament_reverted(), "createTournament reentry blocked");
+        assertEq(_revertSelector(malDev.createTournament_revertData()), expected, "createTournament selector");
+
+        assertTrue(malDev.chargeEntryFee_reverted(), "chargeEntryFee reentry blocked");
+        assertEq(_revertSelector(malDev.chargeEntryFee_revertData()), expected, "chargeEntryFee selector");
+
+        assertTrue(malDev.settle_reverted(), "settle reentry blocked");
+        assertEq(_revertSelector(malDev.settle_revertData()), expected, "settle selector");
+
+        assertTrue(malDev.withdrawFeesToDev_reverted(), "withdrawFeesToDev reentry blocked");
+        assertEq(_revertSelector(malDev.withdrawFeesToDev_revertData()), expected, "withdrawFeesToDev selector");
+
+        assertTrue(malDev.fundPrizePool_reverted(), "fundPrizePool reentry blocked");
+        assertEq(_revertSelector(malDev.fundPrizePool_revertData()), expected, "fundPrizePool selector");
+    }
+
+    /// @dev Extract the first 4 bytes (selector) from a captured revert payload.
+    ///      Returns 0 if data is shorter than 4 bytes (e.g., empty revert).
+    function _revertSelector(bytes memory data) internal pure returns (bytes4) {
+        if (data.length < 4) return bytes4(0);
+        return bytes4(data[0]) | (bytes4(data[1]) >> 8) | (bytes4(data[2]) >> 16) | (bytes4(data[3]) >> 24);
+    }
+
+    // ─── PR 5 — full-lifecycle integration tests ───────────────────────────────
+
+    /// @notice Genesis -> createTournament -> 5 entry fees across 3 players ->
+    ///         settle -> withdrawFeesToDev + withdrawFeesToPlatform.
+    ///         Verifies USDC balance reconciliation at every stage and that the
+    ///         dev attribution NFT is minted exactly once.
+    function test_integration_singleTournament_fullLifecycle() public {
+        bytes32 id = _tournamentId(800);
+        address dev = _devAddr(80);
+
+        uint256 sponsorPre = usdc.balanceOf(sponsor);
+        uint256 poolPre = usdc.balanceOf(address(pool));
+
+        // Step 1: createTournament — sponsor deposits PRIZE_POOL; NFT minted to dev.
+        _createTournamentWithDev(id, dev);
+        assertEq(usdc.balanceOf(sponsor), sponsorPre - PRIZE_POOL, "sponsor debited prize");
+        assertEq(usdc.balanceOf(address(pool)), poolPre + PRIZE_POOL, "pool credited prize");
+        assertEq(devNFT.balanceOf(dev), 1, "NFT minted on first tournament");
+
+        // Step 2: 3 players each pay 1 free + 2 paid solos (so 6 chargeEntryFee calls total).
+        for (uint256 i; i < 3; ++i) {
+            address p = players[i];
+            _fundAndApprove(p, 5 * ENTRY_FEE);
+            _submitSolo(id, p, 1000 + i * 100, 1, i * 10);
+            for (uint256 r; r < 2; ++r) {
+                vm.prank(p);
+                pool.chargeEntryFee(id, p);
+                _submitSolo(id, p, 1100 + i * 100 + r * 50, 1, i * 10 + r + 1);
+            }
+        }
+
+        uint256 totalFees = 6 * ENTRY_FEE;
+        uint256 expectedDevBucket = (totalFees * DEV_BPS) / TOTAL_BPS;
+        uint256 expectedPlatformBucket = (totalFees * PLATFORM_BPS) / TOTAL_BPS;
+        assertEq(pool.feeCollected_dev(id), expectedDevBucket, "dev bucket = 70% * 6");
+        assertEq(pool.feeCollected_platform(id), expectedPlatformBucket, "platform bucket = 30% * 6");
+        assertEq(usdc.balanceOf(address(pool)), PRIZE_POOL + totalFees, "pool holds prize + fees");
+
+        // Step 3: settle. Ranking by best score (player 2 highest at 1300+, then 1, then 0).
+        vm.warp(ENDS_AT + 1);
+        address[] memory ranking = new address[](3);
+        ranking[0] = players[2];
+        ranking[1] = players[1];
+        ranking[2] = players[0];
+        pool.settle(id, ranking);
+
+        // Step 4: withdraw — dev gets 70%, platform gets 30%, prize pool fully distributed.
+        vm.prank(dev);
+        pool.withdrawFeesToDev(id);
+        assertEq(usdc.balanceOf(dev), expectedDevBucket, "dev recovered 70%");
+        assertEq(pool.feeCollected_dev(id), 0, "dev bucket drained");
+
+        uint256 ownerBeforeWithdraw = usdc.balanceOf(address(this));
+        pool.withdrawFeesToPlatform(id);
+        assertEq(usdc.balanceOf(address(this)) - ownerBeforeWithdraw, expectedPlatformBucket, "platform recovered 30%");
+        assertEq(pool.feeCollected_platform(id), 0, "platform bucket drained");
+
+        // Final reconciliation: pool USDC balance must be zero (every wei accounted for).
+        assertEq(usdc.balanceOf(address(pool)), 0, "all funds drained from pool");
+    }
+
+    /// @notice Multi-tournament (3) across 2 developers: NFT minted on devA's
+    ///         first tournament and devB's first tournament; devA's second tournament
+    ///         hits the cache and skips mint. Each tournament settles independently;
+    ///         each dev recovers their own share via withdrawFeesToDev; platform
+    ///         recovers each tournament's platform share separately.
+    function test_integration_multiTournament_multiDev_flow() public {
+        bytes32 t1 = _tournamentId(810);
+        bytes32 t2 = _tournamentId(811);
+        bytes32 t3 = _tournamentId(812);
+        address devA = _devAddr(90);
+        address devB = _devAddr(91);
+
+        // t1, t2 use devA. t3 uses devB.
+        _createTournamentWithDev(t1, devA);
+        assertEq(devNFT.balanceOf(devA), 1, "devA NFT minted on t1");
+
+        _createTournamentWithDev(t2, devA);
+        assertEq(devNFT.balanceOf(devA), 1, "still 1 -- t2 cache hit, no re-mint");
+
+        _createTournamentWithDev(t3, devB);
+        assertEq(devNFT.balanceOf(devB), 1, "devB NFT minted on t3");
+
+        // Each tournament gets its own player engagement (just enough to test fees flow).
+        _fundAndApprove(players[0], 4 * ENTRY_FEE);
+        _submitSolo(t1, players[0], 1000, 1, 0);
+        vm.prank(players[0]);
+        pool.chargeEntryFee(t1, players[0]);
+
+        _fundAndApprove(players[1], 4 * ENTRY_FEE);
+        _submitSolo(t2, players[1], 1500, 1, 0);
+        vm.prank(players[1]);
+        pool.chargeEntryFee(t2, players[1]);
+
+        _fundAndApprove(players[2], 4 * ENTRY_FEE);
+        _submitSolo(t3, players[2], 2000, 1, 0);
+        vm.prank(players[2]);
+        pool.chargeEntryFee(t3, players[2]);
+
+        // Settle all three.
+        vm.warp(ENDS_AT + 1);
+        address[] memory r1 = new address[](1);
+        r1[0] = players[0];
+        pool.settle(t1, r1);
+        address[] memory r2 = new address[](1);
+        r2[0] = players[1];
+        pool.settle(t2, r2);
+        address[] memory r3 = new address[](1);
+        r3[0] = players[2];
+        pool.settle(t3, r3);
+
+        uint256 perTournamentDev = (ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        uint256 perTournamentPlatform = (ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
+
+        // devA recovers t1 + t2 fees (separate calls per tournament).
+        vm.startPrank(devA);
+        pool.withdrawFeesToDev(t1);
+        pool.withdrawFeesToDev(t2);
+        vm.stopPrank();
+        assertEq(usdc.balanceOf(devA), 2 * perTournamentDev, "devA = sum of t1+t2 dev shares");
+
+        // devB recovers t3 fees only.
+        vm.prank(devB);
+        pool.withdrawFeesToDev(t3);
+        assertEq(usdc.balanceOf(devB), perTournamentDev, "devB = t3 dev share");
+
+        // devA cannot withdraw t3 (not their tournament).
+        vm.prank(devA);
+        vm.expectRevert(TournamentPool.OnlyDev.selector);
+        pool.withdrawFeesToDev(t3);
+
+        // Platform recovers all three tournaments' platform shares.
+        uint256 ownerPre = usdc.balanceOf(address(this));
+        pool.withdrawFeesToPlatform(t1);
+        pool.withdrawFeesToPlatform(t2);
+        pool.withdrawFeesToPlatform(t3);
+        assertEq(
+            usdc.balanceOf(address(this)) - ownerPre, 3 * perTournamentPlatform, "platform = sum of 3 platform shares"
+        );
+
+        // All buckets zeroed.
+        assertEq(_totalFees(t1), 0);
+        assertEq(_totalFees(t2), 0);
+        assertEq(_totalFees(t3), 0);
+    }
+
+    /// @notice "Insufficient pool" — prize pool small enough that some tier payouts
+    ///         round to zero under integer division. Contract handles via _pay's
+    ///         zero-amount short-circuit; the unspent dust accumulates in the
+    ///         sponsor refund.
+    function test_integration_settle_insufficientPool_smallPrize() public {
+        bytes32 id = keccak256("tiny-prize");
+        // Build a tournament with a 9-wei prize pool (place 1 = 2; place 2 = 1; place 3 = 0;
+        // tier4-place-4..10 = 0; tier5 = 0). All tiers below place 2 round to zero.
+        usdc.mint(sponsor, 1_000_000_000);
+        vm.prank(sponsor);
+        usdc.approve(address(pool), type(uint256).max);
+        vm.prank(sponsor);
+        pool.createTournament(
+            id, _devAddr(95), GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, 9, PARTICIPATION_BONUS
+        );
+
+        // 4 players seeded with descending raw scores so ranking is canonical.
+        for (uint256 i; i < 4; ++i) {
+            _submit(id, players[i], 1000 * (4 - i), 1, 8000 + i);
+        }
+
+        vm.warp(ENDS_AT + 1);
+
+        uint256 sponsorPreSettle = usdc.balanceOf(sponsor);
+        pool.settle(id, _rankingSlice(4));
+
+        // Top-3 fixed bps: 9*2500/10000 = 2, 9*1500/10000 = 1, 9*1000/10000 = 0.
+        // Place 4 onward all zero (no-op via _pay's amount==0 short-circuit).
+        // Distributed = 2 + 1 + 0 = 3. Refund = 9 - 3 = 6.
+        assertEq(usdc.balanceOf(players[0]), 2, "place 1 = 2 wei");
+        assertEq(usdc.balanceOf(players[1]), 1, "place 2 = 1 wei");
+        assertEq(usdc.balanceOf(players[2]), 0, "place 3 = 0 (rounded down)");
+        assertEq(usdc.balanceOf(players[3]), 0, "place 4 = 0 (skipped tier)");
+        assertEq(usdc.balanceOf(sponsor) - sponsorPreSettle, 6, "sponsor refund = 9 - 3");
+    }
+
+    /// @notice Devs can withdraw their fee share BEFORE settle. The withdraw
+    ///         functions are not gated on `t.settled` — they only require the
+    ///         fee bucket to be non-empty and the caller to be authorized. This
+    ///         matters for UX: devs receiving early entries don't have to wait
+    ///         for tournament close to access their share.
+    function test_integration_dev_canWithdraw_beforeSettle() public {
+        bytes32 id = _tournamentId(830);
+        address dev = _devAddr(97);
+        _createTournamentWithDev(id, dev);
+
+        // Players pay 4 entry fees before settle.
+        _fundAndApprove(players[0], 5 * ENTRY_FEE);
+        _submitSolo(id, players[0], 1000, 1, 0);
+        for (uint256 i; i < 4; ++i) {
+            vm.prank(players[0]);
+            pool.chargeEntryFee(id, players[0]);
+        }
+
+        uint256 expectedDev = (4 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        uint256 expectedPlatform = (4 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
+        assertFalse(pool.getTournament(id).settled, "tournament still open");
+
+        // Dev withdraws mid-tournament (before settle).
+        uint256 devBefore = usdc.balanceOf(dev);
+        vm.prank(dev);
+        pool.withdrawFeesToDev(id);
+        assertEq(usdc.balanceOf(dev) - devBefore, expectedDev, "dev pulled mid-tournament fees");
+        assertEq(pool.feeCollected_dev(id), 0, "dev bucket drained");
+
+        // Platform also withdraws before settle.
+        uint256 ownerBefore = usdc.balanceOf(address(this));
+        pool.withdrawFeesToPlatform(id);
+        assertEq(usdc.balanceOf(address(this)) - ownerBefore, expectedPlatform, "platform pulled mid-tournament fees");
+
+        // Tournament continues — additional fees accrue into freshly-zeroed buckets.
+        vm.prank(players[0]);
+        pool.chargeEntryFee(id, players[0]);
+        assertEq(pool.feeCollected_dev(id), (ENTRY_FEE * DEV_BPS) / TOTAL_BPS, "new dev fee accrues");
+        assertEq(pool.feeCollected_platform(id), (ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS, "new platform fee accrues");
+    }
+
+    /// @notice Settle when no entries are received: empty ranking is valid; full
+    ///         prize pool refunds to sponsor; no PrizePaid events emit. NFT was
+    ///         already minted at createTournament time so it persists across this
+    ///         no-op settle.
+    function test_integration_settle_noEntriesReceived() public {
+        bytes32 id = _tournamentId(820);
+        address dev = _devAddr(96);
+        _createTournamentWithDev(id, dev);
+        assertEq(devNFT.balanceOf(dev), 1, "NFT minted at create");
+
+        uint256 sponsorPre = usdc.balanceOf(sponsor);
+
+        vm.warp(ENDS_AT + 1);
+        pool.settle(id, new address[](0));
+
+        // Full refund.
+        assertEq(usdc.balanceOf(sponsor) - sponsorPre, PRIZE_POOL, "full refund to sponsor");
+        // NFT survives no-op settle.
+        assertEq(devNFT.balanceOf(dev), 1, "NFT persists post no-op settle");
+        // No fees were collected; both buckets remain zero.
+        assertEq(_totalFees(id), 0, "no fees in either bucket");
+        // settled flag set, so withdrawFeesToDev is still callable but is a no-op.
+        vm.prank(dev);
+        pool.withdrawFeesToDev(id); // returns silently on zero-amount
+        assertEq(usdc.balanceOf(dev), 0, "no dev fees to recover");
     }
 }
