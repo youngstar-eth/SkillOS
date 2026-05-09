@@ -97,7 +97,7 @@ export const GET = withX402(async () => {
 
   const body = {
     generated_at: new Date().toISOString(),
-    source: "Skillbase — 6 games, verified human decisions",
+    source: "SkillOS — 6 games, verified human decisions",
     total_verified_players: totalUsers,
     total_decisions_recorded: totalPlausibleDecisions,
     tier_distribution: {
@@ -124,7 +124,7 @@ export const GET = withX402(async () => {
     },
     plausibility_filter_applied: "plausible_only",
     sample_note:
-      "Aggregate tier distribution across 6 Skillbase games. For single verified decision samples, see /api/public/data/decision-sample. For bulk licensing, contact sales@simpl3.ai.",
+      "Aggregate tier distribution across 6 SkillOS games. For single verified decision samples, see /api/public/data/decision-sample. For bulk licensing, contact sales@simpl3.ai.",
     related_endpoints: [
       "/api/public/data/decision-sample",
       "/api/public/ai/coach-sample",

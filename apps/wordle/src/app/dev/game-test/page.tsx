@@ -55,7 +55,7 @@ export default function GameTestPage() {
         matchId: MOCK.matchId,
         reason: why,
         score,
-        message: `Skillbase duel ${MOCK.matchId} score ${score}`,
+        message: `SkillOS duel ${MOCK.matchId} score ${score}`,
       });
     },
     [],

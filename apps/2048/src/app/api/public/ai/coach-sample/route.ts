@@ -161,7 +161,7 @@ export const GET = withX402(async (request: NextRequest) => {
     meta: {
       model: "claude-sonnet-4-6-via-skillbase",
       sample_note:
-        "Same Coach pipeline as live Skillbase games. For production SDK access with tier-aware prompts and volume pricing, contact sales@simpl3.ai.",
+        "Same Coach pipeline as live SkillOS games. For production SDK access with tier-aware prompts and volume pricing, contact sales@simpl3.ai.",
       rate_limit_note: "Sample endpoint — 30 req/min per IP.",
     },
   });

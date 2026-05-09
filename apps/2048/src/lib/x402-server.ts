@@ -68,7 +68,7 @@ function buildRoutes(payTo: string): RoutesConfig {
       payTo,
     },
     description:
-      "Aggregate tier histogram across 6 Skillbase games. Anonymized. Counts verified human decisions.",
+      "Aggregate tier histogram across 6 SkillOS games. Anonymized. Counts verified human decisions.",
     mimeType: "application/json",
     extensions: {
       bazaar: {
@@ -89,7 +89,7 @@ function buildRoutes(payTo: string): RoutesConfig {
       payTo,
     },
     description:
-      "Single verified decision sample from a Skillbase run. Anonymized via sha256(run_id). Schema v1 — match-level fields only (score, duration, plausibility).",
+      "Single verified decision sample from a SkillOS run. Anonymized via sha256(run_id). Schema v1 — match-level fields only (score, duration, plausibility).",
     mimeType: "application/json",
     extensions: {
       bazaar: {
@@ -107,7 +107,7 @@ function buildRoutes(payTo: string): RoutesConfig {
       network: NETWORK,
       payTo,
     },
-    description: `AI Coach inference — per-game tactical feedback (2 areas + 1 actionable tip). ${COACH_MODEL_DISPLAY} via Skillbase Coach pipeline. Rate-limited 30 req/min per IP.`,
+    description: `AI Coach inference — per-game tactical feedback (2 areas + 1 actionable tip). ${COACH_MODEL_DISPLAY} via SkillOS Coach pipeline. Rate-limited 30 req/min per IP.`,
     mimeType: "application/json",
     extensions: {
       bazaar: {

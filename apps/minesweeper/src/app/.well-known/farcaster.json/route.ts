@@ -24,7 +24,7 @@ const ASSOCIATION = {
 
 const MANIFEST = {
   version: "1",
-  name: 'Skillbase Minesweeper',
+  name: 'SkillOS Minesweeper',
   iconUrl: "https://minesweeper.skillbase.games/icon",
   homeUrl: "https://minesweeper.skillbase.games/tournament/solo",
   imageUrl: "https://minesweeper.skillbase.games/opengraph-image",
@@ -36,7 +36,7 @@ const MANIFEST = {
   primaryCategory: "games",
   tags: ["skill", "classic", "strategy", "ai", "base"],
   tagline: "Skill data layer",
-  ogTitle: "Skillbase Mines on Base",
+  ogTitle: "SkillOS Mines on Base",
   ogDescription: "Pay to play, skill-rewarded. AI coach, plausibility-verified scoring.",
 } as const;
 

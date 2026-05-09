@@ -39,9 +39,9 @@ export const SkillosMark = ({
     viewBox={viewBox ?? "0 0 7 5"}
     shapeRendering={shapeRendering ?? "crispEdges"}
     role={role ?? "img"}
-    aria-label="Skillbase"
+    aria-label="SkillOS"
   >
-    <title>Skillbase</title>
+    <title>SkillOS</title>
     <g fill="#FFC72C">
       <rect x="0" y="0" width="3" height="1" />
       <rect x="0" y="1" width="1" height="1" />
