@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { Script, console2 } from "forge-std/Script.sol";
-import { TournamentPool } from "../src/TournamentPool.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {TournamentPool} from "../src/TournamentPool.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title DeployTournamentPool — F4 Sponsored Tournaments
 /// @notice Deploys TournamentPool to Base Sepolia.
@@ -31,9 +31,7 @@ contract DeployTournamentPool is Script {
 
     function run() external {
         if (block.chainid != CHAIN_BASE_SEPOLIA) {
-            revert(
-                "DeployTournamentPool: Base Sepolia only (mainnet gated on legal review)"
-            );
+            revert("DeployTournamentPool: Base Sepolia only (mainnet gated on legal review)");
         }
 
         uint256 deployerPk = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -58,6 +56,6 @@ contract DeployTournamentPool is Script {
         console2.log("SCORE_WEIGHT:         ", pool.SCORE_WEIGHT());
         console2.log("PARTICIPATION_WEIGHT: ", pool.PARTICIPATION_WEIGHT());
         console2.log("MATCH_COUNT_CAP:      ", pool.MATCH_COUNT_CAP());
-        console2.log("RETRY_FEE (USDC atoms):", pool.RETRY_FEE());
+        console2.log("ENTRY_FEE (USDC atoms):", pool.ENTRY_FEE());
     }
 }

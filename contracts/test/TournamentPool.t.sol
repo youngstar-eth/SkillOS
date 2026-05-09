@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { Test } from "forge-std/Test.sol";
-import { TournamentPool } from "../src/TournamentPool.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {Test} from "forge-std/Test.sol";
+import {TournamentPool} from "../src/TournamentPool.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 // ─── Mock USDC ─────────────────────────────────────────────────────────────────
 
@@ -29,6 +29,9 @@ contract TournamentPoolTest is Test {
     address internal trustedSigner;
     address internal sponsor = address(0x5907503);
     address internal outsider = address(0xBAD);
+    /// @dev Default developer attribution address used by the _createTournament helper
+    ///      so existing tests can opt out of caring about devAddr semantics.
+    address internal constant DEFAULT_DEV = address(0xDE7de7de7De7dE7de7De7De7DE7De7De7dE7dE7D);
     address[] internal players;
 
     // ── Contracts
@@ -71,39 +74,28 @@ contract TournamentPoolTest is Test {
     }
 
     function _createTournament(bytes32 id) internal {
+        _createTournamentWithDev(id, DEFAULT_DEV);
+    }
+
+    function _createTournamentWithDev(bytes32 id, address devAddr) internal {
         vm.prank(sponsor);
         pool.createTournament(
-            id,
-            GAME,
-            TournamentPool.CycleType.Daily,
-            STARTS_AT,
-            ENDS_AT,
-            PRIZE_POOL,
-            PARTICIPATION_BONUS
+            id, devAddr, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
         );
     }
 
-    function _signSubmit(
-        bytes32 id,
-        address player,
-        uint256 score,
-        uint256 matchCountDelta,
-        bytes32 nonce
-    )
+    function _signSubmit(bytes32 id, address player, uint256 score, uint256 matchCountDelta, bytes32 nonce)
         internal
         view
         returns (bytes memory)
     {
-        bytes32 digest =
-            keccak256(abi.encode(id, player, score, matchCountDelta, nonce, address(pool), block.chainid));
+        bytes32 digest = keccak256(abi.encode(id, player, score, matchCountDelta, nonce, address(pool), block.chainid));
         bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, ethDigest);
         return abi.encodePacked(r, s, v);
     }
 
-    function _submit(bytes32 id, address player, uint256 score, uint256 matchCountDelta, uint256 nonceSeed)
-        internal
-    {
+    function _submit(bytes32 id, address player, uint256 score, uint256 matchCountDelta, uint256 nonceSeed) internal {
         bytes32 nonce = keccak256(abi.encodePacked(id, player, nonceSeed));
         bytes memory sig = _signSubmit(id, player, score, matchCountDelta, nonce);
         pool.submitScore(id, player, score, matchCountDelta, nonce, sig);
@@ -123,7 +115,9 @@ contract TournamentPoolTest is Test {
 
     function _rankingSlice(uint256 n) internal view returns (address[] memory) {
         address[] memory r = new address[](n);
-        for (uint256 i; i < n; ++i) r[i] = players[i];
+        for (uint256 i; i < n; ++i) {
+            r[i] = players[i];
+        }
         return r;
     }
 
@@ -137,6 +131,7 @@ contract TournamentPoolTest is Test {
 
         TournamentPool.Tournament memory t = pool.getTournament(id);
         assertEq(t.sponsor, sponsor, "sponsor");
+        assertEq(t.devAddr, DEFAULT_DEV, "devAddr");
         assertEq(t.game, GAME, "game");
         assertEq(uint8(t.cycleType), uint8(TournamentPool.CycleType.Daily), "cycle");
         assertEq(t.startsAt, STARTS_AT, "startsAt");
@@ -154,7 +149,7 @@ contract TournamentPoolTest is Test {
         vm.prank(sponsor);
         vm.expectRevert(TournamentPool.TournamentAlreadyExists.selector);
         pool.createTournament(
-            id, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
+            id, DEFAULT_DEV, GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
         );
     }
 
@@ -163,6 +158,7 @@ contract TournamentPoolTest is Test {
         vm.expectRevert(TournamentPool.InvalidWindow.selector);
         pool.createTournament(
             _tournamentId(3),
+            DEFAULT_DEV,
             GAME,
             TournamentPool.CycleType.Daily,
             ENDS_AT,
@@ -176,7 +172,34 @@ contract TournamentPoolTest is Test {
         vm.prank(sponsor);
         vm.expectRevert(TournamentPool.ZeroPrize.selector);
         pool.createTournament(
-            _tournamentId(4), GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, 0, PARTICIPATION_BONUS
+            _tournamentId(4),
+            DEFAULT_DEV,
+            GAME,
+            TournamentPool.CycleType.Daily,
+            STARTS_AT,
+            ENDS_AT,
+            0,
+            PARTICIPATION_BONUS
+        );
+    }
+
+    /// @notice v2.2: createTournament records developer attribution address; immutable.
+    function test_createTournament_storesDevAddr() public {
+        bytes32 id = _tournamentId(5);
+        address dev = address(0xc0dE0dEdDEdDedDEDdEdDEDDeDdEddedDeddeDde);
+
+        _createTournamentWithDev(id, dev);
+
+        TournamentPool.Tournament memory t = pool.getTournament(id);
+        assertEq(t.devAddr, dev, "devAddr stored on tournament");
+    }
+
+    function test_createTournament_revert_zeroDevAddr() public {
+        bytes32 id = _tournamentId(6);
+        vm.prank(sponsor);
+        vm.expectRevert(TournamentPool.ZeroAddress.selector);
+        pool.createTournament(
+            id, address(0), GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
         );
     }
 
@@ -242,6 +265,7 @@ contract TournamentPoolTest is Test {
         vm.prank(sponsor);
         pool.createTournament(
             id,
+            DEFAULT_DEV,
             GAME,
             TournamentPool.CycleType.Daily,
             uint64(block.timestamp + 1 hours),
@@ -330,7 +354,9 @@ contract TournamentPoolTest is Test {
 
         // Track balances pre-settle so we can assert payouts.
         uint256[] memory before_ = new uint256[](10);
-        for (uint256 i; i < 10; ++i) before_[i] = usdc.balanceOf(players[i]);
+        for (uint256 i; i < 10; ++i) {
+            before_[i] = usdc.balanceOf(players[i]);
+        }
         uint256 sponsorBefore = usdc.balanceOf(sponsor);
 
         pool.settle(id, _rankingSlice(10));
@@ -436,7 +462,9 @@ contract TournamentPoolTest is Test {
     function test_settle_largeN_tier5Split() public {
         bytes32 id = _tournamentId(35);
         // Need 30 players for topN = 15 (5 tier5 winners). Extend roster.
-        for (uint160 i = 21; i <= 30; ++i) players.push(address(uint160(0x1000 + i)));
+        for (uint160 i = 21; i <= 30; ++i) {
+            players.push(address(uint160(0x1000 + i)));
+        }
 
         _createTournament(id);
         _seedDescendingScores(id, 30);
@@ -661,7 +689,7 @@ contract TournamentPoolTest is Test {
 
     // ── V2 helpers
 
-    uint256 internal constant RETRY_FEE = 1_000_000; // 1 USDC
+    uint256 internal constant ENTRY_FEE = 1_000_000; // 1 USDC
 
     function _signSoloSubmit(
         bytes32 id,
@@ -670,11 +698,7 @@ contract TournamentPoolTest is Test {
         bytes32 soloRunId,
         uint256 matchCountDelta,
         bytes32 nonce
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    ) internal view returns (bytes memory) {
         bytes32 digest = keccak256(
             abi.encode(id, player, score, soloRunId, matchCountDelta, nonce, address(pool), block.chainid)
         );
@@ -683,13 +707,7 @@ contract TournamentPoolTest is Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function _submitSolo(
-        bytes32 id,
-        address player,
-        uint256 score,
-        uint256 matchCountDelta,
-        uint256 nonceSeed
-    )
+    function _submitSolo(bytes32 id, address player, uint256 score, uint256 matchCountDelta, uint256 nonceSeed)
         internal
     {
         bytes32 nonce = keccak256(abi.encodePacked("solo", id, player, nonceSeed));
@@ -731,7 +749,7 @@ contract TournamentPoolTest is Test {
 
         _submitSolo(id, players[0], 500, 1, 0);
 
-        // Second solo without prior chargeRetryFee must revert.
+        // Second solo without prior chargeEntryFee must revert.
         vm.expectRevert(TournamentPool.InsufficientFeePaid.selector);
         _submitSolo(id, players[0], 700, 1, 1);
     }
@@ -741,24 +759,24 @@ contract TournamentPoolTest is Test {
         _createTournament(id);
 
         _submitSolo(id, players[0], 500, 1, 0);
-        _fundAndApprove(players[0], 10 * RETRY_FEE);
+        _fundAndApprove(players[0], 10 * ENTRY_FEE);
 
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
 
         // Now the second solo submission is allowed.
         _submitSolo(id, players[0], 700, 1, 1);
 
         assertEq(pool.soloSubmissionCount(id, players[0]), 2);
         assertEq(pool.bestScore(id, players[0]), 700);
-        assertEq(pool.feePaidByPlayer(id, players[0]), RETRY_FEE);
-        assertEq(pool.feeCollected(id), RETRY_FEE);
+        assertEq(pool.feePaidByPlayer(id, players[0]), ENTRY_FEE);
+        assertEq(pool.feeCollected(id), ENTRY_FEE);
     }
 
     function test_submitSolo_nthSubmissionRequiresNMinus1Fees() public {
         bytes32 id = _tournamentId(203);
         _createTournament(id);
-        _fundAndApprove(players[0], 100 * RETRY_FEE);
+        _fundAndApprove(players[0], 100 * ENTRY_FEE);
 
         // 1st solo (free).
         _submitSolo(id, players[0], 100, 1, 0);
@@ -766,14 +784,14 @@ contract TournamentPoolTest is Test {
         // 4th solo requires 3 prior fees.
         for (uint256 i; i < 3; ++i) {
             vm.prank(players[0]);
-            pool.chargeRetryFee(id, players[0]);
+            pool.chargeEntryFee(id, players[0]);
         }
         _submitSolo(id, players[0], 200, 1, 1); // 2nd
         _submitSolo(id, players[0], 300, 1, 2); // 3rd
         _submitSolo(id, players[0], 400, 1, 3); // 4th
 
         assertEq(pool.soloSubmissionCount(id, players[0]), 4);
-        assertEq(pool.feePaidByPlayer(id, players[0]), 3 * RETRY_FEE);
+        assertEq(pool.feePaidByPlayer(id, players[0]), 3 * ENTRY_FEE);
 
         // 5th without a 4th fee must fail.
         vm.expectRevert(TournamentPool.InsufficientFeePaid.selector);
@@ -781,27 +799,27 @@ contract TournamentPoolTest is Test {
 
         // After topping up, 5th succeeds.
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
         _submitSolo(id, players[0], 500, 1, 5);
 
         assertEq(pool.soloSubmissionCount(id, players[0]), 5);
-        assertEq(pool.feeCollected(id), 4 * RETRY_FEE);
+        assertEq(pool.feeCollected(id), 4 * ENTRY_FEE);
     }
 
     function test_submitSolo_separatePlayers_independentFeeAccounting() public {
         bytes32 id = _tournamentId(204);
         _createTournament(id);
 
-        _fundAndApprove(players[0], 10 * RETRY_FEE);
+        _fundAndApprove(players[0], 10 * ENTRY_FEE);
 
         // Player 0 does two solos (one fee). Player 1 does one solo (free).
         _submitSolo(id, players[0], 500, 1, 0);
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
         _submitSolo(id, players[0], 700, 1, 1);
         _submitSolo(id, players[1], 900, 1, 2);
 
-        assertEq(pool.feePaidByPlayer(id, players[0]), RETRY_FEE);
+        assertEq(pool.feePaidByPlayer(id, players[0]), ENTRY_FEE);
         assertEq(pool.feePaidByPlayer(id, players[1]), 0);
         assertEq(pool.soloSubmissionCount(id, players[0]), 2);
         assertEq(pool.soloSubmissionCount(id, players[1]), 1);
@@ -813,9 +831,8 @@ contract TournamentPoolTest is Test {
 
         bytes32 nonce = keccak256("n");
         bytes32 runId = keccak256("r");
-        bytes32 digest = keccak256(
-            abi.encode(id, players[0], uint256(100), runId, uint256(1), nonce, address(pool), block.chainid)
-        );
+        bytes32 digest =
+            keccak256(abi.encode(id, players[0], uint256(100), runId, uint256(1), nonce, address(pool), block.chainid));
         bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD00D, ethDigest);
         bytes memory wrongSig = abi.encodePacked(r, s, v);
@@ -852,66 +869,66 @@ contract TournamentPoolTest is Test {
         pool.submitSoloScore(id, players[0], 200, runId, 1, nonce, soloSig);
     }
 
-    // ── chargeRetryFee
+    // ── chargeEntryFee
 
-    function test_chargeRetryFee_success() public {
+    function test_chargeEntryFee_success() public {
         bytes32 id = _tournamentId(220);
         _createTournament(id);
-        _fundAndApprove(players[0], 10 * RETRY_FEE);
+        _fundAndApprove(players[0], 10 * ENTRY_FEE);
 
         uint256 playerBefore = usdc.balanceOf(players[0]);
         uint256 poolBefore = usdc.balanceOf(address(pool));
 
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
 
-        assertEq(usdc.balanceOf(players[0]), playerBefore - RETRY_FEE);
-        assertEq(usdc.balanceOf(address(pool)), poolBefore + RETRY_FEE);
-        assertEq(pool.feePaidByPlayer(id, players[0]), RETRY_FEE);
-        assertEq(pool.feeCollected(id), RETRY_FEE);
+        assertEq(usdc.balanceOf(players[0]), playerBefore - ENTRY_FEE);
+        assertEq(usdc.balanceOf(address(pool)), poolBefore + ENTRY_FEE);
+        assertEq(pool.feePaidByPlayer(id, players[0]), ENTRY_FEE);
+        assertEq(pool.feeCollected(id), ENTRY_FEE);
     }
 
-    function test_chargeRetryFee_revert_playerMismatch() public {
+    function test_chargeEntryFee_revert_playerMismatch() public {
         bytes32 id = _tournamentId(221);
         _createTournament(id);
-        _fundAndApprove(players[0], RETRY_FEE);
+        _fundAndApprove(players[0], ENTRY_FEE);
 
         // Someone else tries to charge fee on behalf of players[0].
         vm.prank(outsider);
         vm.expectRevert(TournamentPool.PlayerMismatch.selector);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
     }
 
-    function test_chargeRetryFee_revert_tournamentEnded() public {
+    function test_chargeEntryFee_revert_tournamentEnded() public {
         bytes32 id = _tournamentId(222);
         _createTournament(id);
-        _fundAndApprove(players[0], RETRY_FEE);
+        _fundAndApprove(players[0], ENTRY_FEE);
 
         vm.warp(ENDS_AT + 1);
         vm.prank(players[0]);
         vm.expectRevert(TournamentPool.TournamentAlreadyEnded.selector);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
     }
 
-    function test_chargeRetryFee_revert_tournamentNotFound() public {
-        _fundAndApprove(players[0], RETRY_FEE);
+    function test_chargeEntryFee_revert_tournamentNotFound() public {
+        _fundAndApprove(players[0], ENTRY_FEE);
         vm.prank(players[0]);
         vm.expectRevert(TournamentPool.TournamentNotFound.selector);
-        pool.chargeRetryFee(_tournamentId(9999), players[0]);
+        pool.chargeEntryFee(_tournamentId(9999), players[0]);
     }
 
-    function test_chargeRetryFee_accumulates() public {
+    function test_chargeEntryFee_accumulates() public {
         bytes32 id = _tournamentId(223);
         _createTournament(id);
-        _fundAndApprove(players[0], 5 * RETRY_FEE);
+        _fundAndApprove(players[0], 5 * ENTRY_FEE);
 
         for (uint256 i; i < 3; ++i) {
             vm.prank(players[0]);
-            pool.chargeRetryFee(id, players[0]);
+            pool.chargeEntryFee(id, players[0]);
         }
 
-        assertEq(pool.feePaidByPlayer(id, players[0]), 3 * RETRY_FEE);
-        assertEq(pool.feeCollected(id), 3 * RETRY_FEE);
+        assertEq(pool.feePaidByPlayer(id, players[0]), 3 * ENTRY_FEE);
+        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE);
     }
 
     // ── withdrawFees
@@ -919,12 +936,12 @@ contract TournamentPoolTest is Test {
     function test_withdrawFees_drawsOnlyFromFeeCollected() public {
         bytes32 id = _tournamentId(240);
         _createTournament(id);
-        _fundAndApprove(players[0], 3 * RETRY_FEE);
+        _fundAndApprove(players[0], 3 * ENTRY_FEE);
 
         // Player pays 2 retries.
         vm.startPrank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
         vm.stopPrank();
 
         address team = address(0xFEE71AB);
@@ -933,10 +950,10 @@ contract TournamentPoolTest is Test {
 
         pool.withdrawFees(id, team);
 
-        assertEq(usdc.balanceOf(team) - teamBefore, 2 * RETRY_FEE);
+        assertEq(usdc.balanceOf(team) - teamBefore, 2 * ENTRY_FEE);
         assertEq(pool.feeCollected(id), 0);
         // Pool balance drops by exactly the fee total — prize pool intact.
-        assertEq(usdc.balanceOf(address(pool)), poolBefore - 2 * RETRY_FEE);
+        assertEq(usdc.balanceOf(address(pool)), poolBefore - 2 * ENTRY_FEE);
         // Prize pool state is unchanged.
         assertEq(pool.getTournament(id).prizePool, PRIZE_POOL);
     }
@@ -963,10 +980,10 @@ contract TournamentPoolTest is Test {
     function test_withdrawFees_twiceZeros() public {
         bytes32 id = _tournamentId(243);
         _createTournament(id);
-        _fundAndApprove(players[0], RETRY_FEE);
+        _fundAndApprove(players[0], ENTRY_FEE);
 
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
 
         address team = address(0xFEE71AB);
         pool.withdrawFees(id, team);
@@ -984,13 +1001,13 @@ contract TournamentPoolTest is Test {
         // Retry fees collected must NOT affect prize distribution.
         bytes32 id = _tournamentId(260);
         _createTournament(id);
-        _fundAndApprove(players[0], 10 * RETRY_FEE);
+        _fundAndApprove(players[0], 10 * ENTRY_FEE);
 
         // 4 solo submissions from players[0] (3 paid retries).
         _submitSolo(id, players[0], 1000, 1, 0);
         for (uint256 i; i < 3; ++i) {
             vm.prank(players[0]);
-            pool.chargeRetryFee(id, players[0]);
+            pool.chargeEntryFee(id, players[0]);
         }
         _submitSolo(id, players[0], 1500, 1, 1);
         _submitSolo(id, players[0], 2000, 1, 2);
@@ -1001,9 +1018,9 @@ contract TournamentPoolTest is Test {
         _submit(id, players[2], 600, 1, 11);
         _submit(id, players[3], 400, 1, 12);
 
-        assertEq(pool.feeCollected(id), 3 * RETRY_FEE);
+        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE);
         // Contract balance = prize pool + fees collected.
-        assertEq(usdc.balanceOf(address(pool)), PRIZE_POOL + 3 * RETRY_FEE);
+        assertEq(usdc.balanceOf(address(pool)), PRIZE_POOL + 3 * ENTRY_FEE);
 
         vm.warp(ENDS_AT + 1);
 
@@ -1025,13 +1042,13 @@ contract TournamentPoolTest is Test {
         assertEq(usdc.balanceOf(sponsor) - sponsorBefore, expectedRefund, "sponsor refund");
 
         // Critical: feeCollected survives settle untouched.
-        assertEq(pool.feeCollected(id), 3 * RETRY_FEE, "fees must not be settled");
-        assertEq(usdc.balanceOf(address(pool)), 3 * RETRY_FEE, "only fees remain");
+        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE, "fees must not be settled");
+        assertEq(usdc.balanceOf(address(pool)), 3 * ENTRY_FEE, "only fees remain");
 
         // Team can still withdraw their fees after settle.
         address team = address(0xFEE71AB);
         pool.withdrawFees(id, team);
-        assertEq(usdc.balanceOf(team), 3 * RETRY_FEE);
+        assertEq(usdc.balanceOf(team), 3 * ENTRY_FEE);
         assertEq(usdc.balanceOf(address(pool)), 0);
     }
 
@@ -1039,11 +1056,11 @@ contract TournamentPoolTest is Test {
         // Pair test: prize pool goes out via settle; feeCollected untouched.
         bytes32 id = _tournamentId(261);
         _createTournament(id);
-        _fundAndApprove(players[0], 5 * RETRY_FEE);
+        _fundAndApprove(players[0], 5 * ENTRY_FEE);
 
         _submitSolo(id, players[0], 1000, 1, 0);
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
         _submitSolo(id, players[0], 1200, 1, 1);
 
         vm.warp(ENDS_AT + 1);
@@ -1052,7 +1069,7 @@ contract TournamentPoolTest is Test {
         pool.settle(id, ranking);
 
         // feeCollected should be unchanged after settle.
-        assertEq(pool.feeCollected(id), RETRY_FEE);
+        assertEq(pool.feeCollected(id), ENTRY_FEE);
     }
 
     // ── Match-count cap
@@ -1060,13 +1077,13 @@ contract TournamentPoolTest is Test {
     function test_effectiveScore_matchCountCap_caps_at_ten() public {
         bytes32 id = _tournamentId(280);
         _createTournament(id);
-        _fundAndApprove(players[0], 20 * RETRY_FEE);
+        _fundAndApprove(players[0], 20 * ENTRY_FEE);
 
         // 12 solo submissions: 1 free + 11 paid retries.
         _submitSolo(id, players[0], 1000, 1, 0);
         for (uint256 i; i < 11; ++i) {
             vm.prank(players[0]);
-            pool.chargeRetryFee(id, players[0]);
+            pool.chargeEntryFee(id, players[0]);
             _submitSolo(id, players[0], 1000, 1, i + 1);
         }
 
@@ -1081,12 +1098,12 @@ contract TournamentPoolTest is Test {
     function test_effectiveScore_belowCap_unchanged() public {
         bytes32 id = _tournamentId(281);
         _createTournament(id);
-        _fundAndApprove(players[0], 5 * RETRY_FEE);
+        _fundAndApprove(players[0], 5 * ENTRY_FEE);
 
         _submitSolo(id, players[0], 1000, 1, 0);
         for (uint256 i; i < 4; ++i) {
             vm.prank(players[0]);
-            pool.chargeRetryFee(id, players[0]);
+            pool.chargeEntryFee(id, players[0]);
             _submitSolo(id, players[0], 1000, 1, i + 1);
         }
 
@@ -1129,13 +1146,13 @@ contract TournamentPoolTest is Test {
     function test_submissionHistory_tagsSourceCorrectly() public {
         bytes32 id = _tournamentId(301);
         _createTournament(id);
-        _fundAndApprove(players[0], 2 * RETRY_FEE);
+        _fundAndApprove(players[0], 2 * ENTRY_FEE);
 
-        _submit(id, players[0], 100, 1, 0);       // Duel
-        _submitSolo(id, players[0], 200, 1, 0);   // Solo #1 (free)
+        _submit(id, players[0], 100, 1, 0); // Duel
+        _submitSolo(id, players[0], 200, 1, 0); // Solo #1 (free)
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
-        _submitSolo(id, players[0], 300, 1, 1);   // Solo #2 (paid)
+        pool.chargeEntryFee(id, players[0]);
+        _submitSolo(id, players[0], 300, 1, 1); // Solo #2 (paid)
 
         assertEq(pool.submissionHistoryLength(id, players[0]), 3);
         assertEq(uint8(pool.submissionAt(id, players[0], 0).source), uint8(TournamentPool.SubmissionSource.Duel));
@@ -1269,39 +1286,43 @@ contract TournamentPoolTest is Test {
         _createTournament(id);
 
         // Establish a baseline: pay one retry fee so feeCollected has a known value.
-        _fundAndApprove(players[0], RETRY_FEE);
+        _fundAndApprove(players[0], ENTRY_FEE);
         vm.prank(players[0]);
-        pool.chargeRetryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
         uint256 feeBaseline = pool.feeCollected(id);
-        assertEq(feeBaseline, RETRY_FEE, "fee baseline");
+        assertEq(feeBaseline, ENTRY_FEE, "fee baseline");
 
         // Interleave fundPrizePool calls with retry fee + score submissions.
         _fundFunder(outsider, 50_000_000);
 
         // Sequence: fund, fund, retry-fee, fund, retry-fee, fund.
-        vm.prank(outsider); pool.fundPrizePool(id, 1_000_000);
+        vm.prank(outsider);
+        pool.fundPrizePool(id, 1_000_000);
         assertEq(pool.feeCollected(id), feeBaseline, "fee unchanged after fund #1");
 
-        vm.prank(outsider); pool.fundPrizePool(id, 7_500_000);
+        vm.prank(outsider);
+        pool.fundPrizePool(id, 7_500_000);
         assertEq(pool.feeCollected(id), feeBaseline, "fee unchanged after fund #2");
 
-        _fundAndApprove(players[1], RETRY_FEE);
+        _fundAndApprove(players[1], ENTRY_FEE);
         vm.prank(players[1]);
-        pool.chargeRetryFee(id, players[1]);
-        assertEq(pool.feeCollected(id), feeBaseline + RETRY_FEE, "fee tracks retry only");
+        pool.chargeEntryFee(id, players[1]);
+        assertEq(pool.feeCollected(id), feeBaseline + ENTRY_FEE, "fee tracks retry only");
 
-        uint256 feeAfterTwoRetries = feeBaseline + RETRY_FEE;
-        vm.prank(outsider); pool.fundPrizePool(id, 100_000);
+        uint256 feeAfterTwoRetries = feeBaseline + ENTRY_FEE;
+        vm.prank(outsider);
+        pool.fundPrizePool(id, 100_000);
         assertEq(pool.feeCollected(id), feeAfterTwoRetries, "fee unchanged after fund #3");
 
-        _fundAndApprove(players[2], RETRY_FEE);
+        _fundAndApprove(players[2], ENTRY_FEE);
         vm.prank(players[2]);
-        pool.chargeRetryFee(id, players[2]);
-        vm.prank(outsider); pool.fundPrizePool(id, 41_400_000);
+        pool.chargeEntryFee(id, players[2]);
+        vm.prank(outsider);
+        pool.fundPrizePool(id, 41_400_000);
 
         // Final assertion: feeCollected = exactly 3 retry fees, regardless of
         // how much was funded into prizePool.
-        assertEq(pool.feeCollected(id), 3 * RETRY_FEE, "fee == only retry fees");
+        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE, "fee == only retry fees");
 
         // And prizePool reflects all funder contributions plus original.
         TournamentPool.Tournament memory t = pool.getTournament(id);
@@ -1311,7 +1332,7 @@ contract TournamentPoolTest is Test {
         address teamWallet = address(0xCAFE);
         uint256 prizePoolBeforeWithdraw = t.prizePool;
         pool.withdrawFees(id, teamWallet);
-        assertEq(usdc.balanceOf(teamWallet), 3 * RETRY_FEE, "team wallet receives retry fees only");
+        assertEq(usdc.balanceOf(teamWallet), 3 * ENTRY_FEE, "team wallet receives retry fees only");
         TournamentPool.Tournament memory tAfter = pool.getTournament(id);
         assertEq(tAfter.prizePool, prizePoolBeforeWithdraw, "prize pool untouched by withdrawFees");
     }
