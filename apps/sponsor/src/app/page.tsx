@@ -51,7 +51,7 @@ export default function SponsorRoot() {
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Sponsor a Pool</h1>
         <p className="mt-2 max-w-xl text-base text-neutral-400">
-          Anyone can fund a Skillbase tournament prize pool. On-chain. Brand-verified
+          Anyone can fund a SkillOS tournament prize pool. On-chain. Brand-verified
           via soulbound receipt. No application required.
         </p>
         <div className="mt-4 flex gap-3">
