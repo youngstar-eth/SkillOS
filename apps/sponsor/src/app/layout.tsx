@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
-import Script from "next/script";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@skillbase/ui";
 import { Nav } from "../components/Nav";
 import { Footer } from "../components/Footer";
@@ -10,7 +9,7 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500"],
+  weight: ["400", "500", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -19,19 +18,6 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
   weight: ["400"],
 });
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-  display: "optional",
-  weight: ["500"],
-});
-
-// Resolves theme from localStorage → prefers-color-scheme → dark fallback
-// (sponsor's brand voice is gold + ink). Must remain a self-contained string
-// with no template literals so older Safari versions can parse it before any
-// bundler-transformed JS executes.
-const FOUC_SCRIPT = `(function(){try{var k='skillbase-theme';var s=localStorage.getItem(k);var t=(s==='light'||s==='dark')?s:(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.classList.add('theme-'+t);}catch(e){document.documentElement.classList.add('theme-dark');}})();`;
 
 export const metadata: Metadata = {
   title: "SkillOS — Sponsor a Pool",
@@ -55,11 +41,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
-  colorScheme: "light dark",
+  themeColor: "#08090a",
+  colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
 };
@@ -70,13 +53,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      suppressHydrationWarning
-      className={`${inter.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen font-sans antialiased">
-        <Script id="skillbase-theme-init" strategy="beforeInteractive">
-          {FOUC_SCRIPT}
-        </Script>
         <Providers>
           <Nav />
           {children}

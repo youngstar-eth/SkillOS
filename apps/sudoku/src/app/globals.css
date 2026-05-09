@@ -16,7 +16,7 @@ body {
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible {
-  outline: 2px solid #ffc72c;
+  outline: 2px solid #e4f222;
   outline-offset: 2px;
   border-radius: 0.5rem;
 }
@@ -38,8 +38,8 @@ a {
  * Dark-mode color map (previous → now):
  *   #ffffff  bg         →  #141414 (bg-elev)
  *   #061b31  fg/border  →  #262626 (border)
- *   #635bff  accent     →  #ffc72c (skill)
- *   #ece9ff  highlight  →  rgba(255,199,44,.12)
+ *   #635bff  accent     →  #e4f222 (skill — Neon Lime)
+ *   #ece9ff  highlight  →  rgba(228,242,34,.12)
  *   #fee2e2  conflict   →  rgba(239,68,68,.15)
  * ────────────────────────────────────────────────────────────────────── */
 
@@ -82,13 +82,13 @@ a {
 .sudoku-cell[data-row="5"] { border-bottom: 2px solid #404040; }
 
 .sudoku-cell.given { font-weight: 700; color: #ededed; }
-.sudoku-cell.user  { color: #ffc72c; font-weight: 600; }
+.sudoku-cell.user  { color: #e4f222; font-weight: 600; }
 
 .sudoku-cell.peer        { background: #1c1c1c; }
-.sudoku-cell.same-number { background: rgba(255, 199, 44, 0.12); }
+.sudoku-cell.same-number { background: rgba(228, 242, 34, 0.12); }
 .sudoku-cell.selected {
-  background: rgba(255, 199, 44, 0.18);
-  box-shadow: inset 0 0 0 2px #ffc72c;
+  background: rgba(228, 242, 34, 0.18);
+  box-shadow: inset 0 0 0 2px #e4f222;
   z-index: 1;
 }
 .sudoku-cell.conflict {

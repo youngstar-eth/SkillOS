@@ -158,7 +158,7 @@ export function TournamentInvite({ matchId, player, score }: Props) {
       <button
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending}
-        className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg bg-skill text-sm font-semibold text-black transition hover:bg-yellow-400 disabled:opacity-60"
+        className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg bg-skill text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
       >
         {mutation.isPending
           ? "Submitting…"

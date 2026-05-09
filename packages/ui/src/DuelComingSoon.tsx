@@ -28,7 +28,7 @@ export function DuelComingSoon() {
 
         <Link
           href="/tournament/solo"
-          className="mt-6 inline-flex items-center justify-center rounded-xl bg-skill px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-yellow-400"
+          className="mt-6 inline-flex items-center justify-center rounded-xl bg-skill px-5 py-2.5 text-sm font-semibold text-black transition hover:opacity-90"
         >
           Play solo →
         </Link>

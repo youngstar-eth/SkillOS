@@ -59,7 +59,7 @@ export function WalletButton() {
           disabled={isSwitching}
           className={cx(
             "inline-flex h-9 items-center gap-2 rounded-lg bg-skill px-4 text-sm font-semibold text-black transition",
-            isSwitching ? "opacity-60" : "hover:bg-yellow-400",
+            isSwitching ? "opacity-60" : "hover:opacity-90",
           )}
         >
           {isSwitching ? "Switching…" : "Switch to Base Sepolia"}
@@ -108,7 +108,7 @@ export function WalletButton() {
         disabled={isPending}
         className={cx(
           "inline-flex h-9 items-center gap-2 rounded-lg bg-skill px-4 text-sm font-semibold text-black transition",
-          isPending ? "opacity-60" : "hover:bg-yellow-400",
+          isPending ? "opacity-60" : "hover:opacity-90",
         )}
       >
         {isPending ? "Connecting…" : "Connect Wallet"}
