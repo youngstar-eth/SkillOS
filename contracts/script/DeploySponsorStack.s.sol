@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { Script, console2 } from "forge-std/Script.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { TournamentPool } from "../src/TournamentPool.sol";
-import { MockSanctionsOracle } from "../src/MockSanctionsOracle.sol";
-import { SponsorReceiptSBT } from "../src/SponsorReceiptSBT.sol";
-import { SponsorshipModule, ITournamentPool } from "../src/SponsorshipModule.sol";
-import { ISanctionsOracle } from "../src/ISanctionsOracle.sol";
+import {TournamentPool} from "../src/TournamentPool.sol";
+import {DevAttributionNFT} from "../src/DevAttributionNFT.sol";
+import {MockSanctionsOracle} from "../src/MockSanctionsOracle.sol";
+import {SponsorReceiptSBT} from "../src/SponsorReceiptSBT.sol";
+import {SponsorshipModule, ITournamentPool} from "../src/SponsorshipModule.sol";
+import {ISanctionsOracle} from "../src/ISanctionsOracle.sol";
 
 /// @title DeploySponsorStack — Permissionless Sponsor Pool stack
 /// @notice Deploys TournamentPool v2.1 (with fundPrizePool), MockSanctionsOracle,
@@ -53,10 +54,20 @@ contract DeploySponsorStack is Script {
         console2.log("USDC (Sepolia): ", USDC_SEPOLIA);
         console2.log("Trusted Signer: ", trustedSigner);
 
+        // Predict TournamentPool address ahead of broadcast — DevAttributionNFT
+        // (deployed first) needs to pin the pool's address into its immutable.
+        // Pool deploys at deployerNonce + 1 (NFT uses nonce, then pool).
+        uint256 deployerNonce = vm.getNonce(deployer);
+        address predictedPool = vm.computeCreateAddress(deployer, deployerNonce + 1);
+
         vm.startBroadcast(deployerPk);
 
-        // 1. TournamentPool v2.1 (with fundPrizePool entry point).
-        TournamentPool pool = new TournamentPool(IERC20(USDC_SEPOLIA), trustedSigner);
+        // 0. DevAttributionNFT (v2.2 — pinned to predicted pool address).
+        DevAttributionNFT devNFT = new DevAttributionNFT(predictedPool);
+
+        // 1. TournamentPool v2.2 (entry-fee 70/30 split + DevAttributionNFT mint).
+        TournamentPool pool = new TournamentPool(IERC20(USDC_SEPOLIA), trustedSigner, address(devNFT));
+        require(address(pool) == predictedPool, "DeploySponsorStack: pool address prediction mismatch");
 
         // 2. Sanctions oracle (testnet mock — production swaps to Chainalysis address).
         MockSanctionsOracle oracle = new MockSanctionsOracle();
@@ -70,10 +81,7 @@ contract DeploySponsorStack is Script {
 
         // 4. SponsorshipModule — wires USDC, pool v2.1, receipt SBT, sanctions oracle.
         SponsorshipModule module = new SponsorshipModule(
-            IERC20(USDC_SEPOLIA),
-            ITournamentPool(address(pool)),
-            receipt,
-            ISanctionsOracle(address(oracle))
+            IERC20(USDC_SEPOLIA), ITournamentPool(address(pool)), receipt, ISanctionsOracle(address(oracle))
         );
 
         // Sanity check the predicted address held — if not, the receipt's MINTER
