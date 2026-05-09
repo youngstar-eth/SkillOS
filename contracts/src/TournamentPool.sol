@@ -114,6 +114,22 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         CycleType cycleType;
         uint64 startsAt;
         uint64 endsAt;
+        /// @dev Snapshot — value as of the last write to this field (createTournament
+        ///      deposit + any fundPrizePool top-ups). NOT zeroed on settle; NOT a live
+        ///      balance reference. settle() distributes/refunds USDC out of the contract
+        ///      but does not write to this field — view-layer staleness only, not a
+        ///      safety concern (`settled` boolean gates re-settlement). Off-chain
+        ///      readers should gate liveness display via `settled`. Canonical
+        ///      post-settle liveness signal = (TournamentSettled event log + settled
+        ///      boolean).
+        ///
+        ///      Liveness recipe:
+        ///        pre-settle:  remaining_liability == t.prizePool
+        ///        post-settle: remaining_liability == 0
+        ///      For audit reconstruction:
+        ///        prizePool == TournamentSettled.totalDistributed
+        ///                     + TournamentSettled.refunded
+        ///      (modulo small-N tier-5 dust which goes to the sponsor refund).
         uint256 prizePool;
         uint256 participationBonus;
         bool settled;
