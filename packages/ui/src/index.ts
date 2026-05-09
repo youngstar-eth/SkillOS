@@ -30,7 +30,7 @@ export {
 } from "./DuelResultCard";
 export { useIsEmbedded } from "./useIsEmbedded";
 export { Header, type HeaderProps } from "./Header";
-export { SkillosMark, type SkillosMarkProps } from "./SkillosMark";
+export { SkillOSWordmark, type SkillOSWordmarkProps } from "./SkillOSWordmark";
 export { SoloResultCard, type SoloResultCardProps } from "./SoloResultCard";
 export { useMiniAppReady } from "./useMiniAppReady";
 export { ReadyMarker } from "./ReadyMarker";

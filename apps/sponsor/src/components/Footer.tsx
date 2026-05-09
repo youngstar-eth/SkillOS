@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SkillosMark } from "@skillbase/ui";
+import { SkillOSWordmark } from "@skillbase/ui";
 
 const YEAR = new Date().getFullYear();
 
@@ -13,8 +13,7 @@ export function Footer() {
             aria-label="SkillOS Sponsor home"
             className="brand-block"
           >
-            <SkillosMark size={28} className="pixel-mark" />
-            <span className="word">SkillOS</span>
+            <SkillOSWordmark size={16}>SkillOS</SkillOSWordmark>
             <span className="meta">· Sponsor</span>
           </Link>
           <div className="links">
