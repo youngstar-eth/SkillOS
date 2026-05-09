@@ -24,11 +24,17 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 ///      to the team wallet — completely separate from prize allocation. (v2.2 splits
 ///      this into withdrawFeesToDev + withdrawFeesToPlatform per the 70/30 share.)
 ///
-/// Architectural invariant (sweepstakes posture):
-///   Entry fees flow into feeCollected[id]; prize pool flows from createTournament's
-///   deposit (and any subsequent fundPrizePool top-ups). These two buckets NEVER mix.
-///   withdrawFees() can only draw from feeCollected. settle() can only draw from the
-///   prize pool. Tested explicitly.
+/// Architectural invariants (sweepstakes posture):
+///   v2.2 splits the legacy single feeCollected accumulator into two per-tournament
+///   buckets — feeCollected_dev (70%, DEV_BPS) and feeCollected_platform (30%,
+///   PLATFORM_BPS) — both populated atomically inside chargeEntryFee. Neither
+///   bucket may be reached by settle() or fundPrizePool(); the prize pool likewise
+///   may not be reached by withdrawFees(). All three storage destinations
+///   (feeCollected_dev, feeCollected_platform, t.prizePool) live on disjoint
+///   keccak-derived addresses, regardless of how the prize pool is funded
+///   (initial deposit or permissionless top-up — both write the same slot).
+///   The test suite's INV1/INV2 family pins this segregation across full
+///   lifecycles.
 ///
 /// Prize curve (top 50% = ceil(N/2), applied in bps of prizePool):
 ///   place 1 — 2500 bps
@@ -119,6 +125,11 @@ contract TournamentPool is Ownable, ReentrancyGuard {
 
     // ─── Constants ─────────────────────────────────────────────────────────────
 
+    // Separate from TOTAL_BPS to keep prize-curve and fee-split denominators
+    // independent: prize curve uses basis points for tier weights (BPS_PLACE_1
+    // ... BPS_TIER5_POOL), fee split uses basis points for the atomic 70/30
+    // ratio. Both happen to equal 10_000 today; future tuning of one
+    // domain must not constrain the other.
     uint256 private constant BPS_DENOMINATOR = 10_000;
 
     /// @notice Best-score weight (x85 in effective score integer math).
@@ -135,6 +146,21 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     /// @dev    Renamed from RETRY_FEE in v2.2; semantics unchanged (first solo is free,
     ///         each subsequent solo charges ENTRY_FEE).
     uint256 public constant ENTRY_FEE = 1_000_000;
+
+    // ─── v2.2 fee-share constants ──────────────────────────────────────────────
+    // Locked: any change here is an audit-rescope event. The chargeEntryFee
+    // path is bound by these constants — see also feeCollected_dev /
+    // feeCollected_platform below. At ENTRY_FEE = 1_000_000 the bps math is
+    // exact (700_000 + 300_000), so chargeEntryFee never strands dust.
+
+    /// @notice Developer share of each entry fee, in basis points of TOTAL_BPS.
+    uint256 public constant DEV_BPS = 7000;
+
+    /// @notice Platform share of each entry fee, in basis points of TOTAL_BPS.
+    uint256 public constant PLATFORM_BPS = 3000;
+
+    /// @notice Denominator for the dev/platform share split. Must equal DEV_BPS + PLATFORM_BPS.
+    uint256 public constant TOTAL_BPS = 10_000;
 
     // Prize curve in basis points of prizePool.
     uint256 private constant BPS_PLACE_1 = 2500;
@@ -185,9 +211,18 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     ///         Informational + basis for on-chain enforcement in submitSoloScore.
     mapping(bytes32 => mapping(address => uint256)) public feePaidByPlayer;
 
-    /// @notice Per-tournament cumulative entry fees collected. Decrements on withdrawFees.
-    ///         MUST NEVER flow into prizePool — architectural invariant (sweepstakes posture).
-    mapping(bytes32 => uint256) public feeCollected;
+    /// @notice Per-tournament cumulative entry fees credited to the developer share
+    ///         (DEV_BPS / TOTAL_BPS of every chargeEntryFee). Decrements on withdrawFees.
+    ///         MUST NEVER flow into prizePool — sweepstakes-safety invariant (INV1).
+    /// @dev    v2.2 split of the legacy v2.1 `feeCollected` mapping.
+    mapping(bytes32 => uint256) public feeCollected_dev;
+
+    /// @notice Per-tournament cumulative entry fees credited to the platform share
+    ///         (PLATFORM_BPS / TOTAL_BPS of every chargeEntryFee). Decrements on
+    ///         withdrawFees. MUST NEVER flow into prizePool — sweepstakes-safety
+    ///         invariant (INV1).
+    /// @dev    v2.2 split of the legacy v2.1 `feeCollected` mapping.
+    mapping(bytes32 => uint256) public feeCollected_platform;
 
     // ─── Events ────────────────────────────────────────────────────────────────
 
@@ -292,11 +327,12 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     ///
     ///         Architectural invariant (sweepstakes posture):
     ///         this function ONLY mutates t.prizePool. It never touches
-    ///         feeCollected. The retry-fee/prize-pool segregation that v2
-    ///         depends on for clean fee withdrawal survives this addition.
+    ///         feeCollected_dev or feeCollected_platform. The fee/prize-pool
+    ///         segregation that v2.2 depends on for clean fee withdrawal
+    ///         survives this addition.
     ///
-    ///         Tested: see TournamentPool.t.sol invariant — feeCollected[id]
-    ///         is unchanged for any sequence of fundPrizePool calls.
+    ///         Tested: see TournamentPool.t.sol invariant —
+    ///         test_invariant_fundPrizePool_does_not_touch_feeCollected_anything.
     /// @param  id      Tournament identifier (must exist via createTournament).
     /// @param  amount  USDC atoms (6 decimals) to add to the prize pool.
     function fundPrizePool(bytes32 id, uint256 amount) external nonReentrant {
@@ -422,8 +458,16 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     /// @dev    Must be called by the player themselves (msg.sender == player). Separated
     ///         from submitSoloScore so the two concerns — payment accounting and score
     ///         submission — have independent state. Each call increments feePaidByPlayer
-    ///         and feeCollected; does NOT touch prizePool under any code path.
-    ///         Renamed from chargeRetryFee in v2.2; semantics unchanged.
+    ///         and atomically splits ENTRY_FEE into the two fee buckets (DEV_BPS /
+    ///         PLATFORM_BPS of TOTAL_BPS). Does NOT touch prizePool under any code path.
+    ///
+    ///         Sweepstakes-safety invariants (INV1, INV2):
+    ///         - feeCollected_dev[id] and feeCollected_platform[id] occupy distinct
+    ///           keccak256-derived storage slots, neither of which is reachable from
+    ///           the prize-distribution code (settle / fundPrizePool) in this contract.
+    ///         - At locked constants (ENTRY_FEE = 1_000_000, DEV_BPS = 7000,
+    ///           PLATFORM_BPS = 3000, TOTAL_BPS = 10_000), devShare + platformShare
+    ///           == ENTRY_FEE exactly — no dust stranded on the contract.
     /// @param  id      Tournament identifier.
     /// @param  player  Player paying the fee (must equal msg.sender).
     function chargeEntryFee(bytes32 id, address player) external nonReentrant {
@@ -435,8 +479,13 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         if (block.timestamp >= t.endsAt) revert TournamentAlreadyEnded();
 
         USDC.safeTransferFrom(player, address(this), ENTRY_FEE);
+
+        uint256 devShare = (ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        uint256 platformShare = (ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
+
         feePaidByPlayer[id][player] += ENTRY_FEE;
-        feeCollected[id] += ENTRY_FEE;
+        feeCollected_dev[id] += devShare;
+        feeCollected_platform[id] += platformShare;
 
         emit EntryFeePaid(id, player, ENTRY_FEE);
     }
@@ -494,20 +543,25 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         emit TrustedSignerUpdated(newSigner);
     }
 
-    /// @notice Withdraw collected entry fees for a tournament to the team wallet.
-    /// @dev    Draws strictly from feeCollected[id]; cannot access prizePool. Can be
-    ///         called at any time (before/during/after tournament) — entry fees are
-    ///         independent of prize lifecycle. Uses CEI ordering (state zeroed before
-    ///         transfer) to eliminate reentrancy surface.
+    /// @notice (Bridge state, v2.2 PR 2.) Withdraw collected entry fees from BOTH
+    ///         dev + platform buckets to a single destination — preserved while
+    ///         the v2.2 split rolls out. Replaced by withdrawFeesToDev /
+    ///         withdrawFeesToPlatform with per-share access control in PR 3.
+    /// @dev    Draws strictly from feeCollected_dev[id] + feeCollected_platform[id];
+    ///         cannot access prizePool. CEI ordering — both buckets zeroed before
+    ///         transfer to eliminate reentrancy surface.
     /// @param  id  Tournament identifier whose collected fees should be withdrawn.
-    /// @param  to  Destination address (team wallet).
+    /// @param  to  Destination address.
     function withdrawFees(bytes32 id, address to) external onlyOwner nonReentrant {
         if (to == address(0)) revert ZeroAddress();
-        uint256 amount = feeCollected[id];
-        if (amount == 0) return;
-        feeCollected[id] = 0;
-        USDC.safeTransfer(to, amount);
-        emit FeesWithdrawn(id, to, amount);
+        uint256 devAmount = feeCollected_dev[id];
+        uint256 platformAmount = feeCollected_platform[id];
+        uint256 total = devAmount + platformAmount;
+        if (total == 0) return;
+        feeCollected_dev[id] = 0;
+        feeCollected_platform[id] = 0;
+        USDC.safeTransfer(to, total);
+        emit FeesWithdrawn(id, to, total);
     }
 
     /// @notice Emergency withdrawal of any stuck USDC. Owner-only safety valve.
