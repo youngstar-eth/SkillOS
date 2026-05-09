@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        skill: "#FFC72C",
+        skill: "#e4f222",
         base: "#0052FF",
         bg: {
           DEFAULT: "#0a0a0a",

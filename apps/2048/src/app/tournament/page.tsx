@@ -419,13 +419,13 @@ function PrizeCurve({ points }: { points: CurvePoint[] }) {
               flexBasis: `${(p.pct / Math.max(total, 1)) * 100}%`,
               background:
                 i === 0
-                  ? "rgba(255,199,44,0.28)"
+                  ? "rgba(228,242,34,0.28)"
                   : i === 1
-                    ? "rgba(255,199,44,0.18)"
+                    ? "rgba(228,242,34,0.18)"
                     : i === 2
-                      ? "rgba(255,199,44,0.1)"
+                      ? "rgba(228,242,34,0.1)"
                       : "rgba(255,255,255,0.04)",
-              color: i < 3 ? "#FFC72C" : "#a3a3a3",
+              color: i < 3 ? "#e4f222" : "#a3a3a3",
             }}
             title={`${p.place}: ${p.pct}%`}
           >

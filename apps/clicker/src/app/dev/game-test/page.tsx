@@ -158,7 +158,7 @@ export default function GameTestPage() {
           </p>
           <button
             onClick={restart}
-            className="mt-3 inline-flex h-9 items-center justify-center rounded-lg bg-skill px-4 text-sm font-semibold text-black hover:bg-yellow-400"
+            className="mt-3 inline-flex h-9 items-center justify-center rounded-lg bg-skill px-4 text-sm font-semibold text-black hover:opacity-90"
           >
             Restart
           </button>

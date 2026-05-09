@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { SkillOSWordmark, WalletButton, useIsEmbedded } from "@skillbase/ui";
-import { ThemeToggle } from "./ThemeToggle";
 
 export function Nav() {
   const isEmbedded = useIsEmbedded();
@@ -21,7 +20,6 @@ export function Nav() {
           </SkillOSWordmark>
         </Link>
         <div className="inline-flex items-center gap-2">
-          <ThemeToggle />
           <WalletButton />
         </div>
       </div>

@@ -16,7 +16,7 @@ body {
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible {
-  outline: 2px solid #ffc72c;
+  outline: 2px solid #e4f222;
   outline-offset: 2px;
   border-radius: 0.5rem;
 }
@@ -71,7 +71,7 @@ a {
 }
 
 .m3-gem.selected {
-  box-shadow: 0 0 0 3px #ffc72c, 0 0 12px rgba(255, 199, 44, 0.4);
+  box-shadow: 0 0 0 3px #e4f222, 0 0 12px rgba(228, 242, 34, 0.4);
   transform: scale(1.05);
 }
 

@@ -6,209 +6,101 @@
 @source "../../../../packages/ui/src";
 
 /* ============================================================
-   Skillbase apex tokens — dual theme, ported from skillbase-apex.
+   SkillOS design language — Pitch Black canvas + Neon Lime
+   accent + Inter variable + Direction B typography-only.
 
-   Two themes, set on <html> by the inline FOUC script in layout.tsx:
-     - .theme-dark   (sponsor default; gold + ink)
-     - .theme-light  (blue + paper)
+   Single dark mode (no light theme, no theme switcher). All
+   tokens map directly to canonical retain-list values.
 
-   Sponsor-only legacy aliases (--color-skill, --color-base) preserve
-   the v3 utilities (bg-skill, text-skill, border-skill) used across
-   page.tsx, dashboard, and [tournamentId] without a refactor.
+   `bg-skill` / `text-skill` / `border-skill` Tailwind utilities
+   resolve through --color-skill below — keeps existing markup
+   unchanged while flipping the underlying accent color.
    ============================================================ */
 
 @theme {
-  /* ---- Apex Field Notes spec (light theme as static default) ---- */
-  --color-bg: #fafafa;
-  --color-bg-elev: #ffffff;
-  --color-bg-elev2: #f2f2f2;
-  --color-border: #e5e5e5;
-  --color-border-subtle: #efefef;
-  --color-fg-1: #0a0a0a;
-  --color-fg-2: #262626;
-  --color-fg-muted: #525252;
-  --color-fg-subtle: #737373;
-  --color-brand: #0052ff;
-  --color-brand-hover: #1a66ff;
+  /* ---- Canvas + surfaces ---- */
+  --color-bg: #08090a;
+  --color-bg-elev: #0f1011;
+  --color-bg-elev2: #161718;
+  --color-border: #262626;
+  --color-border-subtle: #1f1f1f;
 
-  /* Brand atoms — invariant; only the SB monogram and marquee dot use these. */
-  --color-brand-gold: #ffc72c;
-  --color-brand-blue: #0052ff;
-  --color-brand-blue-hover: #1a66ff;
-  --color-neutral-ink: #0a0a0a;
-  --color-neutral-paper: #fafafa;
+  /* ---- Foreground ---- */
+  --color-fg-1: #ffffff;
+  --color-fg-2: #d4d4d4;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-subtle: #71717a;
 
-  /* Sponsor v3 legacy aliases — keep `bg-skill`, `text-skill`, `bg-base`
-     working without touching page.tsx / dashboard / [tournamentId]. */
-  --color-skill: #ffc72c;
-  --color-base: #0052ff;
+  /* ---- Brand accent (Neon Lime — max 5 uses/page) ---- */
+  --color-brand: #e4f222;
+  --color-brand-hover: #f0ff3a;
 
-  /* Status (theme-invariant) */
+  /* Sponsor v3 legacy alias — keeps `bg-skill`, `text-skill`,
+     `border-skill` utilities resolving without refactoring
+     page.tsx / dashboard / [tournamentId]. */
+  --color-skill: #e4f222;
+
+  /* ---- Status ---- */
   --color-success: #22c55e;
-  --color-warning: #ffc72c;
+  --color-warning: #e4f222;
   --color-danger: #ef4444;
+  --color-live: #eb5757;
 
-  /* ---- Legacy aliases for any `text-fg`, `text-fg-dim`, etc. ---- */
-  --color-ink: #fafafa;
-  --color-panel: #ffffff;
-  --color-panel-2: #f2f2f2;
-  --color-panel-3: #e5e5e5;
-  --color-line: #efefef;
-  --color-line-strong: #e5e5e5;
-  --color-fg: #0a0a0a;
-  --color-fg-dim: #a3a3a3;
-  --color-brand-fg: #0052ff;
-  --color-brand-soft: rgb(0 82 255 / 0.12);
-  --color-brand-glow: rgb(0 82 255 / 0.35);
-  --color-gold: #ffc72c;
-  --color-gold-soft: rgb(255 199 44 / 0.12);
-  --color-gold-glow: rgb(255 199 44 / 0.35);
+  /* ---- Legacy aliases (preserved for any utilities still referencing them) ---- */
+  --color-ink: #08090a;
+  --color-panel: #0f1011;
+  --color-panel-2: #161718;
+  --color-panel-3: #262626;
+  --color-line: #1f1f1f;
+  --color-line-strong: #262626;
+  --color-fg: #ffffff;
+  --color-fg-dim: #71717a;
+  --color-brand-fg: #e4f222;
+  --color-brand-soft: rgb(228 242 34 / 0.12);
+  --color-brand-glow: rgb(228 242 34 / 0.35);
 
-  /* Fonts — Space Grotesk for display, Inter for body, JetBrains for mono */
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui,
-    sans-serif;
+  /* ---- Fonts ---- */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo,
     Consolas, monospace;
 
-  /* Tracking */
-  --tracking-display: -0.025em;
+  /* ---- Tracking ---- */
+  --tracking-display: -0.022em;
   --tracking-tight: -0.02em;
   --tracking-label: 0.18em;
 
-  /* Motion */
+  /* ---- Motion ---- */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-standard: cubic-bezier(0.215, 0.61, 0.355, 1);
 
-  /* Animations */
+  /* ---- Animations ---- */
   --animate-fade-up: fade-up 900ms var(--ease-out-soft) both;
   --animate-fade-in: fade-in 700ms var(--ease-out-soft) both;
   --animate-pulse-ring: pulse-ring 1.8s var(--ease-standard) infinite;
 }
 
 /* ============================================================
-   Light theme — re-declares @theme values for symmetry.
-   ============================================================ */
-:root.theme-light {
-  --color-bg: #fafafa;
-  --color-bg-elev: #ffffff;
-  --color-bg-elev2: #f2f2f2;
-  --color-border: #e5e5e5;
-  --color-border-subtle: #efefef;
-  --color-fg-1: #0a0a0a;
-  --color-fg-2: #262626;
-  --color-fg-muted: #525252;
-  --color-fg-subtle: #737373;
-  --color-brand: #0052ff;
-  --color-brand-hover: #1a66ff;
-
-  --color-ink: #fafafa;
-  --color-panel: #ffffff;
-  --color-panel-2: #f2f2f2;
-  --color-panel-3: #e5e5e5;
-  --color-line: #efefef;
-  --color-line-strong: #e5e5e5;
-  --color-fg: #0a0a0a;
-  --color-fg-dim: #a3a3a3;
-  --color-brand-fg: #0052ff;
-  --color-brand-soft: rgb(0 82 255 / 0.12);
-  --color-brand-glow: rgb(0 82 255 / 0.35);
-
-  --brand: #0052ff;
-  --brand-hover: #1a66ff;
-  --brand-rgb: 0, 82, 255;
-  --bg: #fafafa;
-  --bg-elev: #ffffff;
-  --bg-elev-2: #f2f2f2;
-  --bg-elev-3: #e5e5e5;
-  --border: #e5e5e5;
-  --border-subtle: #efefef;
-  --border-strong: #d4d4d4;
-  --fg-1: #0a0a0a;
-  --fg-2: #262626;
-  --fg-muted: #525252;
-  --fg-subtle: #737373;
-  --fg-dim: #a3a3a3;
-  --shadow-md: 0 8px 24px -12px rgba(0, 0, 0, 0.18);
-  --wash-skill: radial-gradient(
-    60% 60% at 50% 0%,
-    rgba(0, 82, 255, 0.04),
-    transparent 70%
-  );
-
-  color-scheme: light;
-}
-
-/* ============================================================
-   Dark theme — sponsor default voice (gold + ink).
-   ============================================================ */
-:root.theme-dark {
-  --color-bg: #0a0a0a;
-  --color-bg-elev: #141414;
-  --color-bg-elev2: #1c1c1c;
-  --color-border: #262626;
-  --color-border-subtle: #1f1f1f;
-  --color-fg-1: #fafafa;
-  --color-fg-2: #d4d4d4;
-  --color-fg-muted: #a3a3a3;
-  --color-fg-subtle: #737373;
-  --color-brand: #ffc72c;
-  --color-brand-hover: #ffd24a;
-
-  --color-ink: #0a0a0a;
-  --color-panel: #141414;
-  --color-panel-2: #1c1c1c;
-  --color-panel-3: #242424;
-  --color-line: #1f1f1f;
-  --color-line-strong: #262626;
-  --color-fg: #ededed;
-  --color-fg-dim: #525252;
-  --color-brand-fg: #ffc72c;
-  --color-brand-soft: rgb(255 199 44 / 0.12);
-  --color-brand-glow: rgb(255 199 44 / 0.35);
-
-  --brand: #ffc72c;
-  --brand-hover: #ffd24a;
-  --brand-rgb: 255, 199, 44;
-  --bg: #0a0a0a;
-  --bg-elev: #141414;
-  --bg-elev-2: #1c1c1c;
-  --bg-elev-3: #242424;
-  --border: #262626;
-  --border-subtle: #1f1f1f;
-  --border-strong: #333333;
-  --fg-1: #fafafa;
-  --fg-2: #d4d4d4;
-  --fg-muted: #a3a3a3;
-  --fg-subtle: #92929a;
-  --fg-dim: #525252;
-  --shadow-md: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
-  --wash-skill: radial-gradient(
-    60% 60% at 50% 0%,
-    rgba(255, 199, 44, 0.05),
-    transparent 70%
-  );
-
-  color-scheme: dark;
-}
-
-/* ============================================================
    Theme-invariant raw tokens (radii, durations, glow shadow).
    ============================================================ */
 :root {
+  color-scheme: dark;
+
   --r-sm: 6px;
-  --r-md: 10px;
+  --r-md: 6px;
   --r-lg: 12px;
   --r-xl: 16px;
   --r-pill: 9999px;
 
+  --shadow-md: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
   --shadow-glow-skill:
-    0 0 0 1px rgba(255, 199, 44, 0.15),
-    0 8px 32px -12px rgba(255, 199, 44, 0.18);
+    0 0 0 1px rgba(228, 242, 34, 0.15),
+    0 8px 32px -12px rgba(228, 242, 34, 0.18);
 
   --dur-fast: 120ms;
   --dur-base: 200ms;
   --dur-slow: 360ms;
+
+  --brand-rgb: 228, 242, 34;
 }
 
 /* ============================================================
@@ -246,127 +138,9 @@
   }
 }
 
-/* Apex page wash — atmospheric two-radial backdrop. */
-.apex-page-wash {
-  position: relative;
-  isolation: isolate;
-}
-.apex-page-wash::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 18% 8%, var(--apex-wash-1), transparent 45%),
-    radial-gradient(circle at 82% 92%, var(--apex-wash-2), transparent 50%);
-}
-.apex-page-wash > * {
-  position: relative;
-  z-index: 1;
-}
-
-:root.theme-light {
-  --apex-wash-1: rgba(0, 82, 255, 0.04);
-  --apex-wash-2: rgba(0, 82, 255, 0.03);
-}
-:root.theme-dark {
-  --apex-wash-1: rgba(255, 199, 44, 0.04);
-  --apex-wash-2: rgba(255, 199, 44, 0.03);
-}
-
-/* ============================================================
-   Semantic typography classes (.skb-*)
-   ============================================================ */
-.skb-display {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: clamp(2.75rem, 4.4vw + 1rem, 5rem);
-  line-height: 1.05;
-  letter-spacing: var(--tracking-display);
-  color: var(--fg-1);
-}
-
-.skb-h1 {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 2.75rem;
-  line-height: 1.2;
-  letter-spacing: var(--tracking-display);
-  color: var(--fg-1);
-}
-
-.skb-h2 {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 2rem;
-  line-height: 1.2;
-  letter-spacing: var(--tracking-tight);
-  color: var(--fg-1);
-}
-
-.skb-h3 {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 1.5rem;
-  line-height: 1.2;
-  letter-spacing: var(--tracking-tight);
-  color: var(--fg-1);
-}
-
-.skb-lead {
-  font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 1.125rem;
-  line-height: 1.65;
-  color: var(--fg-2);
-}
-
-.skb-body {
-  font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 0.9375rem;
-  line-height: 1.65;
-  color: var(--fg-2);
-}
-
-.skb-caption {
-  font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--fg-muted);
-}
-
-.skb-eyebrow {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 0.6875rem;
-  line-height: 1;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--fg-muted);
-}
-
-.skb-numeric {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: var(--tracking-tight);
-}
-
-/* The pixel SB mark + game tile glyphs ship as crisp pixel SVGs.
-   Never anti-alias. */
-.pixel-mark {
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-  shape-rendering: crispEdges;
-}
-
 /* ============================================================
    Buttons — ghost + primary. Matches apex Nav rhythm so the
-   sponsor wallet/theme cluster reads as one row.
+   sponsor wallet cluster reads as one row.
    ============================================================ */
 .apex-btn {
   display: inline-flex;
@@ -387,7 +161,7 @@
 .apex-btn:hover { border-color: var(--color-brand); }
 .apex-btn-primary {
   background: var(--color-brand);
-  color: var(--apex-fg-on-brand);
+  color: var(--color-ink);
   border-color: var(--color-brand);
 }
 .apex-btn-primary:hover {
@@ -403,9 +177,6 @@
   justify-content: center;
   height: 40px;
 }
-
-:root.theme-light { --apex-fg-on-brand: var(--color-neutral-paper); }
-:root.theme-dark { --apex-fg-on-brand: var(--color-neutral-ink); }
 
 /* ============================================================
    Footer — minimal lockup variant for sponsor.
@@ -430,9 +201,10 @@
   color: var(--color-fg-1);
 }
 .apex-footer .brand-block .word {
-  font-family: var(--font-display);
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-weight: 700;
   font-size: 16px;
+  letter-spacing: -0.022em;
   color: var(--color-fg-1);
 }
 .apex-footer .meta {
@@ -470,7 +242,7 @@
 
   ::selection {
     background: rgba(var(--brand-rgb), 0.25);
-    color: var(--fg-1);
+    color: var(--color-fg-1);
   }
 
   :focus-visible {
