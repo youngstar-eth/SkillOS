@@ -20,16 +20,20 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 ///   3. Backend flags implausible scores via flagScore() before settle.
 ///   4. After endsAt, anyone calls settle(id, sortedRanking) — contract verifies
 ///      the caller-supplied ordering and distributes per the top-50% curve.
-///   5. Owner calls withdrawFees(id, to) at any time to pull collected entry fees
-///      to the team wallet — completely separate from prize allocation. (v2.2 splits
-///      this into withdrawFeesToDev + withdrawFeesToPlatform per the 70/30 share.)
+///   5. Fee withdrawals are split per the 70/30 share. The recorded developer
+///      calls withdrawFeesToDev(id) at any time to pull their bucket; the contract
+///      owner calls withdrawFeesToPlatform(id) for the platform bucket. Each
+///      function is single-arg and pays msg.sender, so the access-control identity
+///      and the payout destination cannot diverge. Both are completely separate
+///      from prize allocation.
 ///
 /// Architectural invariants (sweepstakes posture):
 ///   v2.2 splits the legacy single feeCollected accumulator into two per-tournament
 ///   buckets — feeCollected_dev (70%, DEV_BPS) and feeCollected_platform (30%,
 ///   PLATFORM_BPS) — both populated atomically inside chargeEntryFee. Neither
 ///   bucket may be reached by settle() or fundPrizePool(); the prize pool likewise
-///   may not be reached by withdrawFees(). All three storage destinations
+///   may not be reached by withdrawFeesToDev() or withdrawFeesToPlatform().
+///   All three storage destinations
 ///   (feeCollected_dev, feeCollected_platform, t.prizePool) live on disjoint
 ///   keccak-derived addresses, regardless of how the prize pool is funded
 ///   (initial deposit or permissionless top-up — both write the same slot).
@@ -78,6 +82,9 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     error DuplicateInRanking();
     error InsufficientFeePaid();
     error PlayerMismatch();
+    /// @notice Caller is not the developer recorded on the tournament. Returned by
+    ///         withdrawFeesToDev when msg.sender != Tournament.devAddr.
+    error OnlyDev();
 
     // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -212,15 +219,15 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     mapping(bytes32 => mapping(address => uint256)) public feePaidByPlayer;
 
     /// @notice Per-tournament cumulative entry fees credited to the developer share
-    ///         (DEV_BPS / TOTAL_BPS of every chargeEntryFee). Decrements on withdrawFees.
+    ///         (DEV_BPS / TOTAL_BPS of every chargeEntryFee). Decrements on withdrawFeesToDev / withdrawFeesToPlatform.
     ///         MUST NEVER flow into prizePool — sweepstakes-safety invariant (INV1).
     /// @dev    v2.2 split of the legacy v2.1 `feeCollected` mapping.
     mapping(bytes32 => uint256) public feeCollected_dev;
 
     /// @notice Per-tournament cumulative entry fees credited to the platform share
     ///         (PLATFORM_BPS / TOTAL_BPS of every chargeEntryFee). Decrements on
-    ///         withdrawFees. MUST NEVER flow into prizePool — sweepstakes-safety
-    ///         invariant (INV1).
+    ///         withdrawFeesToPlatform. MUST NEVER flow into prizePool —
+    ///         sweepstakes-safety invariant (INV1).
     /// @dev    v2.2 split of the legacy v2.1 `feeCollected` mapping.
     mapping(bytes32 => uint256) public feeCollected_platform;
 
@@ -255,7 +262,13 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         uint256 priorSoloCount
     );
     event EntryFeePaid(bytes32 indexed id, address indexed player, uint256 amount);
-    event FeesWithdrawn(bytes32 indexed id, address indexed to, uint256 amount);
+    /// @notice The dev fee bucket for tournament `id` was drained by the recorded
+    ///         developer. amount == feeCollected_dev[id] at the time of the call.
+    event DevFeesWithdrawn(bytes32 indexed id, address indexed dev, uint256 amount);
+    /// @notice The platform fee bucket for tournament `id` was drained by the
+    ///         contract owner. amount == feeCollected_platform[id] at the time
+    ///         of the call.
+    event PlatformFeesWithdrawn(bytes32 indexed id, address indexed admin, uint256 amount);
     event ScoreFlagged(bytes32 indexed id, address indexed player);
     event TournamentSettled(bytes32 indexed id, uint256 totalDistributed, uint256 refunded);
     event PrizePaid(bytes32 indexed id, address indexed player, uint256 place, uint256 amount);
@@ -543,25 +556,42 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         emit TrustedSignerUpdated(newSigner);
     }
 
-    /// @notice (Bridge state, v2.2 PR 2.) Withdraw collected entry fees from BOTH
-    ///         dev + platform buckets to a single destination — preserved while
-    ///         the v2.2 split rolls out. Replaced by withdrawFeesToDev /
-    ///         withdrawFeesToPlatform with per-share access control in PR 3.
-    /// @dev    Draws strictly from feeCollected_dev[id] + feeCollected_platform[id];
-    ///         cannot access prizePool. CEI ordering — both buckets zeroed before
-    ///         transfer to eliminate reentrancy surface.
-    /// @param  id  Tournament identifier whose collected fees should be withdrawn.
-    /// @param  to  Destination address.
-    function withdrawFees(bytes32 id, address to) external onlyOwner nonReentrant {
-        if (to == address(0)) revert ZeroAddress();
-        uint256 devAmount = feeCollected_dev[id];
-        uint256 platformAmount = feeCollected_platform[id];
-        uint256 total = devAmount + platformAmount;
-        if (total == 0) return;
+    /// @notice Withdraw the dev share of entry fees for `id` to the recorded
+    ///         developer. Only callable by Tournament.devAddr — caller-authenticated
+    ///         transfer (msg.sender == devAddr, USDC sent to msg.sender).
+    /// @dev    Draws strictly from feeCollected_dev[id]; cannot access
+    ///         feeCollected_platform or prizePool. CEI ordering — bucket zeroed
+    ///         before transfer to eliminate reentrancy surface. No-op (no transfer,
+    ///         no emit) if the bucket is empty so off-chain pollers don't burn gas.
+    ///
+    ///         Authorization: a tournament that does not exist has devAddr == 0,
+    ///         which never matches msg.sender (callers cannot have address(0) as
+    ///         their own address), so the check also covers TournamentNotFound.
+    /// @param  id  Tournament identifier whose dev fees should be withdrawn.
+    function withdrawFeesToDev(bytes32 id) external nonReentrant {
+        address dev = _tournaments[id].devAddr;
+        if (msg.sender != dev) revert OnlyDev();
+        uint256 amount = feeCollected_dev[id];
+        if (amount == 0) return;
         feeCollected_dev[id] = 0;
+        USDC.safeTransfer(dev, amount);
+        emit DevFeesWithdrawn(id, dev, amount);
+    }
+
+    /// @notice Withdraw the platform share of entry fees for `id` to the contract
+    ///         owner. Only callable by the owner.
+    /// @dev    Draws strictly from feeCollected_platform[id]; cannot access
+    ///         feeCollected_dev or prizePool. CEI ordering — bucket zeroed
+    ///         before transfer. Transfers to msg.sender (== owner at auth time);
+    ///         no destination parameter so the access-control identity and the
+    ///         payout destination cannot diverge.
+    /// @param  id  Tournament identifier whose platform fees should be withdrawn.
+    function withdrawFeesToPlatform(bytes32 id) external onlyOwner nonReentrant {
+        uint256 amount = feeCollected_platform[id];
+        if (amount == 0) return;
         feeCollected_platform[id] = 0;
-        USDC.safeTransfer(to, total);
-        emit FeesWithdrawn(id, to, total);
+        USDC.safeTransfer(msg.sender, amount);
+        emit PlatformFeesWithdrawn(id, msg.sender, amount);
     }
 
     /// @notice Emergency withdrawal of any stuck USDC. Owner-only safety valve.

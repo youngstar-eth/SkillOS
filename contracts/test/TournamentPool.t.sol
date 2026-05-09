@@ -702,6 +702,12 @@ contract TournamentPoolTest is Test {
         return pool.feeCollected_dev(id) + pool.feeCollected_platform(id);
     }
 
+    /// @dev Deterministic per-test developer attribution sentinel — derived from
+    ///      a seed so each PR 3 test gets a unique devAddr without hand-checksumming.
+    function _devAddr(uint256 seed) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked("dev", seed)))));
+    }
+
     function _signSoloSubmit(
         bytes32 id,
         address player,
@@ -948,68 +954,169 @@ contract TournamentPoolTest is Test {
         assertEq(_totalFees(id), 3 * ENTRY_FEE);
     }
 
-    // ── withdrawFees (v2.2 PR 2 bridge state — drains both buckets; PR 3 splits this)
+    // ── withdrawFeesToDev / withdrawFeesToPlatform (v2.2 PR 3 — replaces single
+    //    withdrawFees; per-share access control routes payouts to the rightful party)
 
-    function test_withdrawFees_drawsBothBuckets_andLeavesPrizePoolIntact() public {
+    function test_withdrawFeesToDev_drawsOnlyFromFeeCollectedDev() public {
+        // Per spec: dev wallet recovers exactly its 70% bucket; platform bucket and
+        // prize pool are untouched. Caller-authenticated transfer (msg.sender == devAddr).
         bytes32 id = _tournamentId(240);
-        _createTournament(id);
+        address dev = _devAddr(1);
+        _createTournamentWithDev(id, dev);
         _fundAndApprove(players[0], 3 * ENTRY_FEE);
 
-        // Player pays 2 entry fees.
         vm.startPrank(players[0]);
         pool.chargeEntryFee(id, players[0]);
         pool.chargeEntryFee(id, players[0]);
         vm.stopPrank();
 
-        address team = address(0xFEE71AB);
-        uint256 teamBefore = usdc.balanceOf(team);
+        uint256 expectedDev = (2 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        uint256 expectedPlatform = (2 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
+
+        uint256 devBefore = usdc.balanceOf(dev);
         uint256 poolBefore = usdc.balanceOf(address(pool)); // prize + 2·fee
 
-        pool.withdrawFees(id, team);
+        vm.prank(dev);
+        pool.withdrawFeesToDev(id);
 
-        assertEq(usdc.balanceOf(team) - teamBefore, 2 * ENTRY_FEE, "team gets total");
+        assertEq(usdc.balanceOf(dev) - devBefore, expectedDev, "dev gets exactly 70% bucket");
         assertEq(pool.feeCollected_dev(id), 0, "dev bucket drained");
-        assertEq(pool.feeCollected_platform(id), 0, "platform bucket drained");
-        // Pool balance drops by exactly the fee total — prize pool intact.
-        assertEq(usdc.balanceOf(address(pool)), poolBefore - 2 * ENTRY_FEE);
-        // Prize pool state is unchanged.
-        assertEq(pool.getTournament(id).prizePool, PRIZE_POOL);
+        assertEq(pool.feeCollected_platform(id), expectedPlatform, "platform bucket untouched");
+        assertEq(usdc.balanceOf(address(pool)), poolBefore - expectedDev, "pool drops by dev only");
+        assertEq(pool.getTournament(id).prizePool, PRIZE_POOL, "prize pool untouched");
     }
 
-    function test_withdrawFees_revert_notOwner() public {
+    function test_withdrawFeesToPlatform_drawsOnlyFromFeeCollectedPlatform() public {
+        // Per spec: platform admin (owner) recovers exactly its 30% bucket; dev
+        // bucket and prize pool are untouched.
         bytes32 id = _tournamentId(241);
-        _createTournament(id);
+        address dev = _devAddr(2);
+        _createTournamentWithDev(id, dev);
+        _fundAndApprove(players[0], 3 * ENTRY_FEE);
 
-        vm.prank(outsider);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, outsider));
-        pool.withdrawFees(id, outsider);
+        vm.startPrank(players[0]);
+        pool.chargeEntryFee(id, players[0]);
+        pool.chargeEntryFee(id, players[0]);
+        vm.stopPrank();
+
+        uint256 expectedDev = (2 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        uint256 expectedPlatform = (2 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
+
+        uint256 ownerBefore = usdc.balanceOf(address(this)); // test contract owns the pool
+        uint256 poolBefore = usdc.balanceOf(address(pool));
+
+        // address(this) is the deployer / owner — Foundry runs tests from the test contract.
+        pool.withdrawFeesToPlatform(id);
+
+        assertEq(usdc.balanceOf(address(this)) - ownerBefore, expectedPlatform, "owner gets 30% bucket");
+        assertEq(pool.feeCollected_platform(id), 0, "platform bucket drained");
+        assertEq(pool.feeCollected_dev(id), expectedDev, "dev bucket untouched");
+        assertEq(usdc.balanceOf(address(pool)), poolBefore - expectedPlatform, "pool drops by platform only");
+        assertEq(pool.getTournament(id).prizePool, PRIZE_POOL, "prize pool untouched");
     }
 
-    function test_withdrawFees_noFees_noop() public {
+    function test_withdrawFeesToDev_revert_unauthorizedCaller() public {
+        // Only the recorded devAddr may pull the dev share. Owner, sponsor, and
+        // arbitrary outsiders all revert.
         bytes32 id = _tournamentId(242);
-        _createTournament(id);
-
-        address team = address(0xFEE71AB);
-        uint256 teamBefore = usdc.balanceOf(team);
-        pool.withdrawFees(id, team);
-        assertEq(usdc.balanceOf(team), teamBefore, "no transfer on zero fees");
-    }
-
-    function test_withdrawFees_twiceZeros() public {
-        bytes32 id = _tournamentId(243);
-        _createTournament(id);
+        address dev = _devAddr(3);
+        _createTournamentWithDev(id, dev);
         _fundAndApprove(players[0], ENTRY_FEE);
-
         vm.prank(players[0]);
         pool.chargeEntryFee(id, players[0]);
 
-        address team = address(0xFEE71AB);
-        pool.withdrawFees(id, team);
-        assertEq(_totalFees(id), 0);
+        vm.prank(outsider);
+        vm.expectRevert(TournamentPool.OnlyDev.selector);
+        pool.withdrawFeesToDev(id);
 
-        uint256 teamAfterFirst = usdc.balanceOf(team);
-        pool.withdrawFees(id, team); // no-op second call
-        assertEq(usdc.balanceOf(team), teamAfterFirst);
+        vm.prank(sponsor);
+        vm.expectRevert(TournamentPool.OnlyDev.selector);
+        pool.withdrawFeesToDev(id);
+
+        // Even the owner cannot pull the dev share.
+        vm.expectRevert(TournamentPool.OnlyDev.selector);
+        pool.withdrawFeesToDev(id);
+    }
+
+    function test_withdrawFeesToPlatform_revert_unauthorizedCaller() public {
+        // Only owner may call. Dev, sponsor, and outsider all revert with OZ Ownable.
+        bytes32 id = _tournamentId(243);
+        address dev = _devAddr(4);
+        _createTournamentWithDev(id, dev);
+        _fundAndApprove(players[0], ENTRY_FEE);
+        vm.prank(players[0]);
+        pool.chargeEntryFee(id, players[0]);
+
+        vm.prank(outsider);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, outsider));
+        pool.withdrawFeesToPlatform(id);
+
+        vm.prank(dev);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, dev));
+        pool.withdrawFeesToPlatform(id);
+    }
+
+    function test_withdrawFeesToDev_noFees_noop() public {
+        // No fees collected: call is a no-op (no transfer, no revert).
+        bytes32 id = _tournamentId(244);
+        address dev = _devAddr(5);
+        _createTournamentWithDev(id, dev);
+
+        uint256 devBefore = usdc.balanceOf(dev);
+        vm.prank(dev);
+        pool.withdrawFeesToDev(id);
+        assertEq(usdc.balanceOf(dev), devBefore, "no transfer on empty bucket");
+    }
+
+    function test_withdrawFeesToPlatform_noFees_noop() public {
+        bytes32 id = _tournamentId(245);
+        _createTournament(id);
+
+        uint256 ownerBefore = usdc.balanceOf(address(this));
+        pool.withdrawFeesToPlatform(id);
+        assertEq(usdc.balanceOf(address(this)), ownerBefore, "no transfer on empty bucket");
+    }
+
+    function test_withdrawFeesToDev_twiceZeros() public {
+        // Second call after a successful drain is a no-op (no double-spend).
+        bytes32 id = _tournamentId(246);
+        address dev = _devAddr(6);
+        _createTournamentWithDev(id, dev);
+        _fundAndApprove(players[0], ENTRY_FEE);
+        vm.prank(players[0]);
+        pool.chargeEntryFee(id, players[0]);
+
+        vm.prank(dev);
+        pool.withdrawFeesToDev(id);
+        assertEq(pool.feeCollected_dev(id), 0);
+
+        uint256 devAfterFirst = usdc.balanceOf(dev);
+        vm.prank(dev);
+        pool.withdrawFeesToDev(id); // no-op second call
+        assertEq(usdc.balanceOf(dev), devAfterFirst);
+    }
+
+    function test_withdrawFeesToPlatform_twiceZeros() public {
+        bytes32 id = _tournamentId(247);
+        _createTournament(id);
+        _fundAndApprove(players[0], ENTRY_FEE);
+        vm.prank(players[0]);
+        pool.chargeEntryFee(id, players[0]);
+
+        pool.withdrawFeesToPlatform(id);
+        assertEq(pool.feeCollected_platform(id), 0);
+
+        uint256 ownerAfterFirst = usdc.balanceOf(address(this));
+        pool.withdrawFeesToPlatform(id); // no-op second call
+        assertEq(usdc.balanceOf(address(this)), ownerAfterFirst);
+    }
+
+    function test_withdrawFeesToDev_revert_tournamentNotFound() public {
+        // Calling on a never-created tournament must revert (devAddr is zero, can't
+        // be called by msg.sender).
+        bytes32 id = _tournamentId(9999);
+        vm.expectRevert(TournamentPool.OnlyDev.selector);
+        pool.withdrawFeesToDev(id);
     }
 
     // ── Invariant: entry fees NEVER flow into prize distribution
@@ -1070,11 +1177,23 @@ contract TournamentPoolTest is Test {
         assertEq(_totalFees(id), 3 * ENTRY_FEE, "fees must not be settled");
         assertEq(usdc.balanceOf(address(pool)), 3 * ENTRY_FEE, "only fees remain");
 
-        // Team can still withdraw their fees after settle (PR 2 bridge withdrawFees drains both).
-        address team = address(0xFEE71AB);
-        pool.withdrawFees(id, team);
-        assertEq(usdc.balanceOf(team), 3 * ENTRY_FEE);
-        assertEq(usdc.balanceOf(address(pool)), 0);
+        // After settle, the dev pulls their share via withdrawFeesToDev and the
+        // platform admin pulls via withdrawFeesToPlatform — together they drain
+        // both buckets. No code path lets either party touch the other's bucket.
+        uint256 expectedDev = (3 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        uint256 expectedPlatform = (3 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
+
+        vm.prank(DEFAULT_DEV);
+        pool.withdrawFeesToDev(id);
+        assertEq(usdc.balanceOf(DEFAULT_DEV), expectedDev, "dev recovers 70%");
+        assertEq(pool.feeCollected_dev(id), 0);
+
+        uint256 ownerBefore = usdc.balanceOf(address(this));
+        pool.withdrawFeesToPlatform(id);
+        assertEq(usdc.balanceOf(address(this)) - ownerBefore, expectedPlatform, "platform recovers 30%");
+        assertEq(pool.feeCollected_platform(id), 0);
+
+        assertEq(usdc.balanceOf(address(pool)), 0, "all fees drained");
     }
 
     function test_invariant_settle_does_not_touch_feeCollected_anything() public {
@@ -1509,12 +1628,55 @@ contract TournamentPoolTest is Test {
         TournamentPool.Tournament memory t = pool.getTournament(id);
         assertEq(t.prizePool, PRIZE_POOL + 1_000_000 + 7_500_000 + 100_000 + 41_400_000, "prizePool sum");
 
-        // Withdraw fees (PR 2 bridge) → both buckets drained to team wallet, prize pool untouched.
-        address teamWallet = address(0xCAFE);
+        // Withdraw fees via the v2.2 PR 3 split: dev recovers 70% bucket via
+        // withdrawFeesToDev (caller-authenticated), platform recovers 30% bucket
+        // via withdrawFeesToPlatform (onlyOwner). Together: prize pool untouched.
+        uint256 expectedDevTotal = (3 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        uint256 expectedPlatformTotal = (3 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
         uint256 prizePoolBeforeWithdraw = t.prizePool;
-        pool.withdrawFees(id, teamWallet);
-        assertEq(usdc.balanceOf(teamWallet), 3 * ENTRY_FEE, "team wallet receives entry fees only");
+
+        vm.prank(DEFAULT_DEV);
+        pool.withdrawFeesToDev(id);
+        assertEq(usdc.balanceOf(DEFAULT_DEV), expectedDevTotal, "dev wallet receives 70% bucket");
+
+        uint256 ownerBefore = usdc.balanceOf(address(this));
+        pool.withdrawFeesToPlatform(id);
+        assertEq(usdc.balanceOf(address(this)) - ownerBefore, expectedPlatformTotal, "platform recovers 30%");
+
         TournamentPool.Tournament memory tAfter = pool.getTournament(id);
-        assertEq(tAfter.prizePool, prizePoolBeforeWithdraw, "prize pool untouched by withdrawFees");
+        assertEq(tAfter.prizePool, prizePoolBeforeWithdraw, "prize pool untouched by either withdraw");
+    }
+
+    // ── N1 (deferred from PR 2 review): no-dust property test for chargeEntryFee math
+
+    /// @notice Demonstrates that the 70/30 split is dust-free for the dust-free
+    ///         domain (multiples of 10 at locked constants). Anyone changing
+    ///         ENTRY_FEE or the BPS constants must keep the new value inside that
+    ///         domain — the fuzz spans plausible future ENTRY_FEE values up to
+    ///         ~10K USDC and asserts no-dust at every step.
+    /// @dev    The dust-free domain at locked constants is {k * 10 : k in N+}.
+    ///         This holds because gcd(DEV_BPS, PLATFORM_BPS, TOTAL_BPS) = 1000,
+    ///         so TOTAL_BPS / gcd = 10. The fuzz forces multiples of 10; the
+    ///         sister test below pins the off-boundary case explicitly.
+    function testFuzz_chargeEntryFee_noDust_holdsForFutureEntryFees(uint256 rawFakeFee) public pure {
+        rawFakeFee = bound(rawFakeFee, 1, 1_000_000_000);
+        uint256 fakeFee = rawFakeFee * 10;
+
+        uint256 devShare = (fakeFee * DEV_BPS) / TOTAL_BPS;
+        uint256 platformShare = (fakeFee * PLATFORM_BPS) / TOTAL_BPS;
+
+        assertEq(devShare + platformShare, fakeFee, "no dust at multiples of 10");
+    }
+
+    /// @notice Sister test illustrating the dust boundary: ENTRY_FEE + 1 is NOT a
+    ///         multiple of 10 at locked constants, so the split strands 1 atom of
+    ///         dust. Surfaces the fragility for any future contributor changing
+    ///         ENTRY_FEE — points directly at the dust-free-domain constraint.
+    function test_chargeEntryFee_noDust_offBy1_introducesDust() public pure {
+        uint256 fakeFee = ENTRY_FEE + 1;
+        uint256 devShare = (fakeFee * DEV_BPS) / TOTAL_BPS;
+        uint256 platformShare = (fakeFee * PLATFORM_BPS) / TOTAL_BPS;
+        uint256 dust = fakeFee - devShare - platformShare;
+        assertEq(dust, 1, "off-by-1 strands 1 atom: change ENTRY_FEE only to multiples of 10");
     }
 }
