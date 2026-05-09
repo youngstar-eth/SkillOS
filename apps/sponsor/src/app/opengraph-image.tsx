@@ -1,11 +1,11 @@
 import { ImageResponse } from "next/og";
 
-// 1200×630 OG card. Plain dark+gold composition: monogram + "SkillOS
-// Sponsor" wordmark + "Sponsor a Pool" headline + tagline + bottom rule.
-//
-// Pixel <rect>s are inlined here rather than imported — satori's OG runtime
-// resolves `@/`-aliased React imports inconsistently, so apex inlines the
-// monogram cells; sponsor follows the same pattern.
+// 1200×630 OG card. SkillOS rebrand composition mirroring apex
+// /opengraph-image.tsx. Pitch-black canvas, white "SkillOS" wordmark,
+// "Sponsor" sub-wordmark in storm-gray, lime "Sponsor a Pool"
+// headline, mono eyebrow strip. Inlined and self-contained — no
+// imports from @skillbase/ui — so satori's OG runtime sees a single
+// React tree without subpath resolution surprises.
 
 export const runtime = "nodejs";
 
@@ -13,14 +13,14 @@ export const alt = "SkillOS — Sponsor a Pool";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const INK = "#0A0A0A";
-const GOLD = "#FFC72C";
-const BLUE = "#0052FF";
-const PAPER = "#fafafa";
-const MUTED = "#737373";
+const PITCH_BLACK = "#08090a";
+const PORCELAIN = "#ffffff";
+const STORM = "#9ca3af";
+const FOG = "#6b7280";
+const NEON_LIME = "#e4f222";
 
 const SANS =
-  '"Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
 const MONO =
   '"JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace';
 
@@ -31,58 +31,28 @@ export default async function OpengraphImage() {
         style={{
           width: "100%",
           height: "100%",
-          background: INK,
+          background: PITCH_BLACK,
           display: "flex",
           flexDirection: "column",
           padding: 80,
           fontFamily: SANS,
+          position: "relative",
         }}
       >
-        {/* Top — mark + SkillOS Sponsor wordmark */}
+        {/* Top — SkillOS · Sponsor brand row */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 20,
+            gap: 14,
+            fontSize: 32,
+            fontWeight: 500,
+            letterSpacing: "-0.012em",
           }}
         >
-          <svg
-            width={84}
-            height={60}
-            viewBox="0 0 7 5"
-            shapeRendering="crispEdges"
-            style={{ display: "flex" }}
-          >
-            <g fill={GOLD}>
-              <rect x="0" y="0" width="3" height="1" />
-              <rect x="0" y="1" width="1" height="1" />
-              <rect x="0" y="2" width="3" height="1" />
-              <rect x="0" y="4" width="3" height="1" />
-            </g>
-            <g fill={BLUE}>
-              <rect x="3" y="0" width="3" height="1" />
-              <rect x="3" y="1" width="1" height="1" />
-              <rect x="6" y="1" width="1" height="1" />
-              <rect x="3" y="2" width="3" height="1" />
-              <rect x="3" y="3" width="1" height="1" />
-              <rect x="6" y="3" width="1" height="1" />
-              <rect x="3" y="4" width="3" height="1" />
-            </g>
-          </svg>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontSize: 28,
-              fontWeight: 500,
-              letterSpacing: "-0.01em",
-            }}
-          >
-            <div style={{ display: "flex", color: PAPER }}>SkillOS</div>
-            <div style={{ display: "flex", color: MUTED }}>·</div>
-            <div style={{ display: "flex", color: MUTED }}>Sponsor</div>
-          </div>
+          <div style={{ display: "flex", color: PORCELAIN }}>SkillOS</div>
+          <div style={{ display: "flex", color: FOG }}>·</div>
+          <div style={{ display: "flex", color: STORM }}>Sponsor</div>
         </div>
 
         {/* Spacer pushes headline cluster toward vertical center */}
@@ -96,22 +66,22 @@ export default async function OpengraphImage() {
               alignItems: "baseline",
               gap: 24,
               fontSize: 128,
-              fontWeight: 500,
-              letterSpacing: "-0.04em",
+              fontWeight: 700,
+              letterSpacing: "-0.022em",
               lineHeight: 1,
             }}
           >
-            <div style={{ display: "flex", color: PAPER }}>Sponsor</div>
-            <div style={{ display: "flex", color: GOLD }}>a Pool.</div>
+            <div style={{ display: "flex", color: PORCELAIN }}>Sponsor</div>
+            <div style={{ display: "flex", color: NEON_LIME }}>a Pool.</div>
           </div>
           <div
             style={{
               display: "flex",
               marginTop: 28,
               fontSize: 28,
-              color: MUTED,
+              color: STORM,
               fontWeight: 400,
-              letterSpacing: "-0.01em",
+              letterSpacing: "-0.018em",
               maxWidth: 880,
             }}
           >
@@ -122,14 +92,14 @@ export default async function OpengraphImage() {
 
         <div style={{ display: "flex", flex: "1 1 auto" }} />
 
-        {/* Bottom — gold rule + meta row */}
+        {/* Bottom — lime accent rule + mono meta row */}
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
               display: "flex",
-              width: "100%",
-              height: 1,
-              background: GOLD,
+              width: 88,
+              height: 2,
+              background: NEON_LIME,
               marginBottom: 28,
             }}
           />
@@ -138,11 +108,12 @@ export default async function OpengraphImage() {
               display: "flex",
               fontFamily: MONO,
               fontSize: 14,
-              color: MUTED,
+              color: FOG,
               letterSpacing: "0.18em",
             }}
           >
-            ON-CHAIN · SOULBOUND RECEIPT · LIVE ON BASE · A SIMPL3 PRODUCT
+            ON-CHAIN · SOULBOUND RECEIPT · PHASE 1 TESTNET LIVE · A SIMPL3
+            PRODUCT
           </div>
         </div>
       </div>
