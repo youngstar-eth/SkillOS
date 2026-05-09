@@ -6,6 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {TournamentPool} from "../src/TournamentPool.sol";
+import {DevAttributionNFT} from "../src/DevAttributionNFT.sol";
 import {MockSanctionsOracle} from "../src/MockSanctionsOracle.sol";
 import {SponsorReceiptSBT} from "../src/SponsorReceiptSBT.sol";
 import {SponsorshipModule, ITournamentPool} from "../src/SponsorshipModule.sol";
@@ -34,6 +35,7 @@ contract SponsorshipModuleTest is Test {
     // ── Contracts
     MockUSDC internal usdc;
     TournamentPool internal pool;
+    DevAttributionNFT internal devNFT;
     MockSanctionsOracle internal oracle;
     SponsorReceiptSBT internal receipt;
     SponsorshipModule internal module;
@@ -47,13 +49,21 @@ contract SponsorshipModuleTest is Test {
 
     function setUp() public {
         usdc = new MockUSDC();
-        pool = new TournamentPool(IERC20(address(usdc)), trustedSigner);
+
+        // Predict TournamentPool's address before deploying DevAttributionNFT,
+        // since the NFT pins its tournamentPool immutable. Same pattern as the
+        // SBT/Module dance below.
+        address self = address(this);
+        address predictedPool = vm.computeCreateAddress(self, vm.getNonce(self) + 1);
+        devNFT = new DevAttributionNFT(predictedPool);
+        pool = new TournamentPool(IERC20(address(usdc)), trustedSigner, address(devNFT));
+        require(address(pool) == predictedPool, "test setup: pool address mismatch");
+
         oracle = new MockSanctionsOracle();
 
         // Deterministic deploy order for SBT/Module circular dep: predict
         // module address using deployer nonce, deploy SBT pinned to it, then
         // deploy module and assert prediction.
-        address self = address(this);
         address predictedModule = vm.computeCreateAddress(self, vm.getNonce(self) + 1);
         receipt = new SponsorReceiptSBT(predictedModule);
         module = new SponsorshipModule(

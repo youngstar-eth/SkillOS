@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {TournamentPool} from "../src/TournamentPool.sol";
+import {DevAttributionNFT} from "../src/DevAttributionNFT.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -37,6 +38,7 @@ contract TournamentPoolTest is Test {
     // ── Contracts
     MockUSDC internal usdc;
     TournamentPool internal pool;
+    DevAttributionNFT internal devNFT;
 
     // ── Constants
     uint256 internal constant PRIZE_POOL = 10_000_000; // 10 USDC (6 decimals)
@@ -51,7 +53,16 @@ contract TournamentPoolTest is Test {
         trustedSigner = vm.addr(signerPk);
 
         usdc = new MockUSDC();
-        pool = new TournamentPool(IERC20(address(usdc)), trustedSigner);
+
+        // Predict TournamentPool's deployment address so DevAttributionNFT can
+        // pin its `tournamentPool` immutable to the future pool's address. The
+        // pool's constructor then takes the NFT address; assertion at the bottom
+        // proves the prediction held.
+        address self = address(this);
+        address predictedPool = vm.computeCreateAddress(self, vm.getNonce(self) + 1);
+        devNFT = new DevAttributionNFT(predictedPool);
+        pool = new TournamentPool(IERC20(address(usdc)), trustedSigner, address(devNFT));
+        require(address(pool) == predictedPool, "test setup: pool address mismatch");
 
         // Fund & approve sponsor.
         usdc.mint(sponsor, 1_000_000_000); // 1000 USDC
@@ -1678,5 +1689,86 @@ contract TournamentPoolTest is Test {
         uint256 platformShare = (fakeFee * PLATFORM_BPS) / TOTAL_BPS;
         uint256 dust = fakeFee - devShare - platformShare;
         assertEq(dust, 1, "off-by-1 strands 1 atom: change ENTRY_FEE only to multiples of 10");
+    }
+
+    // ─── DevAttributionNFT integration (v2.2 PR 4) ─────────────────────────────
+
+    function test_createTournament_mintsNFT_onFirstCallPerDev() public {
+        bytes32 id = _tournamentId(500);
+        address dev = _devAddr(50);
+
+        assertFalse(pool.devNFTMinted(dev), "cache empty pre-create");
+
+        _createTournamentWithDev(id, dev);
+
+        // Cache flipped to true.
+        assertTrue(pool.devNFTMinted(dev), "cache marks minted");
+        // NFT minted to dev with deterministic tokenId.
+        assertEq(devNFT.ownerOf(uint256(uint160(dev))), dev, "NFT owned by dev");
+        assertEq(devNFT.balanceOf(dev), 1);
+        // Soulbound: locked() returns true.
+        assertTrue(devNFT.locked(uint256(uint160(dev))));
+    }
+
+    function test_createTournament_skipsNFTMint_onSecondCallSameDev() public {
+        // Idempotency: second tournament for same dev triggers no second mint.
+        // OZ ERC-721's _mint reverts on duplicate tokenId, so if the cache check
+        // were missing this test would fail with that revert.
+        bytes32 id1 = _tournamentId(501);
+        bytes32 id2 = _tournamentId(502);
+        address dev = _devAddr(51);
+
+        _createTournamentWithDev(id1, dev);
+        assertEq(devNFT.balanceOf(dev), 1, "minted on first");
+
+        _createTournamentWithDev(id2, dev);
+        assertEq(devNFT.balanceOf(dev), 1, "still 1 -- no double mint");
+        assertTrue(pool.devNFTMinted(dev), "cache stays true");
+    }
+
+    function test_createTournament_differentDevs_mintSeparately() public {
+        bytes32 id1 = _tournamentId(503);
+        bytes32 id2 = _tournamentId(504);
+        address devA = _devAddr(52);
+        address devB = _devAddr(53);
+
+        _createTournamentWithDev(id1, devA);
+        _createTournamentWithDev(id2, devB);
+
+        assertEq(devNFT.balanceOf(devA), 1, "devA has NFT");
+        assertEq(devNFT.balanceOf(devB), 1, "devB has NFT");
+        assertEq(devNFT.ownerOf(uint256(uint160(devA))), devA);
+        assertEq(devNFT.ownerOf(uint256(uint160(devB))), devB);
+        assertTrue(pool.devNFTMinted(devA));
+        assertTrue(pool.devNFTMinted(devB));
+    }
+
+    function test_createTournament_postCondition_cacheAndNFTBothSet() public {
+        // Post-condition check after a successful createTournament: the cache flag
+        // is set AND the NFT is minted. This test pins only the final state — it
+        // does NOT verify the cache-before-mint ordering inside the function body.
+        // Proper ordering verification (with a malicious mock NFT observing pool
+        // state mid-callback) is scoped into PR 5 alongside the reentrancy
+        // mock infrastructure.
+        bytes32 id = _tournamentId(505);
+        address dev = _devAddr(54);
+
+        _createTournamentWithDev(id, dev);
+
+        assertTrue(pool.devNFTMinted(dev));
+        assertEq(devNFT.balanceOf(dev), 1);
+    }
+
+    function test_createTournament_revert_zeroDevAddr_doesNotTouchNFTState() public {
+        // The zero-address guard fires before any NFT interaction — the revert
+        // is the proof that no partial state mutation occurred. (We don't check
+        // devNFT.balanceOf(address(0)) directly because OZ ERC-721 reverts on
+        // zero-address balance queries.)
+        bytes32 id = _tournamentId(506);
+        vm.prank(sponsor);
+        vm.expectRevert(TournamentPool.ZeroAddress.selector);
+        pool.createTournament(
+            id, address(0), GAME, TournamentPool.CycleType.Daily, STARTS_AT, ENDS_AT, PRIZE_POOL, PARTICIPATION_BONUS
+        );
     }
 }
