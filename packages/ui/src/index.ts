@@ -17,12 +17,6 @@ export {
   type BasenameStatus,
   type UseBasenameReturn,
 } from "./useBasename";
-export { splashTemplate, type SplashProps } from "./og";
-// NOTE: og/game-card is server-only (imports next/og → uses Node `fs`).
-// Re-exporting it from this client-safe barrel contaminates client
-// bundles (Next 14 webpack can't tree-shake across package boundaries
-// reliably). Consumers import it directly via the subpath:
-//   import { gameOgImage } from "@skillbase/ui/og/game-card";
 export { ModeChooser, type ModeChooserProps } from "./ModeChooser";
 export { DuelComingSoon } from "./DuelComingSoon";
 export {
@@ -37,7 +31,6 @@ export {
 export { useIsEmbedded } from "./useIsEmbedded";
 export { Header, type HeaderProps } from "./Header";
 export { SkillosMark, type SkillosMarkProps } from "./SkillosMark";
-export { SkillosMark as SkillbaseMark, type SkillosMarkProps as SkillbaseMarkProps } from "./SkillosMark";
 export { SoloResultCard, type SoloResultCardProps } from "./SoloResultCard";
 export { useMiniAppReady } from "./useMiniAppReady";
 export { ReadyMarker } from "./ReadyMarker";
