@@ -691,6 +691,17 @@ contract TournamentPoolTest is Test {
 
     uint256 internal constant ENTRY_FEE = 1_000_000; // 1 USDC
 
+    // v2.2: locked fee-share constants (mirrored in TournamentPool).
+    uint256 internal constant DEV_BPS = 7000;
+    uint256 internal constant PLATFORM_BPS = 3000;
+    uint256 internal constant TOTAL_BPS = 10_000;
+
+    /// @dev Sum of the two fee buckets — convenience for tests that previously
+    ///      read the pre-split `feeCollected(id)` mapping.
+    function _totalFees(bytes32 id) internal view returns (uint256) {
+        return pool.feeCollected_dev(id) + pool.feeCollected_platform(id);
+    }
+
     function _signSoloSubmit(
         bytes32 id,
         address player,
@@ -735,7 +746,7 @@ contract TournamentPoolTest is Test {
         assertEq(pool.matchCount(id, players[0]), 1);
         assertEq(pool.soloSubmissionCount(id, players[0]), 1);
         assertEq(pool.feePaidByPlayer(id, players[0]), 0, "first solo is free");
-        assertEq(pool.feeCollected(id), 0, "no fees yet");
+        assertEq(_totalFees(id), 0, "no fees yet");
         assertEq(pool.submissionHistoryLength(id, players[0]), 1);
 
         TournamentPool.Submission memory s = pool.submissionAt(id, players[0], 0);
@@ -770,7 +781,7 @@ contract TournamentPoolTest is Test {
         assertEq(pool.soloSubmissionCount(id, players[0]), 2);
         assertEq(pool.bestScore(id, players[0]), 700);
         assertEq(pool.feePaidByPlayer(id, players[0]), ENTRY_FEE);
-        assertEq(pool.feeCollected(id), ENTRY_FEE);
+        assertEq(_totalFees(id), ENTRY_FEE);
     }
 
     function test_submitSolo_nthSubmissionRequiresNMinus1Fees() public {
@@ -803,7 +814,7 @@ contract TournamentPoolTest is Test {
         _submitSolo(id, players[0], 500, 1, 5);
 
         assertEq(pool.soloSubmissionCount(id, players[0]), 5);
-        assertEq(pool.feeCollected(id), 4 * ENTRY_FEE);
+        assertEq(_totalFees(id), 4 * ENTRY_FEE);
     }
 
     function test_submitSolo_separatePlayers_independentFeeAccounting() public {
@@ -885,7 +896,10 @@ contract TournamentPoolTest is Test {
         assertEq(usdc.balanceOf(players[0]), playerBefore - ENTRY_FEE);
         assertEq(usdc.balanceOf(address(pool)), poolBefore + ENTRY_FEE);
         assertEq(pool.feePaidByPlayer(id, players[0]), ENTRY_FEE);
-        assertEq(pool.feeCollected(id), ENTRY_FEE);
+        // v2.2: ENTRY_FEE is split atomically — 70% to feeCollected_dev, 30% to feeCollected_platform.
+        assertEq(pool.feeCollected_dev(id), (ENTRY_FEE * DEV_BPS) / TOTAL_BPS, "dev share");
+        assertEq(pool.feeCollected_platform(id), (ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS, "platform share");
+        assertEq(_totalFees(id), ENTRY_FEE, "buckets sum to ENTRY_FEE");
     }
 
     function test_chargeEntryFee_revert_playerMismatch() public {
@@ -928,17 +942,20 @@ contract TournamentPoolTest is Test {
         }
 
         assertEq(pool.feePaidByPlayer(id, players[0]), 3 * ENTRY_FEE);
-        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE);
+        // Both buckets accumulate proportionally to bps.
+        assertEq(pool.feeCollected_dev(id), (3 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS);
+        assertEq(pool.feeCollected_platform(id), (3 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS);
+        assertEq(_totalFees(id), 3 * ENTRY_FEE);
     }
 
-    // ── withdrawFees
+    // ── withdrawFees (v2.2 PR 2 bridge state — drains both buckets; PR 3 splits this)
 
-    function test_withdrawFees_drawsOnlyFromFeeCollected() public {
+    function test_withdrawFees_drawsBothBuckets_andLeavesPrizePoolIntact() public {
         bytes32 id = _tournamentId(240);
         _createTournament(id);
         _fundAndApprove(players[0], 3 * ENTRY_FEE);
 
-        // Player pays 2 retries.
+        // Player pays 2 entry fees.
         vm.startPrank(players[0]);
         pool.chargeEntryFee(id, players[0]);
         pool.chargeEntryFee(id, players[0]);
@@ -950,8 +967,9 @@ contract TournamentPoolTest is Test {
 
         pool.withdrawFees(id, team);
 
-        assertEq(usdc.balanceOf(team) - teamBefore, 2 * ENTRY_FEE);
-        assertEq(pool.feeCollected(id), 0);
+        assertEq(usdc.balanceOf(team) - teamBefore, 2 * ENTRY_FEE, "team gets total");
+        assertEq(pool.feeCollected_dev(id), 0, "dev bucket drained");
+        assertEq(pool.feeCollected_platform(id), 0, "platform bucket drained");
         // Pool balance drops by exactly the fee total — prize pool intact.
         assertEq(usdc.balanceOf(address(pool)), poolBefore - 2 * ENTRY_FEE);
         // Prize pool state is unchanged.
@@ -987,18 +1005,20 @@ contract TournamentPoolTest is Test {
 
         address team = address(0xFEE71AB);
         pool.withdrawFees(id, team);
-        assertEq(pool.feeCollected(id), 0);
+        assertEq(_totalFees(id), 0);
 
         uint256 teamAfterFirst = usdc.balanceOf(team);
         pool.withdrawFees(id, team); // no-op second call
         assertEq(usdc.balanceOf(team), teamAfterFirst);
     }
 
-    // ── Invariant: retry fees NEVER flow into prize distribution
+    // ── Invariant: entry fees NEVER flow into prize distribution
 
-    function test_invariant_feeCollectedIsolatedFromPrizePool() public {
+    function test_invariant_feeBuckets_survive_full_lifecycle() public {
         // Full lifecycle: create → solo submits with retries → settle → verify.
-        // Retry fees collected must NOT affect prize distribution.
+        // Entry fees collected must NOT affect prize distribution and must be
+        // split 70/30 across the dev and platform buckets — both invariants
+        // checked together for the canonical mixed-flow scenario.
         bytes32 id = _tournamentId(260);
         _createTournament(id);
         _fundAndApprove(players[0], 10 * ENTRY_FEE);
@@ -1018,8 +1038,11 @@ contract TournamentPoolTest is Test {
         _submit(id, players[2], 600, 1, 11);
         _submit(id, players[3], 400, 1, 12);
 
-        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE);
-        // Contract balance = prize pool + fees collected.
+        // Per-bucket assertions: 3 entry fees split 70/30.
+        assertEq(pool.feeCollected_dev(id), (3 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS, "3 fees -> dev bucket");
+        assertEq(pool.feeCollected_platform(id), (3 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS, "3 fees -> platform");
+        assertEq(_totalFees(id), 3 * ENTRY_FEE, "buckets sum");
+        // Contract balance = prize pool + total fees collected.
         assertEq(usdc.balanceOf(address(pool)), PRIZE_POOL + 3 * ENTRY_FEE);
 
         vm.warp(ENDS_AT + 1);
@@ -1041,19 +1064,21 @@ contract TournamentPoolTest is Test {
         uint256 expectedRefund = PRIZE_POOL - distributed;
         assertEq(usdc.balanceOf(sponsor) - sponsorBefore, expectedRefund, "sponsor refund");
 
-        // Critical: feeCollected survives settle untouched.
-        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE, "fees must not be settled");
+        // Critical: BOTH fee buckets survive settle untouched.
+        assertEq(pool.feeCollected_dev(id), (3 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS, "dev bucket post-settle");
+        assertEq(pool.feeCollected_platform(id), (3 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS, "platform post-settle");
+        assertEq(_totalFees(id), 3 * ENTRY_FEE, "fees must not be settled");
         assertEq(usdc.balanceOf(address(pool)), 3 * ENTRY_FEE, "only fees remain");
 
-        // Team can still withdraw their fees after settle.
+        // Team can still withdraw their fees after settle (PR 2 bridge withdrawFees drains both).
         address team = address(0xFEE71AB);
         pool.withdrawFees(id, team);
         assertEq(usdc.balanceOf(team), 3 * ENTRY_FEE);
         assertEq(usdc.balanceOf(address(pool)), 0);
     }
 
-    function test_invariant_settleDoesNotTouchFeeCollected() public {
-        // Pair test: prize pool goes out via settle; feeCollected untouched.
+    function test_invariant_settle_does_not_touch_feeCollected_anything() public {
+        // Pair test: prize pool goes out via settle; both fee buckets untouched.
         bytes32 id = _tournamentId(261);
         _createTournament(id);
         _fundAndApprove(players[0], 5 * ENTRY_FEE);
@@ -1063,13 +1088,161 @@ contract TournamentPoolTest is Test {
         pool.chargeEntryFee(id, players[0]);
         _submitSolo(id, players[0], 1200, 1, 1);
 
+        uint256 devBefore = pool.feeCollected_dev(id);
+        uint256 platformBefore = pool.feeCollected_platform(id);
+
         vm.warp(ENDS_AT + 1);
         address[] memory ranking = new address[](1);
         ranking[0] = players[0];
         pool.settle(id, ranking);
 
-        // feeCollected should be unchanged after settle.
-        assertEq(pool.feeCollected(id), ENTRY_FEE);
+        // Both buckets unchanged after settle — INV1.
+        assertEq(pool.feeCollected_dev(id), devBefore, "dev bucket frozen by settle");
+        assertEq(pool.feeCollected_platform(id), platformBefore, "platform bucket frozen by settle");
+        assertEq(_totalFees(id), ENTRY_FEE);
+    }
+
+    function test_invariant_feeCollectedDev_isolated_from_prizePool() public {
+        // INV1: settle()'s prize-distribution path must not modify feeCollected_dev,
+        // regardless of which curve branch the distribution takes. Scenario uses 4
+        // participants (n=4 -> topN=2), exercising the small-N top-3 branch — the
+        // isolation property is independent of the curve branch since settle()
+        // never reads the fee buckets at all.
+        bytes32 id = _tournamentId(262);
+        _createTournament(id);
+        _fundAndApprove(players[0], 5 * ENTRY_FEE);
+
+        // Pay 5 entry fees from players[0] (one free solo + 5 paid) and submit
+        // duel scores from 3 more players to reach the n=4 distribution.
+        _submitSolo(id, players[0], 1000, 1, 0);
+        for (uint256 i; i < 5; ++i) {
+            vm.prank(players[0]);
+            pool.chargeEntryFee(id, players[0]);
+        }
+        for (uint256 i; i < 5; ++i) {
+            _submitSolo(id, players[0], 1500 + i, 1, i + 1);
+        }
+        _submit(id, players[1], 900, 1, 100);
+        _submit(id, players[2], 800, 1, 101);
+        _submit(id, players[3], 700, 1, 102);
+
+        uint256 expectedDev = (5 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS;
+        assertEq(pool.feeCollected_dev(id), expectedDev, "pre-settle dev bucket");
+
+        vm.warp(ENDS_AT + 1);
+        address[] memory ranking = new address[](4);
+        ranking[0] = players[0];
+        ranking[1] = players[1];
+        ranking[2] = players[2];
+        ranking[3] = players[3];
+        pool.settle(id, ranking);
+
+        assertEq(pool.feeCollected_dev(id), expectedDev, "settle did not touch dev bucket");
+    }
+
+    function test_invariant_feeCollectedPlatform_isolated_from_prizePool() public {
+        // INV1 mirror: settle() must not modify feeCollected_platform. Same n=4
+        // small-N distribution as the dev test above; isolation is curve-branch
+        // independent because settle() never reads the fee buckets.
+        bytes32 id = _tournamentId(263);
+        _createTournament(id);
+        _fundAndApprove(players[0], 5 * ENTRY_FEE);
+
+        _submitSolo(id, players[0], 1000, 1, 0);
+        for (uint256 i; i < 5; ++i) {
+            vm.prank(players[0]);
+            pool.chargeEntryFee(id, players[0]);
+        }
+        for (uint256 i; i < 5; ++i) {
+            _submitSolo(id, players[0], 1500 + i, 1, i + 1);
+        }
+        _submit(id, players[1], 900, 1, 100);
+        _submit(id, players[2], 800, 1, 101);
+        _submit(id, players[3], 700, 1, 102);
+
+        uint256 expectedPlatform = (5 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS;
+        assertEq(pool.feeCollected_platform(id), expectedPlatform, "pre-settle platform bucket");
+
+        vm.warp(ENDS_AT + 1);
+        address[] memory ranking = new address[](4);
+        ranking[0] = players[0];
+        ranking[1] = players[1];
+        ranking[2] = players[2];
+        ranking[3] = players[3];
+        pool.settle(id, ranking);
+
+        assertEq(pool.feeCollected_platform(id), expectedPlatform, "settle did not touch platform bucket");
+    }
+
+    // ── 70/30 atomic split tests
+
+    function test_chargeEntryFee_atomicSplit_70_30() public {
+        // Single chargeEntryFee deposits 70% to dev and 30% to platform in one tx.
+        bytes32 id = _tournamentId(270);
+        _createTournament(id);
+        _fundAndApprove(players[0], ENTRY_FEE);
+
+        assertEq(pool.feeCollected_dev(id), 0, "dev empty pre-call");
+        assertEq(pool.feeCollected_platform(id), 0, "platform empty pre-call");
+
+        vm.prank(players[0]);
+        pool.chargeEntryFee(id, players[0]);
+
+        // INV2 — locked constants: 700_000 dev, 300_000 platform, sum == ENTRY_FEE (no dust).
+        assertEq(pool.feeCollected_dev(id), 700_000, "70% to dev");
+        assertEq(pool.feeCollected_platform(id), 300_000, "30% to platform");
+        assertEq(_totalFees(id), ENTRY_FEE, "no dust at locked constants");
+    }
+
+    function test_BPS_constants_match_locked_values() public view {
+        // Locked: DEV_BPS=7000, PLATFORM_BPS=3000, TOTAL_BPS=10000.
+        // The contract MUST expose these as public constants — any change requires
+        // an explicit ADR + audit re-scope, so the test pin matters.
+        assertEq(pool.DEV_BPS(), DEV_BPS, "DEV_BPS pinned");
+        assertEq(pool.PLATFORM_BPS(), PLATFORM_BPS, "PLATFORM_BPS pinned");
+        assertEq(pool.TOTAL_BPS(), TOTAL_BPS, "TOTAL_BPS pinned");
+        assertEq(pool.DEV_BPS() + pool.PLATFORM_BPS(), pool.TOTAL_BPS(), "shares sum to total");
+    }
+
+    function test_invariant_balanceReconciliation_acrossTwoTournaments() public {
+        // Live state reconciliation invariant (INV1 supporting):
+        //   USDC.balanceOf(pool) == Σ feeCollected_dev[t] + Σ feeCollected_platform[t]
+        //                          + Σ prizePool[t]   (over unsettled tournaments)
+        // Verified at every step of a multi-tournament, mixed-flow scenario.
+        bytes32 t1 = _tournamentId(290);
+        bytes32 t2 = _tournamentId(291);
+        _createTournament(t1);
+        _createTournament(t2);
+        _assertReconciliation(t1, t2);
+
+        // Player pays fees on t1.
+        _fundAndApprove(players[0], 5 * ENTRY_FEE);
+        vm.startPrank(players[0]);
+        pool.chargeEntryFee(t1, players[0]);
+        pool.chargeEntryFee(t1, players[0]);
+        pool.chargeEntryFee(t1, players[0]);
+        vm.stopPrank();
+        _assertReconciliation(t1, t2);
+
+        // Player pays a fee on t2 — independent bucket per tournament.
+        _fundAndApprove(players[1], 2 * ENTRY_FEE);
+        vm.prank(players[1]);
+        pool.chargeEntryFee(t2, players[1]);
+        _assertReconciliation(t1, t2);
+
+        // Outside funder tops up t1's prize pool — must not flow to fee buckets.
+        _fundFunder(outsider, 5_000_000);
+        vm.prank(outsider);
+        pool.fundPrizePool(t1, 5_000_000);
+        _assertReconciliation(t1, t2);
+    }
+
+    /// @dev Helper: assert contract USDC balance == sum of two unsettled tournaments'
+    ///      fee buckets + prize pools.
+    function _assertReconciliation(bytes32 t1, bytes32 t2) internal view {
+        uint256 expected = pool.feeCollected_dev(t1) + pool.feeCollected_platform(t1) + pool.feeCollected_dev(t2)
+            + pool.feeCollected_platform(t2) + pool.getTournament(t1).prizePool + pool.getTournament(t2).prizePool;
+        assertEq(usdc.balanceOf(address(pool)), expected, "balance reconciliation");
     }
 
     // ── Match-count cap
@@ -1278,41 +1451,48 @@ contract TournamentPoolTest is Test {
     }
 
     /// @notice Sweepstakes-safe invariant: any sequence of fundPrizePool calls
-    ///         leaves feeCollected[id] untouched. Retry fees are the only inflow
-    ///         to that bucket. This is the structural underpinning of v2's
+    ///         leaves BOTH fee buckets untouched. Entry fees are the only inflow
+    ///         to those buckets. This is the structural underpinning of v2.2's
     ///         architectural separation between prize pool and team-wallet fees.
-    function test_invariant_fundPrizePool_neverTouchesFeeCollected() public {
+    function test_invariant_fundPrizePool_does_not_touch_feeCollected_anything() public {
         bytes32 id = _tournamentId(406);
         _createTournament(id);
 
-        // Establish a baseline: pay one retry fee so feeCollected has a known value.
+        // Baseline: pay one entry fee so each bucket has a known value.
         _fundAndApprove(players[0], ENTRY_FEE);
         vm.prank(players[0]);
         pool.chargeEntryFee(id, players[0]);
-        uint256 feeBaseline = pool.feeCollected(id);
-        assertEq(feeBaseline, ENTRY_FEE, "fee baseline");
+        uint256 devBaseline = pool.feeCollected_dev(id);
+        uint256 platformBaseline = pool.feeCollected_platform(id);
+        assertEq(devBaseline + platformBaseline, ENTRY_FEE, "baseline sum");
+        assertEq(devBaseline, (ENTRY_FEE * DEV_BPS) / TOTAL_BPS, "baseline 70/30 dev");
 
-        // Interleave fundPrizePool calls with retry fee + score submissions.
+        // Interleave fundPrizePool calls with entry fee + score submissions.
         _fundFunder(outsider, 50_000_000);
 
-        // Sequence: fund, fund, retry-fee, fund, retry-fee, fund.
+        // Sequence: fund, fund, entry-fee, fund, entry-fee, fund. Each bucket frozen by fund.
         vm.prank(outsider);
         pool.fundPrizePool(id, 1_000_000);
-        assertEq(pool.feeCollected(id), feeBaseline, "fee unchanged after fund #1");
+        assertEq(pool.feeCollected_dev(id), devBaseline, "dev unchanged after fund #1");
+        assertEq(pool.feeCollected_platform(id), platformBaseline, "platform unchanged after fund #1");
 
         vm.prank(outsider);
         pool.fundPrizePool(id, 7_500_000);
-        assertEq(pool.feeCollected(id), feeBaseline, "fee unchanged after fund #2");
+        assertEq(pool.feeCollected_dev(id), devBaseline, "dev unchanged after fund #2");
+        assertEq(pool.feeCollected_platform(id), platformBaseline, "platform unchanged after fund #2");
 
         _fundAndApprove(players[1], ENTRY_FEE);
         vm.prank(players[1]);
         pool.chargeEntryFee(id, players[1]);
-        assertEq(pool.feeCollected(id), feeBaseline + ENTRY_FEE, "fee tracks retry only");
+        assertEq(_totalFees(id), 2 * ENTRY_FEE, "buckets track entry only");
 
-        uint256 feeAfterTwoRetries = feeBaseline + ENTRY_FEE;
+        uint256 devAfterTwo = pool.feeCollected_dev(id);
+        uint256 platformAfterTwo = pool.feeCollected_platform(id);
+
         vm.prank(outsider);
         pool.fundPrizePool(id, 100_000);
-        assertEq(pool.feeCollected(id), feeAfterTwoRetries, "fee unchanged after fund #3");
+        assertEq(pool.feeCollected_dev(id), devAfterTwo, "dev unchanged after fund #3");
+        assertEq(pool.feeCollected_platform(id), platformAfterTwo, "platform unchanged after fund #3");
 
         _fundAndApprove(players[2], ENTRY_FEE);
         vm.prank(players[2]);
@@ -1320,19 +1500,20 @@ contract TournamentPoolTest is Test {
         vm.prank(outsider);
         pool.fundPrizePool(id, 41_400_000);
 
-        // Final assertion: feeCollected = exactly 3 retry fees, regardless of
-        // how much was funded into prizePool.
-        assertEq(pool.feeCollected(id), 3 * ENTRY_FEE, "fee == only retry fees");
+        // Final: each bucket exactly == 3 entry fees * its bps, regardless of fund flow.
+        assertEq(pool.feeCollected_dev(id), (3 * ENTRY_FEE * DEV_BPS) / TOTAL_BPS, "dev = 3 * 70%");
+        assertEq(pool.feeCollected_platform(id), (3 * ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS, "platform = 3 * 30%");
+        assertEq(_totalFees(id), 3 * ENTRY_FEE, "total = 3 * ENTRY_FEE");
 
         // And prizePool reflects all funder contributions plus original.
         TournamentPool.Tournament memory t = pool.getTournament(id);
         assertEq(t.prizePool, PRIZE_POOL + 1_000_000 + 7_500_000 + 100_000 + 41_400_000, "prizePool sum");
 
-        // Withdraw fees → only retry fees move to team wallet, prize pool untouched.
+        // Withdraw fees (PR 2 bridge) → both buckets drained to team wallet, prize pool untouched.
         address teamWallet = address(0xCAFE);
         uint256 prizePoolBeforeWithdraw = t.prizePool;
         pool.withdrawFees(id, teamWallet);
-        assertEq(usdc.balanceOf(teamWallet), 3 * ENTRY_FEE, "team wallet receives retry fees only");
+        assertEq(usdc.balanceOf(teamWallet), 3 * ENTRY_FEE, "team wallet receives entry fees only");
         TournamentPool.Tournament memory tAfter = pool.getTournament(id);
         assertEq(tAfter.prizePool, prizePoolBeforeWithdraw, "prize pool untouched by withdrawFees");
     }
