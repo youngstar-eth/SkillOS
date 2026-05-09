@@ -103,7 +103,7 @@ export const SoloResultCard: React.FC<SoloResultCardProps> = ({
         <p className="mt-1 text-xs text-neutral-400">
           Rank #{rank} · {matchCount}{" "}
           {matchCount === 1 ? "run" : "runs"} submitted
-          {isPaidRetry ? " · 1.00 USDC fee" : " · free entry"}
+          {" · 1.00 USDC fee"}
         </p>
         <div className="mt-3">{aiReviewedBadge}</div>
         <div className="mt-3 flex gap-2">

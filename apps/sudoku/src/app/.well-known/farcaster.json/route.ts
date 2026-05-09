@@ -24,7 +24,7 @@ const ASSOCIATION = {
 
 const MANIFEST = {
   version: "1",
-  name: 'Skillbase Sudoku',
+  name: 'SkillOS Sudoku',
   iconUrl: "https://sudoku.skillbase.games/icon",
   homeUrl: "https://sudoku.skillbase.games/tournament/solo",
   imageUrl: "https://sudoku.skillbase.games/opengraph-image",
@@ -36,7 +36,7 @@ const MANIFEST = {
   primaryCategory: "games",
   tags: ["skill", "logic", "puzzle", "ai", "base"],
   tagline: "Skill data layer",
-  ogTitle: "Skillbase Sudoku on Base",
+  ogTitle: "SkillOS Sudoku on Base",
   ogDescription: "Pay to play, skill-rewarded. AI coach, plausibility-verified scoring.",
 } as const;
 

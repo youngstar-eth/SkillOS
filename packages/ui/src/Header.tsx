@@ -18,11 +18,11 @@ import { useIsEmbedded } from "./useIsEmbedded";
 import { SkillosMark } from "./SkillosMark";
 
 export interface HeaderProps {
-  /** Brand text shown next to the dot, e.g. "Skillbase · Wordle". Defaults to "Skillbase". */
+  /** Brand text shown next to the dot, e.g. "SkillOS · Wordle". Defaults to "SkillOS". */
   brand?: string;
 }
 
-export function Header({ brand = "Skillbase" }: HeaderProps) {
+export function Header({ brand = "SkillOS" }: HeaderProps) {
   const isEmbedded = useIsEmbedded();
   if (isEmbedded) return null;
 

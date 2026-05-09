@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// 1200×630 OG card. Plain dark+gold composition: monogram + "Skillbase
+// 1200×630 OG card. Plain dark+gold composition: monogram + "SkillOS
 // Sponsor" wordmark + "Sponsor a Pool" headline + tagline + bottom rule.
 //
 // Pixel <rect>s are inlined here rather than imported — satori's OG runtime
@@ -9,7 +9,7 @@ import { ImageResponse } from "next/og";
 
 export const runtime = "nodejs";
 
-export const alt = "Skillbase — Sponsor a Pool";
+export const alt = "SkillOS — Sponsor a Pool";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -38,7 +38,7 @@ export default async function OpengraphImage() {
           fontFamily: SANS,
         }}
       >
-        {/* Top — mark + Skillbase Sponsor wordmark */}
+        {/* Top — mark + SkillOS Sponsor wordmark */}
         <div
           style={{
             display: "flex",
@@ -79,7 +79,7 @@ export default async function OpengraphImage() {
               letterSpacing: "-0.01em",
             }}
           >
-            <div style={{ display: "flex", color: PAPER }}>Skillbase</div>
+            <div style={{ display: "flex", color: PAPER }}>SkillOS</div>
             <div style={{ display: "flex", color: MUTED }}>·</div>
             <div style={{ display: "flex", color: MUTED }}>Sponsor</div>
           </div>
@@ -115,7 +115,7 @@ export default async function OpengraphImage() {
               maxWidth: 880,
             }}
           >
-            Permissionlessly fund any Skillbase tournament prize pool. One tx,
+            Permissionlessly fund any SkillOS tournament prize pool. One tx,
             soulbound on-chain receipt.
           </div>
         </div>

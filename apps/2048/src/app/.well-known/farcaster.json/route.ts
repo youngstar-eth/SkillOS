@@ -24,7 +24,7 @@ const ASSOCIATION = {
 
 const MANIFEST = {
   version: "1",
-  name: 'Skillbase 2048',
+  name: 'SkillOS 2048',
   iconUrl: "https://2048.skillbase.games/icon",
   homeUrl: "https://2048.skillbase.games/tournament/solo",
   imageUrl: "https://2048.skillbase.games/opengraph-image",
@@ -36,7 +36,7 @@ const MANIFEST = {
   primaryCategory: "games",
   tags: ["skill", "puzzle", "tournament", "ai", "base"],
   tagline: "Skill data layer",
-  ogTitle: "Skillbase 2048 — Skill on Base",
+  ogTitle: "SkillOS 2048 — Skill on Base",
   ogDescription: "Pay to play, skill-rewarded. AI coach, plausibility-verified scoring.",
 } as const;
 

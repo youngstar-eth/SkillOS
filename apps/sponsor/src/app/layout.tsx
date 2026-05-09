@@ -34,20 +34,20 @@ const spaceGrotesk = Space_Grotesk({
 const FOUC_SCRIPT = `(function(){try{var k='skillbase-theme';var s=localStorage.getItem(k);var t=(s==='light'||s==='dark')?s:(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.classList.add('theme-'+t);}catch(e){document.documentElement.classList.add('theme-dark');}})();`;
 
 export const metadata: Metadata = {
-  title: "Skillbase — Sponsor a Pool",
+  title: "SkillOS — Sponsor a Pool",
   description:
-    "Permissionlessly fund any Skillbase tournament prize pool. Connect wallet, sign one tx, receive a soulbound on-chain receipt.",
-  applicationName: "Skillbase Sponsor",
+    "Permissionlessly fund any SkillOS tournament prize pool. Connect wallet, sign one tx, receive a soulbound on-chain receipt.",
+  applicationName: "SkillOS Sponsor",
   authors: [{ name: "Simpl3 Inc." }],
   creator: "Simpl3 Inc.",
   publisher: "Simpl3 Inc.",
   openGraph: {
     type: "website",
     locale: "en_US",
-    title: "Skillbase — Sponsor a Pool",
+    title: "SkillOS — Sponsor a Pool",
     description:
-      "Fund any Skillbase tournament prize pool on-chain. One tx, soulbound receipt.",
-    siteName: "Skillbase Sponsor",
+      "Fund any SkillOS tournament prize pool on-chain. One tx, soulbound receipt.",
+    siteName: "SkillOS Sponsor",
   },
   other: {
     "base:app_id": "69f5034cd7175bf80cb81fd0",

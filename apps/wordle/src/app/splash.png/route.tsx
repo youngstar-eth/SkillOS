@@ -4,7 +4,7 @@ import { splashTemplate } from "@skillbase/ui";
 export const runtime = "nodejs";
 
 export async function GET() {
-  return new ImageResponse(splashTemplate({ name: 'Skillbase Wordle' }), {
+  return new ImageResponse(splashTemplate({ name: 'SkillOS Wordle' }), {
     width: 512,
     height: 512,
   });

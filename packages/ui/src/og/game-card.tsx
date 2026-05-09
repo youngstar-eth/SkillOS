@@ -426,7 +426,7 @@ export function GameOgCard({
               textTransform: "uppercase",
             }}
           >
-            Skillbase
+            SkillOS
           </div>
         </div>
 
@@ -506,5 +506,5 @@ export async function gameOgImage(
 
 /** Computes the OG `alt` string from props. Same shape per-game. */
 export function gameOgAlt(title: string, tagline: string): string {
-  return `Skillbase ${title} — ${tagline}`;
+  return `SkillOS ${title} — ${tagline}`;
 }

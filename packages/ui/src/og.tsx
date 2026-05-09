@@ -17,7 +17,7 @@ const SANS_FONT_STACK =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 export interface SplashProps {
-  /** Game/app name shown under the wordmark, e.g. "2048" or "Skillbase". */
+  /** Game/app name shown under the wordmark, e.g. "2048" or "SkillOS". */
   name: string;
 }
 

@@ -3,21 +3,21 @@ import { Header, Providers, ReadyMarker } from "@skillbase/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Skillbase Sudoku — On-chain Sudoku duels on Base",
+  title: "SkillOS Sudoku — On-chain Sudoku duels on Base",
   description:
     "Stake 1 USDC, match a player, race to solve the same puzzle. Most cells correct in 2 minutes wins the pool.",
   openGraph: {
-    title: "Sudoku · Skillbase",
+    title: "Sudoku · SkillOS",
     description: "Solve faster. Think deeper. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sudoku · Skillbase",
+    title: "Sudoku · SkillOS",
     description: "Solve faster. Think deeper. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on Skillbase\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
     "base:app_id": "69f4fe943b51d26eb105fb69",
   },
 };
@@ -38,7 +38,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased bg-bg text-neutral-100">
         <Providers>
           <ReadyMarker />
-          <Header brand="Skillbase · Sudoku" />
+          <Header brand="SkillOS · Sudoku" />
           <div className="mx-auto max-w-5xl px-4">{children}</div>
         </Providers>
       </body>

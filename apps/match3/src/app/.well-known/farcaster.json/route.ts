@@ -24,7 +24,7 @@ const ASSOCIATION = {
 
 const MANIFEST = {
   version: "1",
-  name: 'Skillbase Match3',
+  name: 'SkillOS Match3',
   iconUrl: "https://match3.skillbase.games/icon",
   homeUrl: "https://match3.skillbase.games/tournament/solo",
   imageUrl: "https://match3.skillbase.games/opengraph-image",
@@ -36,7 +36,7 @@ const MANIFEST = {
   primaryCategory: "games",
   tags: ["skill", "puzzle", "chain", "ai", "base"],
   tagline: "Skill data layer",
-  ogTitle: "Skillbase Match3 on Base",
+  ogTitle: "SkillOS Match3 on Base",
   ogDescription: "Pay to play, skill-rewarded. AI coach, plausibility-verified scoring.",
 } as const;
 
