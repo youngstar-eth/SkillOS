@@ -170,6 +170,12 @@ These four invariants are the load-bearing safety properties of v2.2. The test s
 
 `DevAttributionNFT` implements ERC-5192 fully: `locked()` returns `true` for minted tokens, reverts on non-existent. All non-mint paths through `_update` revert. `approve` and `setApprovalForAll` revert. Mint is idempotent per `devAddr` via `TournamentPool.devNFTMinted` cache, with OZ `_safeMint` as the defensive backstop.
 
+**Supply semantic (precise statement):**
+
+> NFT supply == count of unique addresses that have been named as `devAddr` in at least one successful `createTournament` call. Note: "named as `devAddr`" is an on-chain event; off-chain interpretation as "developer count" depends on attribution-honesty assumptions documented in §"Known acceptable findings" item **A5 (Permissionless `createTournament`)** below.
+
+Concretely: any USDC holder can pay a (non-zero) `prizePool` and have an NFT minted to any address they choose. The contract has no on-chain way to verify the named address actually authored the tournament. The attribution-spoofing surface and its mitigations are catalogued under A5.
+
 **Pinning tests:**
 - `test_locked_returnsTrue_forMintedToken`
 - `test_locked_revert_onNonexistentToken`
@@ -222,6 +228,8 @@ After settle, `t.prizePool` retains the original deposit value in storage; the U
 ### A5 — Permissionless `createTournament`
 
 Any USDC holder can create a tournament with arbitrary `devAddr`. The mint cost (~78K + sponsor's own USDC for prize pool) makes flooding economically unviable, but a determined attacker could mint NFTs to addresses the holder doesn't control. This is an attribution-spoofing surface: a sponsor could falsely attribute a tournament to a developer who didn't author it. Mitigation is off-chain (UI doesn't show un-claimed devAddrs as having attribution; SDK validates devAddr ownership before allowing tournament creation through the SDK path). The audit firm may flag this as a UX/social concern, not a safety bug.
+
+This is the off-chain ambiguity referenced from INV4's supply-semantic note: on-chain, "supply" counts unique addresses-named-as-`devAddr`, not authorship-validated developers. The two coincide only under the off-chain attribution-honesty assumptions described above.
 
 ### A6 — Sanctions oracle is a mock on testnet
 
