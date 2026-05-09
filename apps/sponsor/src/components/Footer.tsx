@@ -20,11 +20,11 @@ export function Footer() {
           <div className="links">
             <Link href="/dashboard">My sponsorships</Link>
             <a
-              href="https://skillbase.games"
+              href="https://skillos.network"
               target="_blank"
               rel="noopener noreferrer"
             >
-              skillbase.games
+              skillos.network
             </a>
           </div>
           <div className="meta">© {YEAR} Simpl3 Inc.</div>

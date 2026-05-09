@@ -42,7 +42,7 @@ type Props = {
 // card still links correctly when env is missing (e.g. local dev).
 // Fallback is the one line that differs across the 6 app copies.
 const URL_BASE =
-  process.env.NEXT_PUBLIC_URL ?? "https://minesweeper.skillbase.games";
+  process.env.NEXT_PUBLIC_URL ?? "https://minesweeper.skillos.network";
 
 async function fetchRecap(
   matchId: string,

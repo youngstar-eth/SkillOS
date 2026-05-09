@@ -355,7 +355,7 @@ function SponsorStrip({ tournament }: { tournament: Tournament }) {
       </div>
       {!hasSponsor && (
         <a
-          href="mailto:hello@skillbase.games?subject=Sponsorship%20inquiry"
+          href="mailto:hello@skillos.network?subject=Sponsorship%20inquiry"
           className="rounded-md border border-border bg-bg px-3 py-1.5 text-[11px] text-neutral-300 hover:border-skill hover:text-skill"
         >
           Contact →

@@ -2,7 +2,7 @@
 
 Production x402-paid endpoints for autonomous agent access to SkillOS
 gaming data + AI inference. All six routes live at
-<https://2048.skillbase.games>, priced in USDC on Base Sepolia via the
+<https://2048.skillos.network>, priced in USDC on Base Sepolia via the
 Coinbase CDP facilitator, and auto-discoverable through the x402 Bazaar.
 
 ## x402 flow in one breath
@@ -33,7 +33,7 @@ six Phase-1 games. Decisions column is filtered to plausibility_verdict
 = 'plausible' only. No PII — no wallet addresses or per-player rows.
 
 ```bash
-curl -i https://2048.skillbase.games/api/public/data/sp-tier-distribution
+curl -i https://2048.skillos.network/api/public/data/sp-tier-distribution
 # → 402 + payment-required envelope
 ```
 
@@ -89,7 +89,7 @@ retry on enum-violation, hide-badge fallback. Returns 2 improvement
 areas + 1 actionable tip.
 
 ```bash
-curl -i "https://2048.skillbase.games/api/public/ai/coach-sample?game=2048&score=1234"
+curl -i "https://2048.skillos.network/api/public/ai/coach-sample?game=2048&score=1234"
 # → 402
 ```
 
@@ -133,7 +133,7 @@ Bazaar metadata, and BaseScan tx link per route.
 
 ```bash
 set -a && source apps/2048/.env.local && set +a
-X402_BASE_URL=https://2048.skillbase.games \
+X402_BASE_URL=https://2048.skillos.network \
   npx tsx scripts/x402-smoke.ts
 ```
 
