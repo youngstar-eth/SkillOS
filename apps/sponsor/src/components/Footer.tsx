@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SkillbaseMark } from "@skillbase/ui";
+import { SkillosMark } from "@skillbase/ui";
 
 const YEAR = new Date().getFullYear();
 
@@ -10,11 +10,11 @@ export function Footer() {
         <div className="row">
           <Link
             href="/"
-            aria-label="Skillbase Sponsor home"
+            aria-label="SkillOS Sponsor home"
             className="brand-block"
           >
-            <SkillbaseMark size={28} className="pixel-mark" />
-            <span className="word">Skillbase</span>
+            <SkillosMark size={28} className="pixel-mark" />
+            <span className="word">SkillOS</span>
             <span className="meta">· Sponsor</span>
           </Link>
           <div className="links">
