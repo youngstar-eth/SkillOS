@@ -40,7 +40,7 @@ export function ModeChooser({
             {tile ?? (
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-skill" />
             )}
-            Skillbase · {gameName}
+            SkillOS · {gameName}
           </p>
           <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-5xl">
             Choose your mode

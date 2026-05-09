@@ -24,7 +24,7 @@ const ASSOCIATION = {
 
 const MANIFEST = {
   version: "1",
-  name: 'Skillbase Wordle',
+  name: 'SkillOS Wordle',
   iconUrl: "https://wordle.skillbase.games/icon",
   homeUrl: "https://wordle.skillbase.games/tournament/solo",
   imageUrl: "https://wordle.skillbase.games/opengraph-image",
@@ -36,7 +36,7 @@ const MANIFEST = {
   primaryCategory: "games",
   tags: ["skill", "word", "daily", "ai", "base"],
   tagline: "Skill data layer",
-  ogTitle: "Skillbase Wordle on Base",
+  ogTitle: "SkillOS Wordle on Base",
   ogDescription: "Pay to play, skill-rewarded. AI coach, plausibility-verified scoring.",
 } as const;
 
