@@ -1,4 +1,4 @@
-import { createRecapHandler } from "@skillbase/duel-backend";
+import { createRecapHandler } from "@skillos/duel-backend";
 import { GAME_SLUG } from "@/lib/game-slug";
 
 export const runtime = "nodejs";

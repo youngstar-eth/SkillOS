@@ -1,4 +1,4 @@
-import { createTournamentSubmitHandler } from "@skillbase/duel-backend";
+import { createTournamentSubmitHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const POST = createTournamentSubmitHandler({ game: "2048" });

@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// Public types for the recap half of @skillbase/ai-coach.
+// Public types for the recap half of @skillos/ai-coach.
 //
 // Coach = tactical, private, "here's how you improve".
 // Recap = dramatic, shareable, "here's the story of this match".
@@ -53,7 +53,7 @@ export interface RecapResponse {
   /**
    * ≤240 chars, Twitter-safe. Includes the literal token "{url}" where the
    * caller should substring-replace with the match's public URL. Includes
-   * "@skillbase" handle mention. Written so it reads well even before the
+   * "@SkillOS" handle mention. Written so it reads well even before the
    * URL is substituted (in case the caller only wants copy-to-clipboard
    * with no URL).
    */

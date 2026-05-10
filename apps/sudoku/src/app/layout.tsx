@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Header, Providers, ReadyMarker } from "@skillbase/ui";
+import { Header, Providers, ReadyMarker } from "@skillos/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     description: "Solve faster. Think deeper. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillos.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://sudoku.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Sudoku on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://sudoku.skillos.games/tournament/solo\"}}}",
     "base:app_id": "69f4fe943b51d26eb105fb69",
   },
 };

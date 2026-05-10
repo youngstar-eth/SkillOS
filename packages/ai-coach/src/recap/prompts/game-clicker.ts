@@ -84,7 +84,7 @@ Numbers in your output MUST come from the match summary. Never invent
 CPS values, upgrade counts, or durations.
 
 Remember: headline ≤8 words, narrative exactly 2 sentences, shareText
-≤240 chars with {url} token and @skillbase mention.`;
+≤240 chars with {url} token and @SkillOS mention.`;
 
   return { system, user: summarizeRecapMatch(req) };
 }

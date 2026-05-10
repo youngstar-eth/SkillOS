@@ -7,12 +7,12 @@
 // row sanitization for outbound payloads.
 //
 // NOTE: server-only (NextResponse, Next.js runtime). Browser fetch helpers
-// live in @skillbase/ui's api-client.
+// live in @skillos/ui's api-client.
 // ───────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
 import { type Address, getAddress, isAddress } from "viem";
-import type { Duel } from "@skillbase/game-types";
+import type { Duel } from "@skillos/game-types";
 
 export function jsonOk<T>(body: T, init?: { status?: number }) {
   return NextResponse.json(body, { status: init?.status ?? 200 });

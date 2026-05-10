@@ -1,7 +1,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 // x402-paid endpoint — $0.05 USDC per call.
 // AI Coach sample — 2 improvement areas + 1 actionable tip. Reuses the
-// @skillbase/ai-coach solo-coach pipeline (same Anthropic client, same
+// @skillos/ai-coach solo-coach pipeline (same Anthropic client, same
 // strict 6-tone enum, same retry-then-hide-badge graceful degradation).
 //
 // Flow:
@@ -19,7 +19,7 @@ import {
   generateSoloCoachFeedback,
   type CoachResponse,
   type GameType,
-} from "@skillbase/ai-coach";
+} from "@skillos/ai-coach";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { withX402 } from "@/lib/x402-handle";
 

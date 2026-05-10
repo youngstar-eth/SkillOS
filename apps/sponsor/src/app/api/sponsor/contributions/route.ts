@@ -1,4 +1,4 @@
-import { createSponsorContributionsHandler } from "@skillbase/duel-backend";
+import { createSponsorContributionsHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

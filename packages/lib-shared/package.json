@@ -1,5 +1,5 @@
 {
-  "name": "@skillbase/lib-shared",
+  "name": "@skillos/lib-shared",
   "version": "0.3.0",
   "private": true,
   "main": "./src/index.ts",
@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@skillbase/contracts": "*",
-    "@skillbase/game-types": "*"
+    "@skillos/contracts": "*",
+    "@skillos/game-types": "*"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "^2.104.0",

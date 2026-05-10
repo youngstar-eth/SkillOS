@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { basescanTx } from "@skillbase/ui";
+import { basescanTx } from "@skillos/ui";
 
 const GAME_DISPLAY = "Wordle";
 

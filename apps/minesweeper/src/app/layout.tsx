@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Header, Providers, ReadyMarker } from "@skillbase/ui";
+import { Header, Providers, ReadyMarker } from "@skillos/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     description: "Read the board. Beat the clock. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://minesweeper.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Minesweeper on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://minesweeper.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://minesweeper.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Minesweeper on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://minesweeper.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://minesweeper.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Minesweeper on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://minesweeper.skillos.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://minesweeper.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Minesweeper on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://minesweeper.skillos.games/tournament/solo\"}}}",
     "base:app_id": "69f4de81d7175bf80cb81fb2",
   },
 };

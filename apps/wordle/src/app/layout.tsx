@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Header, Providers, ReadyMarker } from "@skillbase/ui";
+import { Header, Providers, ReadyMarker } from "@skillos/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     description: "Guess smarter. Score higher. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillos.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://wordle.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Wordle on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://wordle.skillos.games/tournament/solo\"}}}",
     "base:app_id": "69f4ff0a3b51d26eb105fb6c",
   },
 };

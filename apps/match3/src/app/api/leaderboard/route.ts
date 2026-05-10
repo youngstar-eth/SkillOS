@@ -1,4 +1,4 @@
-import { createGlobalLeaderboardHandler } from "@skillbase/duel-backend";
+import { createGlobalLeaderboardHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

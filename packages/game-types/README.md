@@ -1,4 +1,4 @@
-# @skillbase/game-types
+# @skillos/game-types
 
 Shared TypeScript types — single source of truth for cross-package data shapes.
 
@@ -11,4 +11,4 @@ Shared TypeScript types — single source of truth for cross-package data shapes
 - `RecapResponse`, `RecapArchetype` — Recap output
 - `PlausibilityCheck` — anti-cheat verdict shape
 
-No runtime code; types only. Re-exported from `@skillbase/lib-shared` for consumer convenience (so apps don't have to import from two packages for one symbol set).
+No runtime code; types only. Re-exported from `@skillos/lib-shared` for consumer convenience (so apps don't have to import from two packages for one symbol set).

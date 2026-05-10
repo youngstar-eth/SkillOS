@@ -8,7 +8,7 @@ import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { AddressDisplay } from "@skillbase/ui";
+import { AddressDisplay } from "@skillos/ui";
 
 type Tournament = {
   id: string;

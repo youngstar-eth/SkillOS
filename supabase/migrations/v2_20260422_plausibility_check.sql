@@ -15,7 +15,7 @@
 --              returns the full row.
 --
 -- Expected shape at rest (written by packages/duel-backend/src/settle.ts
--- fire-and-forget call to @skillbase/ai-coach checkPlausibility):
+-- fire-and-forget call to @skillos/ai-coach checkPlausibility):
 --   {
 --     "verdict": "plausible" | "suspicious" | "implausible",
 --     "confidence": 0.0..1.0,

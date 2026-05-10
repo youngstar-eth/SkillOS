@@ -14,8 +14,8 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { getSupabaseService } from "@skillbase/lib-shared";
-import { SKILLBASE_ANCHOR_ADDRESS } from "@skillbase/contracts";
+import { getSupabaseService } from "@skillos/lib-shared";
+import { SKILLBASE_ANCHOR_ADDRESS } from "@skillos/contracts";
 import { withX402 } from "@/lib/x402-handle";
 
 export const runtime = "nodejs";

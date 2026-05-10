@@ -1,4 +1,4 @@
-import { ModeChooser } from "@skillbase/ui";
+import { ModeChooser } from "@skillos/ui";
 
 export default function HomePage() {
   return <ModeChooser gameName="Wordle" />;

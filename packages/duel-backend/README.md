@@ -1,4 +1,4 @@
-# @skillbase/duel-backend
+# @skillos/duel-backend
 
 Server-side handlers for the duel + solo-tournament flows. Imported by per-app `/api/*` route files; never bundled into client code.
 
@@ -18,7 +18,7 @@ Server-side handlers for the duel + solo-tournament flows. Imported by per-app `
 
 ```ts
 // apps/2048/src/app/api/tournaments/solo/[runId]/coach/route.ts
-import { createSoloCoachHandler } from "@skillbase/duel-backend";
+import { createSoloCoachHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const POST = createSoloCoachHandler({ gameType: "game2048" });

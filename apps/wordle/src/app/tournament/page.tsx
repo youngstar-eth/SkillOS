@@ -12,13 +12,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
-import { truncateAddress } from "@skillbase/ui";
+import { truncateAddress } from "@skillos/ui";
 
 const GAME = "wordle";
 const GAME_DISPLAY = "Wordle";
 
 // Prize curve for display. Mirrors TournamentPool._distributePrizes +
-// computePrizeDistribution in @skillbase/duel-backend, but returns
+// computePrizeDistribution in @skillos/duel-backend, but returns
 // percentages for the UI "what am I playing for" chart.
 type CurvePoint = { place: string; pct: number };
 function previewCurve(participantCount: number): CurvePoint[] {
@@ -355,7 +355,7 @@ function SponsorStrip({ tournament }: { tournament: Tournament }) {
       </div>
       {!hasSponsor && (
         <a
-          href="mailto:hello@skillbase.games?subject=Sponsorship%20inquiry"
+          href="mailto:hello@skillos.games?subject=Sponsorship%20inquiry"
           className="rounded-md border border-border bg-bg px-3 py-1.5 text-[11px] text-neutral-300 hover:border-skill hover:text-skill"
         >
           Contact →

@@ -1,9 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Re-export the canonical Duel + DuelStatus types so consumers can
-// `import { Duel } from "@skillbase/lib-shared"` without reaching
-// into @skillbase/game-types directly.
-export type { Duel, DuelStatus } from "@skillbase/game-types";
+// `import { Duel } from "@skillos/lib-shared"` without reaching
+// into @skillos/game-types directly.
+export type { Duel, DuelStatus } from "@skillos/game-types";
 
 // ─── Clients ───────────────────────────────────────────────────────────────
 

@@ -43,14 +43,14 @@ import { type Address, type Hex, getAddress } from "viem";
 import {
   CHALLENGE_ESCROW_ABI,
   CHALLENGE_ESCROW_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import {
   getPublicClient,
   getSupabaseService,
   getWalletClient,
   signSettleAttestation,
-} from "@skillbase/lib-shared";
-import type { Duel } from "@skillbase/game-types";
+} from "@skillos/lib-shared";
+import type { Duel } from "@skillos/game-types";
 import {
   decideReconcileAction,
   findTerminalTxHash,

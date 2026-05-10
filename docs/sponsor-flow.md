@@ -12,7 +12,7 @@
 Connect wallet → Pick tournament → Approve USDC → SponsorPool → Soulbound NFT receipt
 ```
 
-Live UI: **https://sponsor.skillbase.games** (or `https://skillbase-sponsor.vercel.app`
+Live UI: **https://sponsor.skillos.games** (or `https://skillbase-sponsor.vercel.app`
 until DNS propagates).
 
 ## Architecture
@@ -54,7 +54,7 @@ to winners and refunds dust to the original tournament sponsor.
 
 ## Sponsor flow (end-user)
 
-1. Visit `https://sponsor.skillbase.games`. Browse the cross-game listing
+1. Visit `https://sponsor.skillos.games`. Browse the cross-game listing
    of active tournaments (filterable by game; sorted by ends-soonest).
 2. Click **Sponsor a Pool** on any row → `/[tournamentId]`.
 3. Connect wallet (Coinbase Smart Wallet preferred; any EIP-1193 provider
@@ -132,7 +132,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 | `MockSanctionsOracle` | [`0x0CB38F0A0511aF07FC34A20DCaB9e2Fc8061B1CC`](https://sepolia.basescan.org/address/0x0CB38F0A0511aF07FC34A20DCaB9e2Fc8061B1CC) |
 | Base Sepolia USDC (Circle) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
-ABIs are exported from `@skillbase/contracts` (`SPONSORSHIP_MODULE_ABI`,
+ABIs are exported from `@skillos/contracts` (`SPONSORSHIP_MODULE_ABI`,
 `TOURNAMENT_POOL_ABI` — extended with `fundPrizePool` + `PrizePoolFunded`
 in this sprint).
 

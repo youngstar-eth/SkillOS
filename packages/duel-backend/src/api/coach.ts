@@ -23,7 +23,7 @@
 //     the write — we tolerate that (cost ≈ $0.005 of leakage, max).
 //
 // Usage (apps/<game>/src/app/api/duel/[id]/coach/route.ts):
-//   import { createCoachHandler } from "@skillbase/duel-backend";
+//   import { createCoachHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const POST = createCoachHandler({
 //     gameSlug: GAME_SLUG,
@@ -33,25 +33,25 @@
 
 import type { NextRequest } from "next/server";
 import { getAddress } from "viem";
-import type { GameType, CoachResponse } from "@skillbase/ai-coach";
-import { generateCoachFeedback } from "@skillbase/ai-coach";
-import type { Duel } from "@skillbase/game-types";
+import type { GameType, CoachResponse } from "@skillos/ai-coach";
+import { generateCoachFeedback } from "@skillos/ai-coach";
+import type { Duel } from "@skillos/game-types";
 import {
   getSupabaseService,
   isUuid,
   jsonError,
   jsonOk,
   parseAddress,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 import type { DuelHandlerConfig } from "../handlers";
 
 /**
  * Coach handler config. Extends the shared DuelHandlerConfig (which
  * carries the on-chain gameSlug) with the gameType string the
- * @skillbase/ai-coach package dispatches on.
+ * @skillos/ai-coach package dispatches on.
  */
 export interface CoachHandlerConfig extends DuelHandlerConfig {
-  /** One of the GameType literals from @skillbase/ai-coach. */
+  /** One of the GameType literals from @skillos/ai-coach. */
   gameType: GameType;
 }
 

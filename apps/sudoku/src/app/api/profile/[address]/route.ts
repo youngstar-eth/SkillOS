@@ -1,4 +1,4 @@
-import { createProfileHandler } from "@skillbase/duel-backend";
+import { createProfileHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

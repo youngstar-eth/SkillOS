@@ -5,7 +5,7 @@
 // imports the appropriate constant from here. To swap a model, edit the
 // constant once and re-deploy.
 //
-// Frontend "Powered by ..." attribution lives in @skillbase/ui/models
+// Frontend "Powered by ..." attribution lives in @skillos/ui/models
 // (separate file to avoid pulling Anthropic SDK into the client bundle).
 // **Keep the two files in sync** — when you change a value here, update
 // the matching DISPLAY constant in packages/ui/src/models.ts.
@@ -29,7 +29,7 @@ export const ANTICHEAT_MODEL = "claude-haiku-4-5";
 
 // Human-readable display strings for server-side attribution (x402 route
 // descriptions, server-rendered pages, logs). Mirrors the frontend
-// constants in @skillbase/ui/models.
+// constants in @skillos/ui/models.
 export const COACH_MODEL_DISPLAY = "Claude Sonnet 4.6";
 export const RECAP_MODEL_DISPLAY = "Claude Haiku";
 export const ANTICHEAT_MODEL_DISPLAY = "Claude Haiku";

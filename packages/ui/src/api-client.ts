@@ -1,8 +1,8 @@
 /**
  * Browser-side fetch helpers for the Skillbase duel API routes.
  *
- * Types are re-exported from @skillbase/game-types. The backend's
- * `sanitizeDuel` (in @skillbase/lib-shared) is the source of truth for
+ * Types are re-exported from @skillos/game-types. The backend's
+ * `sanitizeDuel` (in @skillos/lib-shared) is the source of truth for
  * the wire shape — update game-types if it changes.
  */
 
@@ -11,10 +11,10 @@ import type {
   ApiError,
   MatchObject,
   SubmitResponse,
-} from "@skillbase/game-types";
+} from "@skillos/game-types";
 
-export type { ApiError, MatchObject, SubmitResponse } from "@skillbase/game-types";
-export type { DuelStatus, PlayerSlot } from "@skillbase/game-types";
+export type { ApiError, MatchObject, SubmitResponse } from "@skillos/game-types";
+export type { DuelStatus, PlayerSlot } from "@skillos/game-types";
 
 // ─── Low-level JSON helpers ────────────────────────────────────────────────
 

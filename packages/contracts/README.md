@@ -1,4 +1,4 @@
-# @skillbase/contracts
+# @skillos/contracts
 
 ABIs and address constants for the on-chain contracts deployed at `/contracts` (Foundry workspace). Single source of truth — no other package or app should hardcode contract addresses.
 
@@ -35,7 +35,7 @@ ABIs and address constants for the on-chain contracts deployed at `/contracts` (
 import {
   TOURNAMENT_POOL_V2_ADDRESS,
   TOURNAMENT_POOL_ABI,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import { createPublicClient, http } from "viem";
 
 const client = createPublicClient({ transport: http() });

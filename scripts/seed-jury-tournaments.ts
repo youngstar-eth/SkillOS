@@ -44,12 +44,12 @@ import {
   TOURNAMENT_POOL_ABI,
   TOURNAMENT_POOL_V2_ADDRESS,
   USDC_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import {
   getPublicClient,
   getSupabaseService,
   getWalletClient,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 
 // ─── Config ────────────────────────────────────────────────────────────────
 

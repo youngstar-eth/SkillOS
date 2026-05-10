@@ -6,7 +6,7 @@
 // Excess callers queue and resolve in submission order.
 //
 // Why native vs the package: duel-backend is intentionally lean (only
-// @skillbase/* internals + @vercel/functions + viem). Adding a runtime
+// @skillos/* internals + @vercel/functions + viem). Adding a runtime
 // dep for ~15 lines of well-understood pattern fails the cost/benefit
 // test, especially when the pattern is small enough to read end-to-end.
 //

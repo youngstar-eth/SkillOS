@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Header, Providers, ReadyMarker } from "@skillbase/ui";
+import { Header, Providers, ReadyMarker } from "@skillos/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     description: "Chain combos. Stack points. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://match3.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Match3 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://match3.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://match3.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Match3 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://match3.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://match3.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Match3 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://match3.skillos.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://match3.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Match3 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://match3.skillos.games/tournament/solo\"}}}",
     "base:app_id": "69f4fe27d7175bf80cb81fca",
   },
 };

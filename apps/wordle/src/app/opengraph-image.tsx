@@ -7,7 +7,7 @@ import { ImageResponse } from "next/og";
 //
 // Mirrors apex /opengraph-image.tsx (the canonical source-of-truth).
 // Intentionally inlined and self-contained — no imports from
-// @skillbase/ui — so satori sees a single React tree without subpath
+// @skillos/ui — so satori sees a single React tree without subpath
 // resolution surprises in the OG runtime.
 
 export const runtime = "nodejs";

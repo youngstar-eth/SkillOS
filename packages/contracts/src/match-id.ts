@@ -1,7 +1,7 @@
 /**
  * Client-safe helpers for generating a match's identifiers.
  *
- * Kept separate from @skillbase/lib-shared's seed.ts because that module
+ * Kept separate from @skillos/lib-shared's seed.ts because that module
  * imports `node:crypto` for server-side random bytes — pulling it into the
  * browser bundle would blow up webpack. This file uses only
  * `crypto.randomUUID()` (available in all modern browsers and Node 19+)
@@ -17,7 +17,7 @@ export function generateMatchId(): string {
 
 /**
  * Derive the deterministic bytes32 challenge id from a match uuid.
- * Must match the server's `bytes32FromUuid` in @skillbase/lib-shared.
+ * Must match the server's `bytes32FromUuid` in @skillos/lib-shared.
  */
 export function bytes32FromUuid(uuid: string): Hex {
   return keccak256(new TextEncoder().encode(uuid));

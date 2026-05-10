@@ -3,10 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   // Workspace packages ship TS sources; Next must transpile them with the app.
   transpilePackages: [
-    "@skillbase/contracts",
-    "@skillbase/duel-backend",
-    "@skillbase/lib-shared",
-    "@skillbase/ui",
+    "@skillos/contracts",
+    "@skillos/duel-backend",
+    "@skillos/lib-shared",
+    "@skillos/ui",
   ],
   webpack: (config) => {
     // Stub optional connector peers we don't use (mirrors apps/2048).

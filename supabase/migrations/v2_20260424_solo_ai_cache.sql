@@ -24,7 +24,7 @@
 --   recap_cache: single RecapResponse per run (mirrors duel's one-per-match
 --     semantics). NULL = no call yet, non-NULL = cached. Example:
 --       { "style": "blowout", "headline": "...", "narrative": "...",
---         "shareText": "... {url} @skillbase" }
+--         "shareText": "... {url} @SkillOS" }
 -- ───────────────────────────────────────────────────────────────────────────
 
 alter table v2_tournament_solo_runs

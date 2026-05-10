@@ -45,7 +45,7 @@ OUTPUT FORMAT — respond with valid JSON only, matching exactly:
   "style": "<one of the six styles above>",
   "headline": "<=8 words, title-case-ish, no trailing punctuation",
   "narrative": "<exactly 2 sentences, dramatic but factual>",
-  "shareText": "<=240 chars; must contain the literal token {url}; must mention @skillbase>"
+  "shareText": "<=240 chars; must contain the literal token {url}; must mention @SkillOS>"
 }
 
 No markdown fences. No prose before or after. No trailing commentary.

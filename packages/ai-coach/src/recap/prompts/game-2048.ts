@@ -70,7 +70,7 @@ Numbers in your output MUST come from the match summary below. Never invent
 a tile value, a score, or a duration.
 
 Remember: headline ≤8 words, narrative exactly 2 sentences, shareText ≤240 chars
-with {url} token and @skillbase mention.`;
+with {url} token and @SkillOS mention.`;
 
   return { system, user: summarizeRecapMatch(req) };
 }

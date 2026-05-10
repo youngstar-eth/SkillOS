@@ -14,7 +14,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { getSupabaseService } from "@skillbase/lib-shared";
+import { getSupabaseService } from "@skillos/lib-shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

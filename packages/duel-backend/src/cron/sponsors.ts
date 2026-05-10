@@ -25,11 +25,11 @@ import {
 import {
   SPONSORSHIP_MODULE_ABI,
   SPONSORSHIP_MODULE_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import {
   getPublicClient,
   getSupabaseService,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 
 // ─── Config ────────────────────────────────────────────────────────────────
 

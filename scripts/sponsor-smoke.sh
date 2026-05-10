@@ -21,7 +21,7 @@
 # Usage:
 #   ./scripts/sponsor-smoke.sh                                        # public alias
 #   BASE_URL=https://skillbase-sponsor.vercel.app ./scripts/sponsor-smoke.sh
-#   BASE_URL=https://sponsor.skillbase.games ./scripts/sponsor-smoke.sh
+#   BASE_URL=https://sponsor.skillos.games ./scripts/sponsor-smoke.sh
 #
 # Dependencies: bash, curl, jq.
 #

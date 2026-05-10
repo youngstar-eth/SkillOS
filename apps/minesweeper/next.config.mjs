@@ -4,11 +4,11 @@ const nextConfig = {
   // Workspace packages ship TypeScript sources (no build step). Next must
   // transpile them alongside the app's own src/.
   transpilePackages: [
-    "@skillbase/contracts",
-    "@skillbase/duel-backend",
-    "@skillbase/game-types",
-    "@skillbase/lib-shared",
-    "@skillbase/ui",
+    "@skillos/contracts",
+    "@skillos/duel-backend",
+    "@skillos/game-types",
+    "@skillos/lib-shared",
+    "@skillos/ui",
   ],
   webpack: (config) => {
     // We only use coinbaseWallet + injected from @wagmi/connectors. The

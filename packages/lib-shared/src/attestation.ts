@@ -24,7 +24,7 @@ import {
   CHAIN_ID,
   CHALLENGE_ESCROW_ADDRESS,
   TOURNAMENT_POOL_V2_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 
 function requireSignerAccount() {
   const key = process.env.STUDIO_PRIVATE_KEY;

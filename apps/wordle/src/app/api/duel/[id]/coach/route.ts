@@ -1,4 +1,4 @@
-import { createCoachHandler } from "@skillbase/duel-backend";
+import { createCoachHandler } from "@skillos/duel-backend";
 import { GAME_SLUG } from "@/lib/game-slug";
 
 export const runtime = "nodejs";

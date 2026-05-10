@@ -12,7 +12,7 @@
 // resource server is framework-agnostic.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { COACH_MODEL_DISPLAY } from "@skillbase/ai-coach";
+import { COACH_MODEL_DISPLAY } from "@skillos/ai-coach";
 import { createFacilitatorConfig } from "@coinbase/x402";
 import { HTTPFacilitatorClient } from "@x402/core/http";
 import { x402ResourceServer } from "@x402/core/server";

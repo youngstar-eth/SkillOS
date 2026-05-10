@@ -23,8 +23,8 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import { useQuery } from "@tanstack/react-query";
-import type { CoachResponse, CoachTone } from "@skillbase/ai-coach";
-import { COACH_MODEL_DISPLAY } from "@skillbase/ui";
+import type { CoachResponse, CoachTone } from "@skillos/ai-coach";
+import { COACH_MODEL_DISPLAY } from "@skillos/ui";
 
 type DuelProps = {
   matchId: string;

@@ -29,8 +29,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { RecapResponse, RecapStyle } from "@skillbase/ai-coach";
-import { RECAP_MODEL_DISPLAY } from "@skillbase/ui";
+import type { RecapResponse, RecapStyle } from "@skillos/ai-coach";
+import { RECAP_MODEL_DISPLAY } from "@skillos/ui";
 
 type Props = {
   matchId: string;
@@ -42,7 +42,7 @@ type Props = {
 // card still links correctly when env is missing (e.g. local dev).
 // Fallback is the one line that differs across the 6 app copies.
 const URL_BASE =
-  process.env.NEXT_PUBLIC_URL ?? "https://sudoku.skillbase.games";
+  process.env.NEXT_PUBLIC_URL ?? "https://sudoku.skillos.games";
 
 async function fetchRecap(
   matchId: string,

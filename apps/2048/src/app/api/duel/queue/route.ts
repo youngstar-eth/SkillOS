@@ -1,4 +1,4 @@
-import { createQueueHandler } from "@skillbase/duel-backend";
+import { createQueueHandler } from "@skillos/duel-backend";
 import { GAME_SLUG } from "@/lib/game-slug";
 
 export const runtime = "nodejs";

@@ -3,7 +3,7 @@
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` when hitting
 // the endpoint. Local/manual triggers must include the same header to pass.
 
-import { runCreateTournaments } from "@skillbase/duel-backend";
+import { runCreateTournaments } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // up to 6 games × daily + 6 × weekly = 12 txs worst case

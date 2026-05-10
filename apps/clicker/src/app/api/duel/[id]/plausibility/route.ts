@@ -1,4 +1,4 @@
-import { plausibilityHandler } from "@skillbase/duel-backend";
+import { plausibilityHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

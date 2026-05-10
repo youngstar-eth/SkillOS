@@ -15,7 +15,7 @@
 
 import { notFound } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Timer, truncateAddress } from "@skillbase/ui";
+import { Timer, truncateAddress } from "@skillos/ui";
 import { GameClicker } from "@/components/GameClicker";
 
 const MOCK = {

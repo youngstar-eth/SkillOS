@@ -1,4 +1,4 @@
-# @skillbase/sp-engine
+# @skillos/sp-engine
 
 SP (Skill Points) system: pure logic for awarding, level computation, and tier distribution. No I/O — callers provide DB context.
 
@@ -11,7 +11,7 @@ SP (Skill Points) system: pure logic for awarding, level computation, and tier d
 ## Usage
 
 ```ts
-import { computeAward, currentLevel } from "@skillbase/sp-engine";
+import { computeAward, currentLevel } from "@skillos/sp-engine";
 
 const award = computeAward({
   matchType: "duel",

@@ -4,7 +4,7 @@
 // Frontend source of truth — every "Powered by Claude X" string in the
 // game apps imports the appropriate constant from here.
 //
-// Backend model identifiers live in @skillbase/ai-coach/models. **Keep
+// Backend model identifiers live in @skillos/ai-coach/models. **Keep
 // the two files in sync** — when you swap a model, update both:
 //   1. packages/ai-coach/src/models.ts → COACH_MODEL / RECAP_MODEL / ANTICHEAT_MODEL
 //   2. packages/ui/src/models.ts → matching DISPLAY constant

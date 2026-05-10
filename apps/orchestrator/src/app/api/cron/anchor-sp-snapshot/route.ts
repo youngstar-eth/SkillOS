@@ -8,7 +8,7 @@
 // Pipeline:
 //   1. Auth check (CRON_SECRET — same pattern as other crons in this dir)
 //   2. Read non-zero-SP wallets from v2_user_stats via getSupabaseService
-//   3. Build canonical snapshot + SHA-256 hash via @skillbase/sp-engine
+//   3. Build canonical snapshot + SHA-256 hash via @skillos/sp-engine
 //   4. Insert v2_sp_snapshots row WITHOUT anchor_tx_hash (durability: if the
 //      on-chain anchor reverts, the canonical JSON is still preserved for
 //      operator inspection / manual re-anchor)
@@ -28,18 +28,18 @@
 import {
   SKILLBASE_ANCHOR_ABI,
   SKILLBASE_ANCHOR_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import {
   buildSnapshot,
   canonicalize,
   hashSnapshot,
   type UserStatsRow,
-} from "@skillbase/sp-engine";
+} from "@skillos/sp-engine";
 import {
   getPublicClient,
   getSupabaseService,
   getWalletClient,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // single ledger read + one tx + one update — generous budget

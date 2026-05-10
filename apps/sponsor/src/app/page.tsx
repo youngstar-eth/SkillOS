@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import type { SponsorTournamentListResponse } from "@skillbase/duel-backend";
+import type { SponsorTournamentListResponse } from "@skillos/duel-backend";
 
 const REFETCH_MS = 5 * 60 * 1000;
 

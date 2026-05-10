@@ -1,4 +1,4 @@
-import { createSPEarnedHandler } from "@skillbase/duel-backend";
+import { createSPEarnedHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

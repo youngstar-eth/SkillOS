@@ -10,7 +10,7 @@
 --   1. scripts/backfill-sp.ts (one-shot recompute from v2_duels +
 --      v2_tournament_entries + v2_tournament_solo_runs)
 --   2. Runtime hooks in packages/duel-backend — duel settle, tournament
---      settle cron, solo submit (post-plausibility). See @skillbase/sp-engine
+--      settle cron, solo submit (post-plausibility). See @skillos/sp-engine
 --      for the pure award formula.
 -- ───────────────────────────────────────────────────────────────────────────
 

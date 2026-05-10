@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// @skillbase/lib-shared — SERVER-ONLY primitives.
+// @skillos/lib-shared — SERVER-ONLY primitives.
 //
 // Do NOT import this package from client components. It pulls in
 // `node:crypto`, Next.js server runtime, and service-role Supabase clients

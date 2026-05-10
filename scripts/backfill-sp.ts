@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // One-shot SP backfill — recomputes v2_user_stats from historical source
 // rows (v2_duels, v2_tournament_solo_runs, v2_tournament_entries) using the
-// same pure @skillbase/sp-engine formula the runtime hooks use.
+// same pure @skillos/sp-engine formula the runtime hooks use.
 //
 // Idempotent: ALWAYS recomputes from scratch and UPSERTs full totals,
 // overwriting any existing row. Safe to re-run. Because every runtime
@@ -28,7 +28,7 @@ import {
   levelForSP,
   type SPEvent,
   type Verdict,
-} from "@skillbase/sp-engine";
+} from "@skillos/sp-engine";
 
 // ─── env check ───────────────────────────────────────────────────────────────
 

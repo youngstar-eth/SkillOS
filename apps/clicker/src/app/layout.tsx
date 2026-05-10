@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Header, Providers, ReadyMarker } from "@skillbase/ui";
+import { Header, Providers, ReadyMarker } from "@skillos/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     description: "Precision wins. Speed earns. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://clicker.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Clicker on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://clicker.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://clicker.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play Clicker on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://clicker.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://clicker.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Clicker on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://clicker.skillos.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://clicker.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play Clicker on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://clicker.skillos.games/tournament/solo\"}}}",
     "base:app_id": "69f4feaad7175bf80cb81fcc",
   },
 };

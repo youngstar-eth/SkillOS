@@ -113,7 +113,7 @@ function buildFallbackRecap(req: RecapRequest): RecapResponse {
     style: "standard",
     headline: `${winner} vs ${loser}`,
     narrative: `A ${durMin}-minute duel ended ${winner} to ${loser}. The scoreline tells the story.`,
-    shareText: `Just played a Skillbase duel: ${winner} vs ${loser} in ${durMin} min. {url} @skillbase`,
+    shareText: `Just played a Skillbase duel: ${winner} vs ${loser} in ${durMin} min. {url} @SkillOS`,
   };
 }
 

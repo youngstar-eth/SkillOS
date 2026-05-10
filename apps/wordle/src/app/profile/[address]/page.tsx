@@ -6,13 +6,13 @@ import { use } from "react";
 // the SP + Level thesis: "this platform has a continuous progression system,
 // not just one-shot prizes."
 //
-// Data shape matches the ProfileDTO from @skillbase/duel-backend. Pure read;
+// Data shape matches the ProfileDTO from @skillos/duel-backend. Pure read;
 // no mutations here.
 // ───────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { AddressDisplay, basescanAddress } from "@skillbase/ui";
+import { AddressDisplay, basescanAddress } from "@skillos/ui";
 
 type Verdict = "plausible" | "suspicious" | "implausible";
 

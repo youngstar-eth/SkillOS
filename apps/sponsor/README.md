@@ -1,6 +1,6 @@
-# @skillbase/app-sponsor
+# @skillos/app-sponsor
 
-Permissionless tournament prize-pool funding dashboard. Deployed at <https://sponsor.skillbase.games>.
+Permissionless tournament prize-pool funding dashboard. Deployed at <https://sponsor.skillos.games>.
 
 Anyone with a wallet can fund any active SkillOS tournament prize pool on-chain via the `SponsorshipModule` contract. A soulbound `SponsorReceipt` SBT is minted per sponsorship.
 
@@ -9,7 +9,7 @@ Anyone with a wallet can fund any active SkillOS tournament prize pool on-chain 
 ```bash
 cp .env.local.example .env.local   # fill in Supabase + sponsor module addresses
 npm install                         # from monorepo root
-npm run dev -w @skillbase/app-sponsor
+npm run dev -w @skillos/app-sponsor
 ```
 
 ## Routes
@@ -25,7 +25,7 @@ This app now only serves UI + read APIs — no cron schedules.
 
 ## Deployment
 
-- Production: <https://sponsor.skillbase.games>
+- Production: <https://sponsor.skillos.games>
 - Vercel project: `skillbase-sponsor`
 
 ## Reference

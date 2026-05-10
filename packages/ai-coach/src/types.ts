@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// Public types for @skillbase/ai-coach.
+// Public types for @skillos/ai-coach.
 //
 // Kept minimal and stable: the route handler (duel-backend) and the client
 // component (AICoach.tsx in each app) both consume these.

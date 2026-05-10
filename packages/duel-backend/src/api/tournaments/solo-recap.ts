@@ -15,15 +15,15 @@
 //   - non-NULL + malformed → log + regenerate (overwrite on MISS write).
 //
 // Usage (apps/<game>/src/app/api/tournaments/solo/[runId]/recap/route.ts):
-//   import { createSoloRecapHandler } from "@skillbase/duel-backend";
+//   import { createSoloRecapHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const POST = createSoloRecapHandler({ gameType: "game2048" });
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { NextRequest } from "next/server";
-import type { GameType, RecapResponse } from "@skillbase/ai-coach";
-import { generateSoloRecap } from "@skillbase/ai-coach";
-import { getSupabaseService, isUuid } from "@skillbase/lib-shared";
+import type { GameType, RecapResponse } from "@skillos/ai-coach";
+import { generateSoloRecap } from "@skillos/ai-coach";
+import { getSupabaseService, isUuid } from "@skillos/lib-shared";
 
 export interface SoloRecapHandlerConfig {
   gameType: GameType;

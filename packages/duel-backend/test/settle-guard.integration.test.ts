@@ -25,7 +25,7 @@
 //
 // Activation: remove `.skip` from each BEHAVIORAL test when Phase 2 duel
 // UI reactivation begins (currently every /duel/* route serves
-// <DuelComingSoon /> from @skillbase/ui).
+// <DuelComingSoon /> from @skillos/ui).
 // ───────────────────────────────────────────────────────────────────────────
 
 import { test } from "node:test";

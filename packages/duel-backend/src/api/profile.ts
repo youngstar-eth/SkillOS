@@ -21,7 +21,7 @@
 // in the recent-activity list.
 //
 // Per-app wire-up (apps/<game>/src/app/api/profile/[address]/route.ts):
-//   import { createProfileHandler } from "@skillbase/duel-backend";
+//   import { createProfileHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const GET = createProfileHandler();
 //
@@ -35,14 +35,14 @@ import {
   jsonError,
   jsonOk,
   parseAddress,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 import {
   awardSP,
   levelForSP,
   spForNextLevel,
   type SPEvent,
   type Verdict,
-} from "@skillbase/sp-engine";
+} from "@skillos/sp-engine";
 
 // ─── DTO shapes ─────────────────────────────────────────────────────────────
 

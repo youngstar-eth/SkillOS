@@ -1,4 +1,4 @@
-# @skillbase/app-2048
+# @skillos/app-2048
 
 Next.js app for the 2048 duel + solo-tournament flow on Base Sepolia. Also
 hosts the production x402-protected public API for agent-native access.
@@ -8,7 +8,7 @@ hosts the production x402-protected public API for agent-native access.
 ```bash
 cp .env.local.example .env.local   # fill in Supabase + signer + CDP keys
 npm install                         # from monorepo root
-npm run dev -w @skillbase/app-2048  # starts on :3000 by default
+npm run dev -w @skillos/app-2048  # starts on :3000 by default
 ```
 
 ## Public (x402-paid) API
