@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { stringify as yamlStringify } from './lib/yaml.js';
 import { errorHandler, notFound } from './middleware/errorEnvelope.js';
 import { requestId } from './middleware/requestId.js';
+import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { scoreRoutes } from './routes/scores.js';
 import { sponsorRoutes } from './routes/sponsors.js';
@@ -18,14 +19,29 @@ app.use(
   '*',
   cors({
     origin: '*',
-    allowMethods: ['GET', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'X-Request-Id'],
-    exposeHeaders: ['X-Request-Id'],
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    exposeHeaders: [
+      'X-Request-Id',
+      'X-RateLimit-Reset',
+      'X-SkillOS-Tier',
+      'X-SkillOS-Verification',
+    ],
     maxAge: 86400,
   }),
 );
 
+// Register the JWT bearer security scheme on the OpenAPI registry so it
+// shows up in /docs and clients can discover the auth requirement.
+app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
+  type: 'http',
+  scheme: 'bearer',
+  bearerFormat: 'JWT',
+  description: 'Bearer JWT issued by POST /v1/auth/siwb/verify (24h TTL).',
+});
+
 app.route('/', healthRoutes);
+app.route('/', authRoutes);
 app.route('/', tournamentRoutes);
 app.route('/', scoreRoutes);
 app.route('/', sponsorRoutes);
