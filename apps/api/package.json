@@ -8,12 +8,18 @@
     "build": "tsc --noEmit",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "smoke": "tsx test/smoke.ts"
+    "smoke": "tsx test/smoke.ts",
+    "smoke:x2": "tsx test/smoke-x2.ts",
+    "build:vercel": "scripts/prepare-bundle.sh"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.4.0",
+    "@supabase/supabase-js": "^2.105.0",
     "dotenv": "^16.4.7",
+    "ethers": "^6.16.0",
     "hono": "^4.12.0",
+    "jose": "^6.2.0",
+    "siwe": "^3.0.0",
     "viem": "^2.48.1",
     "zod": "^4.4.0"
   },
