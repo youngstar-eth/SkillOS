@@ -15,8 +15,16 @@
 import type { Abi, Address } from 'viem';
 import { FROM_BLOCK, getPublicClient } from './viem.js';
 
-const MAX_RANGE = 5_000n;
-const CONCURRENCY = 5;
+// Public Base Sepolia RPC tightened limits as of 2026-05-10:
+//   - eth_getLogs max range: 2000 blocks (was 10k)
+//   - rate-limits aggressively on >5 parallel requests
+// Set range to the documented cap (2000) and drop concurrency to 3 to stay
+// under the rate ceiling. Total scan latency: ~275 chunks @ 3 parallel ≈ 25s
+// for full deploy-to-tip range, just under the 30s function timeout. A
+// proper indexer (post-YC backlog item project_post_yc_tournament_created_indexer)
+// retires this entire workaround.
+const MAX_RANGE = 2_000n;
+const CONCURRENCY = 3;
 
 interface ScanArgs {
   address: Address;

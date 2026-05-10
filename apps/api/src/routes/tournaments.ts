@@ -1,12 +1,17 @@
 // Tournaments routes.
 //
-// Trade-off note (Sprint X1): TournamentPool stores tournaments in a
-// `mapping(bytes32 => Tournament)` with no on-chain enumeration. To list
-// tournaments we scan `TournamentCreated` events from SPONSOR_INDEXER_DEPLOY_BLOCK.
-// At current testnet volumes (single digits of tournaments), this is a
-// 1-RPC-call read per page request and well under public RPC quotas. A
-// proper indexer is post-YC backlog (see project_post_yc_tournament_created_indexer
-// memory). When migrated, only this file changes.
+// Sprint X2 follow-up (2026-05-10): the LIST endpoint reads from the
+// Supabase `v2_tournaments` table populated by duel-backend's
+// `cron/index-tournaments-created` cron. This retires the chunked event
+// scan that worked for X1 but fell apart on Base Sepolia public RPC's
+// tightened limits (2000-block max range + aggressive parallel rate limit).
+//
+// The single-tournament GET endpoint still uses on-chain readContract —
+// that's a single RPC call, not a scan, and gives canonical fresh state.
+// Leaderboard still uses scanContractEvents — per-tournament filter keeps
+// volume bounded.
+//
+// Closes the long-standing post-YC indexer backlog item for the list path.
 
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { ApiError } from '../middleware/errorEnvelope.js';
@@ -34,23 +39,8 @@ import {
   encodeIndexCursor,
 } from '../lib/pagination.js';
 import { scanContractEvents } from '../lib/scan.js';
+import { getSupabaseClient } from '../lib/supabase.js';
 import { getPublicClient } from '../lib/viem.js';
-
-type TournamentCreatedRow = {
-  args: {
-    id?: `0x${string}`;
-    sponsor?: `0x${string}`;
-    game?: `0x${string}`;
-    cycleType?: number;
-    startsAt?: bigint;
-    endsAt?: bigint;
-    prizePool?: bigint;
-    participationBonus?: bigint;
-  };
-  blockNumber: bigint;
-  logIndex: number;
-  transactionHash: `0x${string}`;
-};
 
 type ScoreSubmittedRow = {
   args: {
@@ -63,6 +53,15 @@ type ScoreSubmittedRow = {
   blockNumber: bigint;
   logIndex: number;
   transactionHash: `0x${string}`;
+};
+
+// DB → API field mapping for the list endpoint. cycle_type comes back as
+// 'daily' / 'weekly' text; map to the 0/1 enum the on-chain contract uses
+// (and that single-tournament GET returns from on-chain).
+const CYCLE_TYPE_DB_TO_NUM: Record<string, number> = {
+  daily: 0,
+  weekly: 1,
+  monthly: 2,
 };
 
 export const tournamentRoutes = new OpenAPIHono();
@@ -93,44 +92,44 @@ const listRoute = createRoute({
 
 tournamentRoutes.openapi(listRoute, async (c) => {
   const { cursor, limit } = c.req.valid('query');
-
-  const events = await scanContractEvents<TournamentCreatedRow>({
-    address: TOURNAMENT_POOL_V21_ADDRESS,
-    abi: TOURNAMENT_POOL_ABI,
-    eventName: 'TournamentCreated',
-  });
-
-  // Sort newest-first: descending blockNumber, then descending logIndex.
-  const sorted = [...events].sort((a, b) => {
-    if (a.blockNumber !== b.blockNumber) return Number(b.blockNumber - a.blockNumber);
-    return b.logIndex - a.logIndex;
-  });
-
   const start = decodeIndexCursor(cursor) ?? 0;
-  const slice = sorted.slice(start, start + limit);
 
-  const tournaments: Tournament[] = slice.map((ev) => {
-    const a = ev.args;
-    return {
-      id: a.id!,
-      sponsor: a.sponsor!,
-      game: decodeGame(a.game!),
-      cycleType: Number(a.cycleType ?? 0n),
-      startsAt: Number(a.startsAt ?? 0n),
-      endsAt: Number(a.endsAt ?? 0n),
-      prizePool: (a.prizePool ?? 0n).toString(),
-      participationBonus: (a.participationBonus ?? 0n).toString(),
-      // List view trades freshness for cost: settled flag and participants
-      // count come from on-chain state, not the event. v0.1 reads them lazily
-      // via /v1/tournaments/:id; the list view returns conservative defaults.
-      settled: false,
-      participantsCount: 0,
-    };
-  });
+  // Off-by-one safe range: Supabase `range(from, to)` is inclusive, so we
+  // request `limit` rows + 1 sentinel to detect "more pages exist".
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('v2_tournaments')
+    .select(
+      'on_chain_id, game, cycle_type, starts_at, ends_at, prize_pool_usdc, participation_bonus, sponsor_address, settled_at',
+    )
+    .order('starts_at', { ascending: false })
+    .range(start, start + limit); // request limit+1 rows
+  if (error) {
+    throw new ApiError(502, 'INDEXER_QUERY_FAILED', `v2_tournaments read failed: ${error.message}`);
+  }
 
-  const next =
-    start + limit < sorted.length ? encodeIndexCursor(start + limit) : undefined;
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  const slice = hasMore ? rows.slice(0, limit) : rows;
 
+  const tournaments: Tournament[] = slice.map((r) => ({
+    id: r.on_chain_id as `0x${string}`,
+    sponsor: r.sponsor_address as `0x${string}`,
+    game: r.game,
+    cycleType: CYCLE_TYPE_DB_TO_NUM[r.cycle_type] ?? 0,
+    startsAt: Math.floor(new Date(r.starts_at).getTime() / 1000),
+    endsAt: Math.floor(new Date(r.ends_at).getTime() / 1000),
+    // DB stores prize pool as numeric(20,6) USDC; on-chain + API surface
+    // is base units (uint256, 6 decimals). Multiply by 1e6, drop fractional.
+    prizePool: BigInt(Math.round(Number(r.prize_pool_usdc) * 1_000_000)).toString(),
+    participationBonus: String(r.participation_bonus ?? 0),
+    settled: r.settled_at !== null,
+    // Indexer table doesn't track live participant count. Single-tournament
+    // GET returns the canonical on-chain count via readContract.
+    participantsCount: 0,
+  }));
+
+  const next = hasMore ? encodeIndexCursor(start + limit) : undefined;
   return c.json({ items: tournaments, pagination: next ? { next } : {} }, 200);
 });
 

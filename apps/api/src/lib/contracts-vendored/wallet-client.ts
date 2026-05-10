@@ -14,7 +14,19 @@ import { getSignerAccount } from './attestation.js';
 let cached: ReturnType<typeof buildWalletClient> | null = null;
 
 function buildWalletClient() {
-  const rpcUrl = process.env.BASE_SEPOLIA_RPC_URL ?? 'https://sepolia.base.org';
+  // Write-path RPC selection: prefer write-specific premium RPC (Alchemy
+  // and similar handle eth_sendRawTransaction reliably); fall back to the
+  // shared/read RPC URL; finally to the public Base Sepolia endpoint.
+  //
+  // This is split from the read path (lib/viem.ts) because Alchemy's free
+  // tier caps eth_getLogs at a 10-block range — ruinous for our chunked
+  // event scanner — while the public RPC allows 10k-block ranges for reads.
+  // Net effect: writes get Alchemy's uptime advantage, reads keep the
+  // permissive public limit.
+  const rpcUrl =
+    process.env.BASE_SEPOLIA_WRITE_RPC_URL ??
+    process.env.BASE_SEPOLIA_RPC_URL ??
+    'https://sepolia.base.org';
   return createWalletClient({
     account: getSignerAccount(),
     chain: baseSepolia,

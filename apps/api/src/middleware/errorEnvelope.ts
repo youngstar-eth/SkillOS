@@ -5,7 +5,7 @@ import type { ErrorEnvelope } from '../schemas/common.js';
 
 export class ApiError extends Error {
   constructor(
-    public readonly status: 400 | 404 | 422 | 502,
+    public readonly status: 400 | 404 | 409 | 422 | 429 | 502,
     public readonly code: string,
     message: string,
     public readonly details?: unknown,

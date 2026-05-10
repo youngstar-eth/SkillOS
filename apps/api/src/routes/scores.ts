@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { randomBytes } from 'node:crypto';
-import type { Hex } from 'viem';
+import { type Hex, BaseError, ContractFunctionRevertedError } from 'viem';
 import {
   ErrorEnvelopeSchema,
   PaginationQuerySchema,
@@ -208,20 +208,41 @@ scoreRoutes.openapi(submitRoute, async (c) => {
   });
 
   const walletClient = getWalletClient();
-  const txHash = await walletClient.writeContract({
-    address: TOURNAMENT_POOL_V21_ADDRESS,
-    abi: TOURNAMENT_POOL_ABI,
-    functionName: 'submitSoloScore',
-    args: [
-      body.tournamentId as Hex,
-      wallet,
-      BigInt(body.score),
-      soloRunId,
-      BigInt(body.matchCountDelta),
-      onChainNonce,
-      signature,
-    ],
-  });
+  let txHash: Hex;
+  try {
+    txHash = await walletClient.writeContract({
+      address: TOURNAMENT_POOL_V21_ADDRESS,
+      abi: TOURNAMENT_POOL_ABI,
+      functionName: 'submitSoloScore',
+      args: [
+        body.tournamentId as Hex,
+        wallet,
+        BigInt(body.score),
+        soloRunId,
+        BigInt(body.matchCountDelta),
+        onChainNonce,
+        signature,
+      ],
+    });
+  } catch (err) {
+    // Surface contract-revert reasons as actionable client errors. The
+    // ContractFunctionRevertedError nests inside a wrapping BaseError; the
+    // walk-cause traversal handles both shapes.
+    if (err instanceof BaseError) {
+      const reverted = err.walk(
+        (e) => e instanceof ContractFunctionRevertedError,
+      );
+      if (reverted instanceof ContractFunctionRevertedError) {
+        const errorName = reverted.data?.errorName ?? 'Unknown';
+        throw new ApiError(
+          409,
+          `CHAIN_REVERT_${errorName}`,
+          `submitSoloScore reverted on-chain: ${errorName}`,
+        );
+      }
+    }
+    throw err;
+  }
 
   c.header('X-SkillOS-Tier', 'T0');
   c.header('X-SkillOS-Verification', 'signature-only');
