@@ -25,7 +25,7 @@
 
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ANTICHEAT_MODEL_DISPLAY } from "@skillbase/ui";
+import { ANTICHEAT_MODEL_DISPLAY } from "@skillos/ui";
 
 type PlausibilityStatus =
   | { status: "pending" }

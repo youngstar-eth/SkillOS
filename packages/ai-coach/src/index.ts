@@ -40,10 +40,10 @@ export { generateSoloRecap } from "./solo-recap/generate";
 export type { SoloRecapRequest } from "./solo-recap/types";
 
 // Per-surface model identifiers — single source of truth for backend.
-// Frontend display variants live in @skillbase/ui/models (kept in sync
+// Frontend display variants live in @skillos/ui/models (kept in sync
 // manually; see comments in both files). The DISPLAY variants below are
 // the server-side equivalents, used by x402 route descriptions and other
-// non-client surfaces that can't reach into @skillbase/ui.
+// non-client surfaces that can't reach into @skillos/ui.
 export {
   COACH_MODEL,
   RECAP_MODEL,

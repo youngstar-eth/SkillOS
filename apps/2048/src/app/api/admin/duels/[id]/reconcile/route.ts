@@ -1,4 +1,4 @@
-import { adminReconcileHandler } from "@skillbase/duel-backend";
+import { adminReconcileHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

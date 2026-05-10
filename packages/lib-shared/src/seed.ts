@@ -2,7 +2,7 @@
 // Seed + on-chain id generators — SERVER-ONLY.
 //
 // Uses node:crypto for cryptographically strong randomness. Browser code
-// must NOT import this module — use @skillbase/contracts' `match-id.ts`
+// must NOT import this module — use @skillos/contracts' `match-id.ts`
 // instead (client-safe via crypto.randomUUID + viem keccak256).
 //
 // Seed format for the game engine's deterministic RNG:

@@ -17,7 +17,7 @@
 // only the solo_submit award.
 //
 // Per-app wire-up (apps/<game>/src/app/api/sp-earned/route.ts):
-//   import { createSPEarnedHandler } from "@skillbase/duel-backend";
+//   import { createSPEarnedHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const GET = createSPEarnedHandler();
 // ───────────────────────────────────────────────────────────────────────────
@@ -29,14 +29,14 @@ import {
   jsonError,
   jsonOk,
   parseAddress,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 import {
   awardSPBreakdown,
   levelForSP,
   spForNextLevel,
   type SPEvent,
   type Verdict,
-} from "@skillbase/sp-engine";
+} from "@skillos/sp-engine";
 
 type LookupKind = "duel" | "solo";
 type CardVerdict = Verdict | "pending";

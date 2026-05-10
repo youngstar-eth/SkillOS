@@ -11,7 +11,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { AddressDisplay } from "@skillbase/ui";
+import { AddressDisplay } from "@skillos/ui";
 
 type LeaderboardRow = {
   rank: number;

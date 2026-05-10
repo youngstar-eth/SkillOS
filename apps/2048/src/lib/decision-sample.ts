@@ -9,7 +9,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import { createHash } from "node:crypto";
-import { getSupabaseService } from "@skillbase/lib-shared";
+import { getSupabaseService } from "@skillos/lib-shared";
 
 export type Tier = "any" | "1-4" | "5-7" | "8-plus";
 export const TIER_SLUGS = ["any", "1-4", "5-7", "8-plus"] as const;

@@ -2,7 +2,7 @@
 // Shared TypeScript types for the Skillbase duel system.
 //
 // These describe the wire shape between backend API routes and client
-// consumers. The server's `sanitizeDuel` (in @skillbase/lib-shared) is the
+// consumers. The server's `sanitizeDuel` (in @skillos/lib-shared) is the
 // source of truth for the shape — keep these in sync if it changes.
 // ───────────────────────────────────────────────────────────────────────────
 

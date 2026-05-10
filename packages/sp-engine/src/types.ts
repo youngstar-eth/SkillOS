@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// @skillbase/sp-engine — public types.
+// @skillos/sp-engine — public types.
 //
 // The engine itself is intentionally small: one pure award function, one
 // level lookup, plus the constant tables that drive both. Shared by
@@ -8,7 +8,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 /**
- * Three-tier plausibility verdict. Mirrors `Verdict` in @skillbase/ai-coach;
+ * Three-tier plausibility verdict. Mirrors `Verdict` in @skillos/ai-coach;
  * we duplicate the type here to keep sp-engine free of any AI-pipeline
  * dependency (it's a pure-math package).
  */

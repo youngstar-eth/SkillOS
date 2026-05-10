@@ -5,7 +5,7 @@
 //   body: { playerAddress: "0x…", duelId: "uuid", score: 1844 }
 //
 // Per-app wire-up (apps/<game>/src/app/api/tournaments/[id]/submit/route.ts):
-//   import { createTournamentSubmitHandler } from "@skillbase/duel-backend";
+//   import { createTournamentSubmitHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const POST = createTournamentSubmitHandler({ game: "2048" });
 //
@@ -44,8 +44,8 @@ import {
   MATCH_COUNT_CAP,
   TOURNAMENT_POOL_ABI,
   TOURNAMENT_POOL_V2_ADDRESS,
-} from "@skillbase/contracts";
-import type { Duel } from "@skillbase/game-types";
+} from "@skillos/contracts";
+import type { Duel } from "@skillos/game-types";
 import {
   getPublicClient,
   getSupabaseService,
@@ -55,7 +55,7 @@ import {
   jsonOk,
   parseAddress,
   signTournamentSubmitAttestation,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 
 import type { TournamentGame } from "../../cron/tournaments";
 

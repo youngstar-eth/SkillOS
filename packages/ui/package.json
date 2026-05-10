@@ -1,5 +1,5 @@
 {
-  "name": "@skillbase/ui",
+  "name": "@skillos/ui",
   "version": "0.3.0",
   "private": true,
   "main": "./src/index.ts",
@@ -13,8 +13,8 @@
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.3.0",
     "@farcaster/miniapp-wagmi-connector": "^2.0.0",
-    "@skillbase/contracts": "*",
-    "@skillbase/game-types": "*"
+    "@skillos/contracts": "*",
+    "@skillos/game-types": "*"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.99.2",

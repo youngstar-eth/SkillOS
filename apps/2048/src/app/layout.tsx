@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Header, Providers, ReadyMarker } from "@skillbase/ui";
+import { Header, Providers, ReadyMarker } from "@skillos/ui";
 import { SimplAd } from "@/components/SimplAd";
 import "./globals.css";
 
@@ -17,8 +17,8 @@ export const metadata: Metadata = {
     description: "Merge tiles. Prove skill. Earn SP.",
   },
   other: {
-    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
-    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillbase.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillbase.games/tournament/solo\"}}}",
+    "fc:miniapp": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillos.games/tournament/solo\"}}}",
+    "fc:frame": "{\"version\": \"1\", \"imageUrl\": \"https://2048.skillos.games/opengraph-image\", \"button\": {\"title\": \"Play 2048 on SkillOS\", \"action\": {\"type\": \"launch_miniapp\", \"url\": \"https://2048.skillos.games/tournament/solo\"}}}",
     "base:app_id": "69f1e761bbed26bd8fc51c5e",
   },
 };

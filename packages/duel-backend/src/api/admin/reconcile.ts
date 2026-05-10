@@ -35,7 +35,7 @@
 //
 // Per-app wire-up (only on 2048 for now; admin endpoints are centralized
 // there to match /api/admin/flags convention):
-//   export { adminReconcileHandler as POST } from "@skillbase/duel-backend";
+//   export { adminReconcileHandler as POST } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -45,15 +45,15 @@ import { type Address, type Hex, getAddress } from "viem";
 import {
   CHALLENGE_ESCROW_ABI,
   CHALLENGE_ESCROW_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import {
   getPublicClient,
   getSupabaseService,
   getWalletClient,
   isUuid,
   signSettleAttestation,
-} from "@skillbase/lib-shared";
-import type { Duel } from "@skillbase/game-types";
+} from "@skillos/lib-shared";
+import type { Duel } from "@skillos/game-types";
 import { CHALLENGE_STATUS } from "../../settle-guard";
 import { decideWinner } from "../../decide-winner";
 

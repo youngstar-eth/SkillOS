@@ -16,7 +16,7 @@
 //   The four AI-feature components (AIReviewedBadge, SPEarnedCard, AIRecap,
 //   AICoach) are passed as React.ReactNode slots by each consuming app,
 //   not imported here. Reason: AIRecap.tsx hardcodes its app's subdomain
-//   (`process.env.NEXT_PUBLIC_URL ?? "https://2048.skillbase.games"` etc.)
+//   (`process.env.NEXT_PUBLIC_URL ?? "https://2048.skillos.games"` etc.)
 //   as a fallback URL — a per-app constant that can't be lifted to packages/ui
 //   without a parallel env-var refactor. Since AIRecap can't be lifted
 //   without scope creep, the slot pattern was used for symmetry across all

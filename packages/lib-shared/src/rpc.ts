@@ -15,7 +15,7 @@
 
 import { type Chain, createPublicClient, createWalletClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
-import { CHAIN_ID } from "@skillbase/contracts";
+import { CHAIN_ID } from "@skillos/contracts";
 import { getSignerAccount } from "./attestation";
 
 function resolveChain(): Chain {

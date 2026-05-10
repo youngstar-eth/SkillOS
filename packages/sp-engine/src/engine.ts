@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// @skillbase/sp-engine — pure award formula + level lookup.
+// @skillos/sp-engine — pure award formula + level lookup.
 //
 // Zero DB access, zero side effects. Called by:
 //   1. duel-backend settle hook (winner + loser on duel resolution)

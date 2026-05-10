@@ -30,7 +30,7 @@
 // Both throw only on RPC failure; logical state mismatches return ok:false.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { TOURNAMENT_POOL_ABI, TOURNAMENT_POOL_V2_ADDRESS } from "@skillbase/contracts";
+import { TOURNAMENT_POOL_ABI, TOURNAMENT_POOL_V2_ADDRESS } from "@skillos/contracts";
 import type { Hex } from "viem";
 
 /** Why the on-chain state prevents settle() from succeeding. */

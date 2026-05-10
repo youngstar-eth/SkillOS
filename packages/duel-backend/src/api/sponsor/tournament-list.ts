@@ -12,7 +12,7 @@
 // pre-settle window).
 // ───────────────────────────────────────────────────────────────────────────
 
-import { getSupabaseService } from "@skillbase/lib-shared";
+import { getSupabaseService } from "@skillos/lib-shared";
 
 export interface SponsorTournamentListItem {
   id: string;

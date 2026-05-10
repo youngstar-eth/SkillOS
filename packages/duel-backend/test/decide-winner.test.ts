@@ -9,7 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getAddress } from "viem";
 import { decideWinner } from "../src/decide-winner";
-import type { Duel } from "@skillbase/game-types";
+import type { Duel } from "@skillos/game-types";
 
 const P1 = getAddress("0x000000000000000000000000000000000000cafe");
 const P2 = getAddress("0x000000000000000000000000000000000000beef");

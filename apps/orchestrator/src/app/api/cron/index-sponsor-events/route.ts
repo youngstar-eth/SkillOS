@@ -11,7 +11,7 @@
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` automatically.
 // Local/manual triggers must include the same header.
 
-import { runIndexSponsorEvents } from "@skillbase/duel-backend";
+import { runIndexSponsorEvents } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // RPC getLogs over a small window is fast

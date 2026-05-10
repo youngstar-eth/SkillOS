@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
-import type { SponsorContributionsResponse } from "@skillbase/duel-backend";
+import type { SponsorContributionsResponse } from "@skillos/duel-backend";
 
 const REFETCH_MS = 60 * 1000;
 

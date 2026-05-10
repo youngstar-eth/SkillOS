@@ -1,5 +1,5 @@
 {
-  "name": "@skillbase/app-2048",
+  "name": "@skillos/app-2048",
   "version": "0.3.0",
   "private": true,
   "scripts": {
@@ -12,12 +12,12 @@
   "dependencies": {
     "@coinbase/wallet-sdk": "^4.3.7",
     "@coinbase/x402": "^2.1.0",
-    "@skillbase/contracts": "*",
-    "@skillbase/duel-backend": "*",
-    "@skillbase/game-types": "*",
-    "@skillbase/lib-shared": "*",
-    "@skillbase/sp-engine": "*",
-    "@skillbase/ui": "*",
+    "@skillos/contracts": "*",
+    "@skillos/duel-backend": "*",
+    "@skillos/game-types": "*",
+    "@skillos/lib-shared": "*",
+    "@skillos/sp-engine": "*",
+    "@skillos/ui": "*",
     "@supabase/supabase-js": "^2.104.0",
     "@tanstack/react-query": "^5.99.2",
     "@x402/core": "^2.10.0",

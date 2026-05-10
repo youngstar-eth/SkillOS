@@ -1,4 +1,4 @@
-# @skillbase/app-orchestrator
+# @skillos/app-orchestrator
 
 Dedicated Vercel project that hosts every SkillOS cron job. No UI, no public surface — only `/api/cron/*` routes wired to Vercel's internal scheduler.
 

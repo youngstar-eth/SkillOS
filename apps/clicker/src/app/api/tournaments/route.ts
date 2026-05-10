@@ -1,4 +1,4 @@
-import { createTournamentActiveHandler } from "@skillbase/duel-backend";
+import { createTournamentActiveHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

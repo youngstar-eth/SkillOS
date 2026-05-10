@@ -4,7 +4,7 @@ import { ImageResponse } from "next/og";
 // /opengraph-image.tsx. Pitch-black canvas, white "SkillOS" wordmark,
 // "Sponsor" sub-wordmark in storm-gray, lime "Sponsor a Pool"
 // headline, mono eyebrow strip. Inlined and self-contained — no
-// imports from @skillbase/ui — so satori's OG runtime sees a single
+// imports from @skillos/ui — so satori's OG runtime sees a single
 // React tree without subpath resolution surprises.
 
 export const runtime = "nodejs";

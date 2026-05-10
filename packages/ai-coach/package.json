@@ -1,5 +1,5 @@
 {
-  "name": "@skillbase/ai-coach",
+  "name": "@skillos/ai-coach",
   "version": "0.3.0",
   "private": true,
   "main": "./src/index.ts",

@@ -10,7 +10,7 @@
 // Decisions are logged but no DB or on-chain mutations occur. Used on
 // first deploy to validate sweep behavior before flipping to live action.
 
-import { runReconcileDuels } from "@skillbase/duel-backend";
+import { runReconcileDuels } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 // Reconcile may broadcast settle() txs for stuck Accepted-with-both-scores

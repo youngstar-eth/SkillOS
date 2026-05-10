@@ -1,4 +1,4 @@
-import { createAcceptTxHandler } from "@skillbase/duel-backend";
+import { createAcceptTxHandler } from "@skillos/duel-backend";
 import { GAME_SLUG } from "@/lib/game-slug";
 
 export const runtime = "nodejs";

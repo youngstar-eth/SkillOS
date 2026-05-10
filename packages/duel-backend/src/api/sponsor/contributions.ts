@@ -8,7 +8,7 @@
 // future caching headers.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { getSupabaseService } from "@skillbase/lib-shared";
+import { getSupabaseService } from "@skillos/lib-shared";
 
 interface ContributionRow {
   tournament_on_chain_id: string;

@@ -1,6 +1,6 @@
-# @skillbase/lib-shared
+# @skillos/lib-shared
 
-Cross-cutting utilities used by both server-side handlers (`@skillbase/duel-backend`) and per-app code.
+Cross-cutting utilities used by both server-side handlers (`@skillos/duel-backend`) and per-app code.
 
 ## What's here
 
@@ -10,12 +10,12 @@ Cross-cutting utilities used by both server-side handlers (`@skillbase/duel-back
 - `src/rpc.ts` — `getPublicClient()` viem client with chain-aware fallbacks (Base Sepolia, optional `BASE_SEPOLIA_RPC_URL` override).
 - `src/seed.ts` — deterministic match-id seed helpers.
 
-Plus type re-exports from `@skillbase/game-types` for convenience.
+Plus type re-exports from `@skillos/game-types` for convenience.
 
 ## Usage
 
 ```ts
-import { getSupabaseService, withCronAuth } from "@skillbase/lib-shared";
+import { getSupabaseService, withCronAuth } from "@skillos/lib-shared";
 
 export const POST = withCronAuth(async (req) => {
   const supabase = getSupabaseService();

@@ -87,7 +87,7 @@ provided, you may reference it directly; otherwise do not name a specific
 word.
 
 Remember: headline ≤8 words, narrative exactly 2 sentences, shareText
-≤240 chars with {url} token and @skillbase mention.`;
+≤240 chars with {url} token and @SkillOS mention.`;
 
   return { system, user: summarizeRecapMatch(req) };
 }

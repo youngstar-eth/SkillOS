@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { Providers } from "@skillbase/ui";
+import { Providers } from "@skillos/ui";
 import { Nav } from "../components/Nav";
 import { Footer } from "../components/Footer";
 import "./globals.css";

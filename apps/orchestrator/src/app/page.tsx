@@ -5,15 +5,15 @@
 export default function Page() {
   return (
     <main style={{ fontFamily: "monospace", padding: "2rem", maxWidth: "60ch" }}>
-      <h1>Skillbase Orchestrator</h1>
+      <h1>SkillOS Orchestrator</h1>
       <p>
-        This deployment hosts Skillbase&apos;s scheduled cron jobs. There is no
+        This deployment hosts SkillOS&apos;s scheduled cron jobs. There is no
         public UI here. Cron triggers are project-bound to Vercel&apos;s
         scheduler and gated by <code>CRON_SECRET</code>.
       </p>
       <p>
         Source: <code>apps/orchestrator/</code> in the{" "}
-        <code>skillbase</code> monorepo.
+        <code>skillos</code> monorepo.
       </p>
     </main>
   );

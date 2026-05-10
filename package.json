@@ -1,5 +1,5 @@
 {
-  "name": "skillbase",
+  "name": "skillos",
   "version": "0.3.0",
   "private": true,
   "workspaces": [
@@ -11,8 +11,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "dev:2048": "npm run dev --workspace @skillbase/app-2048",
-    "build:2048": "npm run build --workspace @skillbase/app-2048",
+    "dev:2048": "npm run dev --workspace @skillos/app-2048",
+    "build:2048": "npm run build --workspace @skillos/app-2048",
     "backfill:sp": "tsx scripts/backfill-sp.ts"
   },
   "devDependencies": {

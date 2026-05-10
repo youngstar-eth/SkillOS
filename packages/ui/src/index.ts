@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// @skillbase/ui — client-side React components + browser utilities.
+// @skillos/ui — client-side React components + browser utilities.
 //
 // Safe to import from client components in any app/*.
 // ───────────────────────────────────────────────────────────────────────────

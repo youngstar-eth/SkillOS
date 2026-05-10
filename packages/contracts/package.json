@@ -1,5 +1,5 @@
 {
-  "name": "@skillbase/contracts",
+  "name": "@skillos/contracts",
   "version": "0.3.0",
   "private": true,
   "main": "./src/index.ts",

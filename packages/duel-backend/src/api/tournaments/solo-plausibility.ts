@@ -16,12 +16,12 @@
 // "never reveal internal audit state" contract of the duel counterpart.
 //
 // Usage (apps/<game>/src/app/api/tournaments/solo/[runId]/plausibility/route.ts):
-//   export { soloPlausibilityHandler as GET } from "@skillbase/duel-backend";
+//   export { soloPlausibilityHandler as GET } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { NextRequest } from "next/server";
-import { getSupabaseService, isUuid } from "@skillbase/lib-shared";
+import { getSupabaseService, isUuid } from "@skillos/lib-shared";
 
 type PublicPlausibilityResponse =
   | { status: "pending" }

@@ -1,4 +1,4 @@
-# @skillbase/ui
+# @skillos/ui
 
 Shared React components and design primitives consumed by every game app and the sponsor app.
 
@@ -18,7 +18,7 @@ Shared React components and design primitives consumed by every game app and the
 ## Usage
 
 ```tsx
-import { Header, Providers } from "@skillbase/ui";
+import { Header, Providers } from "@skillos/ui";
 
 export default function Layout({ children }) {
   return (

@@ -1,6 +1,6 @@
-# SkillOS MAS Monorepo
+# SkillOS Monorepo
 
-Multi-app SkillOS monorepo — 7 game apps + 1 sponsor app + 7 shared packages + Foundry contracts + Supabase migrations. Each app deploys to its own Vercel project under scope `simpl3s-projects`. Production: `*.skillbase.games` subdomains; chain: Base Sepolia.
+Multi-app SkillOS monorepo — 7 game apps + 1 sponsor app + 7 shared packages + Foundry contracts + Supabase migrations. Each app deploys to its own Vercel project under scope `simpl3s-projects`. Production: `*.skillos.games` subdomains; chain: Base Sepolia.
 
 For strategic narrative (3-sided platform thesis, AI pillars, revenue streams, full phase roadmap), see [`README.md`](./README.md). **This file is agent-operational guidance only — it does not duplicate `README.md`.**
 
@@ -8,14 +8,14 @@ For strategic narrative (3-sided platform thesis, AI pillars, revenue streams, f
 
 The locked architecture, phase roadmap, and pitch pack live in **claude.ai project memory** + `skillos-roadmap.md` / `skillos-pitch-pack.md` project files. **These docs are not on disk** — they live in the claude.ai project context, not the filesystem. When making strategic decisions about phase positioning, narrative framing, or tokenomics, reference them via the founder rather than searching the codebase.
 
-## Companion repo: skillbase-apex
+## Companion repo: skillos-apex
 
-The public-facing marketing site (`https://skillbase.games`) lives in a **separate repo** at `/Users/inancayvaz/skillbase-apex` — see its [`CLAUDE.md`](file:///Users/inancayvaz/skillbase-apex/CLAUDE.md) for apex conventions. Two routes share one Vercel scope but two separate codebases:
+The public-facing marketing site (`https://skillos.games`) lives in a **separate repo** at `/Users/inancayvaz/skillbase-apex` — see its [`CLAUDE.md`](file:///Users/inancayvaz/skillbase-apex/CLAUDE.md) for apex conventions. (Local folder still named `skillbase-apex` until the founder renames it; the repo on GitHub is `youngstar-eth/skillos-apex`.) Two routes share one Vercel scope but two separate codebases:
 
-- **MAS (this repo)** — six game apps + sponsor dashboard + Phase 1 protocol contracts. Source-of-truth for runtime systems and on-chain logic.
-- **skillbase-apex** — marketing site copy + OG image + locked-architecture narrative. Source-of-truth for **public messaging** (tagline, hero lede, OG metadata, 4-phase public roadmap).
+- **SkillOS monorepo (this repo)** — six game apps + sponsor dashboard + Phase 1 protocol contracts. Source-of-truth for runtime systems and on-chain logic.
+- **skillos-apex** — marketing site copy + OG image + locked-architecture narrative. Source-of-truth for **public messaging** (tagline, hero lede, OG metadata, 4-phase public roadmap).
 
-Apex tagline / phase-framing changes do **not** auto-propagate to MAS README.md (or vice versa). If you change positioning here, check whether apex needs a sister update — and remember the two phase numbering systems described below.
+Apex tagline / phase-framing changes do **not** auto-propagate to SkillOS README.md (or vice versa). If you change positioning here, check whether apex needs a sister update — and remember the two phase numbering systems described below.
 
 ## Tech stack
 
@@ -83,13 +83,13 @@ Two systems coexist intentionally:
 | Frame | Where it lives | Phase 02 means | Phase 03 means |
 |---|---|---|---|
 | **Engineering-internal** | this repo's `README.md`, internal pitch | "in-progress" (solo polish, duel reactivation, SDK alpha) | "Q2 2026 mainnet (post-legal-review)" |
-| **Marketing-public** | apex `lib/apex.ts`, `https://skillbase.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
+| **Marketing-public** | apex `lib/apex.ts`, `https://skillos.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
 
 Don't reconcile — the two audiences have different granularity needs. When writing **public-facing copy**, use the marketing-public system; when writing **internal docs / commit messages / GitHub issues**, use the engineering-internal system. README.md and apex are intentionally on different cadences.
 
 ## Vercel push gating
 
-Vercel rejects pushes signed with a non-canonical git author identity for any branch destined for `youngstar-eth/skillbase` or `youngstar-eth/skillbase-apex`. Before committing on any branch:
+Vercel rejects pushes signed with a non-canonical git author identity for any branch destined for `youngstar-eth/skillos` or `youngstar-eth/skillos-apex`. Before committing on any branch:
 
 ```bash
 git config user.email '251514042+youngstar-eth@users.noreply.github.com'
@@ -163,7 +163,7 @@ The shared-package fan-out concern is real either way: changes to `packages/ui/`
 - Next.js 16.2.4 bump
 - TournamentCreated event indexer
 - VERCEL_AUTOMATION_BYPASS_SECRET setup for apex previews
-- 3 ambiguous MAS branches review (per-game-og-routes, v3-monorepo, v2-clean)
+- 3 ambiguous SkillOS monorepo branches review (per-game-og-routes, v3-monorepo, v2-clean)
 
 **Pitch-only (NOT public marketing yet):**
 - Phase 5 substrate intelligence (foundation models, native oracle)

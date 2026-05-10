@@ -43,11 +43,11 @@ import {
 import {
   TOURNAMENT_POOL_ABI,
   TOURNAMENT_POOL_V2_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import {
   getPublicClient,
   getSupabaseService,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 import { TOURNAMENT_GAMES, type TournamentGame } from "./tournaments";
 
 // ─── Config ────────────────────────────────────────────────────────────────

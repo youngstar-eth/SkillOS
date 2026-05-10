@@ -1,4 +1,4 @@
-# @skillbase/ai-coach
+# @skillos/ai-coach
 
 Claude-backed generation for the four AI pillars: Coach, Recap, Anti-Cheat, and solo-tournament variants.
 
@@ -14,7 +14,7 @@ Claude-backed generation for the four AI pillars: Coach, Recap, Anti-Cheat, and 
 ## Usage
 
 ```ts
-import { generateCoachFeedback } from "@skillbase/ai-coach";
+import { generateCoachFeedback } from "@skillos/ai-coach";
 
 const response = await generateCoachFeedback({
   gameType: "game2048",
@@ -26,7 +26,7 @@ const response = await generateCoachFeedback({
 // → { tone, headline, paragraphs: [...], signature }
 ```
 
-The function is pure I/O against the Anthropic API. Caching, rate-limiting, and fire-on-mount triggering live in `@skillbase/duel-backend` callers.
+The function is pure I/O against the Anthropic API. Caching, rate-limiting, and fire-on-mount triggering live in `@skillos/duel-backend` callers.
 
 ## Environment
 

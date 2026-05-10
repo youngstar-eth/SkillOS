@@ -40,7 +40,7 @@ import {
   SPONSORSHIP_MODULE_ADDRESS,
   USDC_ADDRESS,
   CHAIN_ID,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 
 const USDC_DECIMALS = 6;
 const MIN_AMOUNT_USDC = 1; // contract has ZeroAmount; UX min is 1 USDC.

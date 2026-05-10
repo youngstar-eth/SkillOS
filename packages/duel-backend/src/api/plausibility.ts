@@ -17,12 +17,12 @@
 // catches up or (on pathological failure) forever. Graceful degradation.
 //
 // Usage (apps/<game>/src/app/api/duel/[id]/plausibility/route.ts):
-//   export { plausibilityHandler as GET } from "@skillbase/duel-backend";
+//   export { plausibilityHandler as GET } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { NextRequest } from "next/server";
-import { getSupabaseService, isUuid } from "@skillbase/lib-shared";
+import { getSupabaseService, isUuid } from "@skillos/lib-shared";
 
 type PublicPlausibilityResponse =
   | { status: "pending" }

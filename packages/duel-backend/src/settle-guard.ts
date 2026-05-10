@@ -23,7 +23,7 @@
 import {
   CHALLENGE_ESCROW_ABI,
   CHALLENGE_ESCROW_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import type { Hex } from "viem";
 
 /** Mirrors ChallengeEscrow.Status enum. */

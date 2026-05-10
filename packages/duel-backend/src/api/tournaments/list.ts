@@ -21,8 +21,8 @@ import {
   jsonError,
   jsonOk,
   parseAddress,
-} from "@skillbase/lib-shared";
-import { RETRY_FEE } from "@skillbase/contracts";
+} from "@skillos/lib-shared";
+import { RETRY_FEE } from "@skillos/contracts";
 import type { TournamentGame } from "../../cron/tournaments";
 
 export interface TournamentReadHandlerConfig {

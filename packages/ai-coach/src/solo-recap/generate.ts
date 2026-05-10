@@ -50,7 +50,7 @@ const SOLO_RECAP_SYSTEM_BASE = `You are the AI Recap for Skillbase, a skills-bas
 The player just finished a SOLO tournament run. Write a shareable, punchy recap of THIS run — no opponent. This is the card a player shows friends.
 
 OUTPUT FORMAT — respond with valid JSON only, matching exactly:
-{"style": "<one of: speedRun, grind, standard>", "headline": "<≤8 words, punchy>", "narrative": "<2 sentences, dramatic but factual>", "shareText": "<≤240 chars, ends with the literal token {url} @skillbase>"}
+{"style": "<one of: speedRun, grind, standard>", "headline": "<≤8 words, punchy>", "narrative": "<2 sentences, dramatic but factual>", "shareText": "<≤240 chars, ends with the literal token {url} @SkillOS>"}
 
 Hard rules:
   • style MUST be one of: "speedRun", "grind", "standard". Pick based on
@@ -62,7 +62,7 @@ Hard rules:
     (score, duration). No opponent framing — never say "defeated",
     "crushed", "beat", or reference an opponent. "You" is fine.
   • shareText includes the literal token "{url}" once (the caller
-    substring-replaces it with the run URL) and "@skillbase". Reads
+    substring-replaces it with the run URL) and "@SkillOS". Reads
     well even if {url} is stripped before posting.
 
 Do not wrap the JSON in markdown code fences. No prose before or after.
@@ -148,7 +148,7 @@ function buildFallbackRecap(req: SoloRecapRequest): RecapResponse {
     style: "standard",
     headline: `Solo run — ${req.score} points`,
     narrative: `A ${durMin}-minute solo run landed at ${req.score}. The scoreboard takes it from here.`,
-    shareText: `Just posted a Skillbase solo score: ${req.score} in ${durMin} min. {url} @skillbase`,
+    shareText: `Just posted a Skillbase solo score: ${req.score} in ${durMin} min. {url} @SkillOS`,
   };
 }
 

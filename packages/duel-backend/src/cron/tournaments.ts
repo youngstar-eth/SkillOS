@@ -54,13 +54,13 @@ import {
   TOURNAMENT_POOL_ABI,
   TOURNAMENT_POOL_V2_ADDRESS,
   USDC_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import { applySPAward } from "../sp/award";
 import {
   getPublicClient,
   getSupabaseService,
   getWalletClient,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 import { readSettleGuardBatch, type CronSettleGuardResult } from "./settle-guard";
 import {
   acquireCronLock,
@@ -390,7 +390,7 @@ export interface SettleTournamentsResult {
 /**
  * Optional dependency overrides for runSettleTournaments. When omitted
  * (production path), each falls back to the corresponding singleton in
- * @skillbase/lib-shared / sibling sp/award module — preserving current
+ * @skillos/lib-shared / sibling sp/award module — preserving current
  * behavior byte-for-byte.
  *
  * Tests pass mock objects matching the minimal call surface used by the

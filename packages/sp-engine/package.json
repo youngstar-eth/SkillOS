@@ -1,5 +1,5 @@
 {
-  "name": "@skillbase/sp-engine",
+  "name": "@skillos/sp-engine",
   "version": "0.3.0",
   "private": true,
   "main": "./src/index.ts",

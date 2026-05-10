@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SkillOSWordmark } from "@skillbase/ui";
+import { SkillOSWordmark } from "@skillos/ui";
 
 const YEAR = new Date().getFullYear();
 
@@ -19,11 +19,11 @@ export function Footer() {
           <div className="links">
             <Link href="/dashboard">My sponsorships</Link>
             <a
-              href="https://skillbase.games"
+              href="https://skillos.games"
               target="_blank"
               rel="noopener noreferrer"
             >
-              skillbase.games
+              skillos.games
             </a>
           </div>
           <div className="meta">© {YEAR} Simpl3 Inc.</div>

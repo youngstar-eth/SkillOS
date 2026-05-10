@@ -10,7 +10,7 @@
 //   }
 //
 // Per-app wire-up (apps/<game>/src/app/api/tournaments/[id]/solo/route.ts):
-//   import { createTournamentSoloHandler } from "@skillbase/duel-backend";
+//   import { createTournamentSoloHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const POST = createTournamentSoloHandler({ game: "2048" });
 //
@@ -76,9 +76,9 @@ import {
   RETRY_FEE,
   TOURNAMENT_POOL_ABI,
   TOURNAMENT_POOL_V2_ADDRESS,
-} from "@skillbase/contracts";
-import { checkPlausibility, type GameType } from "@skillbase/ai-coach";
-import type { Verdict } from "@skillbase/sp-engine";
+} from "@skillos/contracts";
+import { checkPlausibility, type GameType } from "@skillos/ai-coach";
+import type { Verdict } from "@skillos/sp-engine";
 import { waitUntil } from "@vercel/functions";
 import { applySPAward } from "../../sp/award";
 import {
@@ -90,7 +90,7 @@ import {
   jsonOk,
   parseAddress,
   signTournamentSoloSubmitAttestation,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 
 import type { TournamentGame } from "../../cron/tournaments";
 

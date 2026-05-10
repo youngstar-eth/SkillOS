@@ -23,7 +23,7 @@
 //   - Server-side logging via console.error so we still see failures.
 //
 // Usage (apps/<game>/src/app/api/duel/[id]/recap/route.ts):
-//   import { createRecapHandler } from "@skillbase/duel-backend";
+//   import { createRecapHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const POST = createRecapHandler({
 //     gameSlug: GAME_SLUG,
@@ -33,14 +33,14 @@
 
 import type { NextRequest } from "next/server";
 import { getAddress } from "viem";
-import type { GameType, RecapResponse } from "@skillbase/ai-coach";
-import { generateRecap } from "@skillbase/ai-coach";
-import type { Duel } from "@skillbase/game-types";
-import { getSupabaseService, isUuid } from "@skillbase/lib-shared";
+import type { GameType, RecapResponse } from "@skillos/ai-coach";
+import { generateRecap } from "@skillos/ai-coach";
+import type { Duel } from "@skillos/game-types";
+import { getSupabaseService, isUuid } from "@skillos/lib-shared";
 import type { DuelHandlerConfig } from "../handlers";
 
 export interface RecapHandlerConfig extends DuelHandlerConfig {
-  /** One of the GameType literals from @skillbase/ai-coach. */
+  /** One of the GameType literals from @skillos/ai-coach. */
   gameType: GameType;
 }
 

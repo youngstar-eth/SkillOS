@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// DB-aware wrapper around the pure @skillbase/sp-engine.
+// DB-aware wrapper around the pure @skillos/sp-engine.
 //
 // sp-engine stays framework-free and side-effect-free — this module holds
 // the Supabase read + UPSERT so hooks can fire-and-forget an SP award with
@@ -20,8 +20,8 @@
 // to a stored proc with a serializable transaction.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { awardSP, levelForSP, type SPEvent } from "@skillbase/sp-engine";
-import { getSupabaseService, parseAddress } from "@skillbase/lib-shared";
+import { awardSP, levelForSP, type SPEvent } from "@skillos/sp-engine";
+import { getSupabaseService, parseAddress } from "@skillos/lib-shared";
 
 export interface SPAwardInput {
   /**
@@ -30,7 +30,7 @@ export interface SPAwardInput {
    * so v2_user_stats keys match the rest of the schema's address columns.
    */
   userAddress: string;
-  /** The SP-earning event (see @skillbase/sp-engine types). */
+  /** The SP-earning event (see @skillos/sp-engine types). */
   event: SPEvent;
   /**
    * Optional counter increments to commit alongside the SP delta. These

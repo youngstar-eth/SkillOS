@@ -17,11 +17,11 @@
 #
 # Usage:
 #   ./scripts/solo-smoke.sh                   # defaults to 2048 subdomain
-#   BASE_URL=https://wordle.skillbase.games ./scripts/solo-smoke.sh
+#   BASE_URL=https://wordle.skillos.games ./scripts/solo-smoke.sh
 #
 # Gate 4 (all 6 subdomains):
 #   for slug in 2048 wordle sudoku minesweeper clicker match3; do
-#     BASE_URL="https://${slug}.skillbase.games" ./scripts/solo-smoke.sh
+#     BASE_URL="https://${slug}.skillos.games" ./scripts/solo-smoke.sh
 #   done
 #
 # Dependencies: bash ≥4, curl, jq, openssl. No network calls outside BASE_URL.
@@ -34,7 +34,7 @@
 
 set -uo pipefail
 
-BASE_URL="${BASE_URL:-https://2048.skillbase.games}"
+BASE_URL="${BASE_URL:-https://2048.skillos.games}"
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
 

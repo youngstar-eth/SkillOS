@@ -15,7 +15,7 @@ export interface SkillOSWordmarkProps {
 /**
  * SkillOS canonical wordmark — pure typography, Inter weight 700,
  * letter-spacing -0.022em. Mirrors the apex `Wordmark` component
- * (skillbase-apex/components/skillos/ui/Wordmark.tsx) but applies the
+ * (skillos-apex/components/skillos/ui/Wordmark.tsx) but applies the
  * typographic spec via inline style so it works without depending on
  * the `.skillos-page` CSS scope wrapper that apex uses internally.
  *

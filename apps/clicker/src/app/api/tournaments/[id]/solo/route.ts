@@ -1,4 +1,4 @@
-import { createTournamentSoloHandler } from "@skillbase/duel-backend";
+import { createTournamentSoloHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const POST = createTournamentSoloHandler({ game: "clicker" });

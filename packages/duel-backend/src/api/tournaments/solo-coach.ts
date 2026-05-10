@@ -6,7 +6,7 @@
 //         the runId alone identifies the cacheable coach slot)
 //
 // Response shape is IDENTICAL to duel's coach endpoint:
-//   200 { feedback, tone }                 — CoachResponse from @skillbase/ai-coach
+//   200 { feedback, tone }                 — CoachResponse from @skillos/ai-coach
 //   400 invalid_run_id / invalid_json
 //   404 not_found
 //   503 coach_unavailable                   — Haiku 4xx/5xx or missing API key
@@ -22,19 +22,19 @@
 //   distinction alone is the hit/miss predicate.
 //
 // Usage (apps/<game>/src/app/api/tournaments/solo/[runId]/coach/route.ts):
-//   import { createSoloCoachHandler } from "@skillbase/duel-backend";
+//   import { createSoloCoachHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const POST = createSoloCoachHandler({ gameType: "game2048" });
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { NextRequest } from "next/server";
-import type { CoachResponse, GameType } from "@skillbase/ai-coach";
-import { generateSoloCoachFeedback } from "@skillbase/ai-coach";
+import type { CoachResponse, GameType } from "@skillos/ai-coach";
+import { generateSoloCoachFeedback } from "@skillos/ai-coach";
 import {
   getSupabaseService,
   isUuid,
   jsonError,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 
 /**
  * Coach response with an X-Cache header parallel to recap. Lets smoke tests
@@ -46,7 +46,7 @@ function jsonCoach(body: CoachResponse, cache: "HIT" | "MISS"): Response {
 }
 
 export interface SoloCoachHandlerConfig {
-  /** One of the GameType literals from @skillbase/ai-coach. */
+  /** One of the GameType literals from @skillos/ai-coach. */
   gameType: GameType;
 }
 

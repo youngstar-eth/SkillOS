@@ -6,7 +6,7 @@ Verified human + agent skill arena protocol. Phase 1 testnet is live on Base Sep
 
 > Brand evolution: the public-facing rebrand to **SkillOS** is queued for the Phase 2 mainnet cutover window.
 
-The marketing site (`https://www.skillbase.games`) lives in a **separate repo** — `skillbase-apex` — and is not part of this monorepo.
+The marketing site (`https://www.skillos.games`) lives in a **separate repo** — `skillos-apex` — and is not part of this monorepo.
 
 ## Overview
 
@@ -63,7 +63,7 @@ scripts/                 — backfill-sp, jury-tournaments seed, x402-smoke
 
 2048 · Wordle · Sudoku · Minesweeper · Clicker · Match3
 
-Each lives at `<game>.skillbase.games`. 2048 is the reference implementation and currently hosts the public x402 endpoints; the other five mirror its solo-tournament flow.
+Each lives at `<game>.skillos.games`. 2048 is the reference implementation and currently hosts the public x402 endpoints; the other five mirror its solo-tournament flow.
 
 ## AI features (live across all six games)
 
@@ -92,7 +92,7 @@ Verification: all four contracts verified on **Blockscout** (`https://base-sepol
 
 Other Solidity sources in-tree (not part of the deployed v2.1 stack): `ChallengeEscrow.sol` (async-duel stake escrow, currently paused), `SkillbaseAnchor.sol` (daily SP-ledger snapshot anchor), `ArcadePool.sol`.
 
-ABIs and address constants are exported from `@skillbase/contracts`.
+ABIs and address constants are exported from `@skillos/contracts`.
 
 **Tests:** 156 Foundry tests passing across 6 test suites (`forge test`). The settle-guard suite is the tripwire for the storage-segregation invariant — extend, don't skip.
 
@@ -116,15 +116,15 @@ ABIs and address constants are exported from `@skillbase/contracts`.
 Two numbering systems coexist in the codebase: a **product roadmap** (Phase 1 → 5, this section) and **engineering-internal contract versions** (v2.0 → v2.1 → v2.2, Smart Contracts section above). Don't reconcile — the audiences differ. See [`CLAUDE.md`](./CLAUDE.md#two-phase-numbering-systems).
 
 - **Phase 1 — Shipped (now).** Testnet on Base Sepolia. Six games, three AI features, on-chain tournament settlement, permissionless sponsor MVP, Blockscout-verified v2.1 stack.
-- **Phase 2 — Mainnet activation (H2 2026, audit-gated).** v2.2 developer fee splitter (on-chain 70/30), `@skillos/sdk` public release, agent player-class API, SkillOS rebrand cutover, sponsor onboarding pipeline. Mainnet contingent on sweepstakes legal review. Public timeline tracks apex (`skillbase-apex`); internal sprints may target tighter dates.
+- **Phase 2 — Mainnet activation (H2 2026, audit-gated).** v2.2 developer fee splitter (on-chain 70/30), `@skillos/sdk` public release, agent player-class API, SkillOS rebrand cutover, sponsor onboarding pipeline. Mainnet contingent on sweepstakes legal review. Public timeline tracks apex (`skillos-apex`); internal sprints may target tighter dates.
 - **Phase 3+ (achievement-gated).** Dispute layer, Emergency Games Fund, ad revenue.
 - **Phase 4+ (achievement-gated, optional).** Substrate-maturity-gated decisions including potential governance token + opt-in data tokenization. Triggers: sustained adoption + regulatory clarity (Howey/MiCA) + organic economy maturity + lawyer review. The SP system can remain off-chain accounting indefinitely if the platform doesn't warrant tokenization. Optionality > obligation.
 - **Phase 5 (vision).** Substrate intelligence — native AI oracle, foundation models trained on anti-cheat-verified decision data.
 
 **Deferred to Phase 2 v2.2 mainnet cutover:**
-- Existing `@skillbase/*` package names remain locked until v2.2 deploy + Vercel project rename + DNS migration
+- Existing `@skillos/*` package names remain locked until v2.2 deploy + Vercel project rename + DNS migration
 - Future packages (e.g., `@skillos/sdk`) will be minted directly under the new namespace at publication time
-- Live `*.skillbase.games` URLs locked until DNS cutover
+- Live `*.skillos.games` URLs locked until DNS cutover
 - `SkillbaseAnchor.sol` and other contract identifier renames locked until v2.2 deploy
 - `apps/2048` x402 paid-API response strings (`via-skillbase` → `via-skillos`) flip with route handler changes
 
@@ -142,7 +142,7 @@ Two numbering systems coexist in the codebase: a **product roadmap** (Phase 1 �
 npm install                                # workspace install (all apps + packages)
 npm run dev                                # turbo runs every app in parallel
 npm run dev:2048                           # 2048 only (convenience alias)
-npm run dev -w @skillbase/app-wordle       # any other game
+npm run dev -w @skillos/app-wordle       # any other game
 ```
 
 Health check (any app, after `dev`): `http://localhost:3000/api/health`.
@@ -188,8 +188,8 @@ Currently private. License decisions deferred to the Phase 2 mainnet / SDK launc
 
 ## Live endpoints + proof
 
-- Production sponsor app: <https://sponsor.skillbase.games>
-- 2048 game + x402 public APIs: <https://2048.skillbase.games>
+- Production sponsor app: <https://sponsor.skillos.games>
+- 2048 game + x402 public APIs: <https://2048.skillos.games>
 - x402 endpoints (Base Sepolia, CDP facilitator): docs at [`apps/2048/src/app/api/public/README.md`](apps/2048/src/app/api/public/README.md), live tx proof at [`reports/x402-live-proof.md`](reports/x402-live-proof.md).
 
 ## Reference docs
@@ -202,8 +202,8 @@ Currently private. License decisions deferred to the Phase 2 mainnet / SDK launc
 
 ## Links
 
-- Live: <https://www.skillbase.games>
-- Sponsor app: <https://sponsor.skillbase.games>
-- Game examples: <https://2048.skillbase.games>, <https://wordle.skillbase.games>
+- Live: <https://www.skillos.games>
+- Sponsor app: <https://sponsor.skillos.games>
+- Game examples: <https://2048.skillos.games>, <https://wordle.skillos.games>
 - X / Twitter: [@SkillOS](https://x.com/SkillOS)
 - Telegram: <https://t.me/Skill_OS>

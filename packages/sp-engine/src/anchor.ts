@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// @skillbase/sp-engine — anchor.ts
+// @skillos/sp-engine — anchor.ts
 //
 // Deterministic SHA-256 canonicalization of the SP ledger for on-chain
 // anchoring via SkillbaseAnchor.anchorSnapshot(timestamp, hash).

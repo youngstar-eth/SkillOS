@@ -19,7 +19,7 @@
 // concurrent runs, and rolls cleanly minute-to-minute.
 // ───────────────────────────────────────────────────────────────────────────
 
-import type { getSupabaseService } from "@skillbase/lib-shared";
+import type { getSupabaseService } from "@skillos/lib-shared";
 
 type SupabaseLike = ReturnType<typeof getSupabaseService>;
 

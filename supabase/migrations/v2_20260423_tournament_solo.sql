@@ -58,7 +58,7 @@ create table if not exists v2_tournament_solo_runs (
   -- verification. Stored now to avoid a later ALTER + backfill.
   game_state_hash text,
   submitted_at timestamptz not null default now(),
-  -- Full anti-cheat verdict blob from @skillbase/ai-coach/anticheat.
+  -- Full anti-cheat verdict blob from @skillos/ai-coach/anticheat.
   plausibility_check jsonb,
   -- Post-submit moderation: set when anti-cheat marks implausible. Settle cron
   -- reads this to decide which runs contribute to best_score on-chain.

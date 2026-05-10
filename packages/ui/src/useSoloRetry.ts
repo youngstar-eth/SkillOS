@@ -38,7 +38,7 @@
 //
 // localStorage scheme (per-tournament, same-device only):
 //
-//   key:   skillbase:pendingSubmit:{tournamentId}
+//   key:   skillos:pendingSubmit:{tournamentId}
 //   value: {
 //     feeTxHash:        Hex | null,    // null on free path
 //     score:            number,        // 0 between pay and game-over
@@ -104,7 +104,7 @@ import {
   TOURNAMENT_POOL_ABI,
   TOURNAMENT_POOL_V2_ADDRESS,
   USDC_ADDRESS,
-} from "@skillbase/contracts";
+} from "@skillos/contracts";
 import { parseWalletError } from "./utils";
 
 // ─── public types ─────────────────────────────────────────────────────────
@@ -180,7 +180,10 @@ interface PendingSubmit {
   gameSlug: string;
 }
 
-const PENDING_PREFIX = "skillbase:pendingSubmit:";
+const PENDING_PREFIX = "skillos:pendingSubmit:";
+// TODO(post-rebrand): remove LEGACY_PREFIX read-fallback after
+// 2026-06-01 (one release cycle from rebrand merge).
+const LEGACY_PREFIX = "skillbase:pendingSubmit:";
 
 function pendingKey(tournamentId: string): string {
   return `${PENDING_PREFIX}${tournamentId}`;
@@ -189,7 +192,17 @@ function pendingKey(tournamentId: string): string {
 function readPending(tournamentId: string): PendingSubmit | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(pendingKey(tournamentId));
+    const newKey = pendingKey(tournamentId);
+    let raw = window.localStorage.getItem(newKey);
+    if (!raw) {
+      // Migrate-on-read from legacy key (rebrand cutover).
+      const legacyKey = `${LEGACY_PREFIX}${tournamentId}`;
+      raw = window.localStorage.getItem(legacyKey);
+      if (raw) {
+        window.localStorage.setItem(newKey, raw);
+        window.localStorage.removeItem(legacyKey);
+      }
+    }
     if (!raw) return null;
     return JSON.parse(raw) as PendingSubmit;
   } catch {

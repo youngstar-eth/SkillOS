@@ -9,7 +9,7 @@
 //   https://docs.base.org/base-account/framework-integrations/wagmi/basenames
 //   requires an Ethereum mainnet PublicClient and warns that public RPCs
 //   can't handle the computational demands of trustless cross-chain
-//   resolution proofs. The skillbase wagmi config is Base Sepolia only and
+//   resolution proofs. The SkillOS wagmi config is Base Sepolia only and
 //   has no mainnet client wired in. Reading L2Resolver.name(reverseNode)
 //   directly on the same chain we already speak avoids the dependency and
 //   matches what OnchainKit's getName helper does internally.

@@ -28,7 +28,7 @@ echo "── dispatching smoke to ${#SUBDOMAINS[@]} subdomains in parallel ─�
 
 for slug in "${SUBDOMAINS[@]}"; do
   (
-    BASE_URL="https://${slug}.skillbase.games" "$SMOKE" \
+    BASE_URL="https://${slug}.skillos.games" "$SMOKE" \
       > "$LOG_DIR/${slug}.log" 2>&1
     echo $? > "$LOG_DIR/${slug}.exit"
   ) &

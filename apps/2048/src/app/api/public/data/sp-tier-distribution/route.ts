@@ -9,7 +9,7 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { getSupabaseService } from "@skillbase/lib-shared";
+import { getSupabaseService } from "@skillos/lib-shared";
 import { withX402 } from "@/lib/x402-handle";
 
 export const runtime = "nodejs";

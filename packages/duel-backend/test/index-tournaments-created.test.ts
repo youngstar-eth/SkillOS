@@ -30,7 +30,7 @@ import {
   runIndexTournamentsCreated,
   type IndexTournamentsCreatedDependencies,
 } from "../src/cron/index-tournaments-created";
-import { TOURNAMENT_POOL_ABI } from "@skillbase/contracts";
+import { TOURNAMENT_POOL_ABI } from "@skillos/contracts";
 
 // ─── Address fixtures ──────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@
 // tournament across multiple sponsorPool() calls.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { getSupabaseService } from "@skillbase/lib-shared";
+import { getSupabaseService } from "@skillos/lib-shared";
 
 interface AggregatedSponsor {
   sponsor_address: string;

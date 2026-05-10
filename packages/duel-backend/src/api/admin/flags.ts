@@ -28,7 +28,7 @@
 // expose the queue on a mis-deployed host.
 //
 // Usage (apps/<game>/src/app/api/admin/flags/route.ts):
-//   export { adminFlagsHandler as GET } from "@skillbase/duel-backend";
+//   export { adminFlagsHandler as GET } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -38,8 +38,8 @@ import type {
   GameType,
   PlausibilityResponse,
   Verdict,
-} from "@skillbase/ai-coach";
-import { getSupabaseService } from "@skillbase/lib-shared";
+} from "@skillos/ai-coach";
+import { getSupabaseService } from "@skillos/lib-shared";
 
 const VALID_GAMES: readonly GameType[] = [
   "game2048",

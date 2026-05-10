@@ -28,12 +28,12 @@ import {
   CHALLENGE_ESCROW_ADDRESS,
   PLAY_WINDOW_MS,
   SUBMIT_GRACE_MS,
-} from "@skillbase/contracts";
-import { checkPlausibility, type GameType } from "@skillbase/ai-coach";
-import type { Verdict } from "@skillbase/sp-engine";
+} from "@skillos/contracts";
+import { checkPlausibility, type GameType } from "@skillos/ai-coach";
+import type { Verdict } from "@skillos/sp-engine";
 import { waitUntil } from "@vercel/functions";
 import { applySPAward } from "./sp/award";
-import type { Duel } from "@skillbase/game-types";
+import type { Duel } from "@skillos/game-types";
 import {
   bytes32FromUuid,
   getPublicClient,
@@ -41,7 +41,7 @@ import {
   getWalletClient,
   signSettleAttestation,
   signWalkoverAttestation,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 import {
   readChallengeGuard,
   type SettleGuardReason,

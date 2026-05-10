@@ -39,7 +39,7 @@
 
 import type { Address } from "viem";
 import { getAddress } from "viem";
-import type { Duel } from "@skillbase/game-types";
+import type { Duel } from "@skillos/game-types";
 
 function normalizeAddress(raw: string | null | undefined): Address {
   if (!raw) throw new Error("decideWinner.normalizeAddress: empty");

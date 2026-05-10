@@ -30,8 +30,8 @@ import { timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { createPublicClient, http, erc20Abi } from "viem";
 import { baseSepolia } from "viem/chains";
-import { getSupabaseService } from "@skillbase/lib-shared";
-import { USDC_ADDRESS } from "@skillbase/contracts";
+import { getSupabaseService } from "@skillos/lib-shared";
+import { USDC_ADDRESS } from "@skillos/contracts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

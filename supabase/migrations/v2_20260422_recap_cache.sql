@@ -16,7 +16,7 @@
 --     "style": "comeback",
 --     "headline": "...",
 --     "narrative": "...",
---     "shareText": "... {url} @skillbase"
+--     "shareText": "... {url} @SkillOS"
 --   }
 --
 -- No index for Phase 1 — reads are always via the PK on duel id, and the

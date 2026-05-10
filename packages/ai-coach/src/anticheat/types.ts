@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-// Public types for the anti-cheat half of @skillbase/ai-coach.
+// Public types for the anti-cheat half of @skillos/ai-coach.
 //
 // Coach  = tactical, private, "here's how you improve".
 // Recap  = dramatic, public, "here's the story of this match".

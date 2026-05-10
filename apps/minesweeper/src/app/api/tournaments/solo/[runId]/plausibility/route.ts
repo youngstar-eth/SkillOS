@@ -1,4 +1,4 @@
-import { soloPlausibilityHandler } from "@skillbase/duel-backend";
+import { soloPlausibilityHandler } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

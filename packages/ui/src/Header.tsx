@@ -30,7 +30,7 @@ export function Header({ brand = "SkillOS" }: HeaderProps) {
     <header className="sticky top-0 z-40 border-b border-border-subtle bg-bg/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link
-          href="https://skillbase.games"
+          href="https://skillos.games"
           className="inline-flex items-center text-fg-1"
         >
           <SkillOSWordmark size={20}>{brand}</SkillOSWordmark>

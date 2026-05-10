@@ -5,7 +5,7 @@
 //
 // Pay-then-play state machine: payment settles BEFORE the game starts.
 // The full state machine + localStorage replay logic lives in the shared
-// useSoloRetry hook (@skillbase/ui). This page is presentation-only.
+// useSoloRetry hook (@skillos/ui). This page is presentation-only.
 //
 // Smart Wallet + EIP-5792 batched paymaster path is deferred to Phase 2 —
 // every wallet uses the legacy useWriteContract approve+chargeRetryFee
@@ -18,7 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { type Hex } from "viem";
 import { useAccount } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PLAY_WINDOW_MS } from "@skillbase/contracts";
+import { PLAY_WINDOW_MS } from "@skillos/contracts";
 import {
   EmbedWalletFallback,
   PopupHint,
@@ -27,7 +27,7 @@ import {
   useIsEmbedded,
   useSoloRetry,
   type SoloEligibility,
-} from "@skillbase/ui";
+} from "@skillos/ui";
 import { GameSudoku } from "@/components/GameSudoku";
 import { AICoach } from "@/components/AICoach";
 import { AIRecap } from "@/components/AIRecap";

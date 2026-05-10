@@ -9,16 +9,16 @@
 // column + filter in queue/status).
 //
 // Usage (apps/<game>/src/app/api/duel/<op>/route.ts):
-//   import { createQueueHandler } from "@skillbase/duel-backend";
+//   import { createQueueHandler } from "@skillos/duel-backend";
 //   export const runtime = "nodejs";
 //   export const POST = createQueueHandler({ gameSlug: GAME_SLUG });
 // ───────────────────────────────────────────────────────────────────────────
 
 import type { NextRequest } from "next/server";
 import { getAddress, type Hex } from "viem";
-import { PLAY_WINDOW_MS, STAKE_AMOUNT, SUBMIT_GRACE_MS } from "@skillbase/contracts";
-import type { Duel } from "@skillbase/game-types";
-import type { GameType } from "@skillbase/ai-coach";
+import { PLAY_WINDOW_MS, STAKE_AMOUNT, SUBMIT_GRACE_MS } from "@skillos/contracts";
+import type { Duel } from "@skillos/game-types";
+import type { GameType } from "@skillos/ai-coach";
 import {
   bytes32FromUuid,
   generateSeed,
@@ -29,7 +29,7 @@ import {
   jsonOk,
   parseAddress,
   sanitizeDuel,
-} from "@skillbase/lib-shared";
+} from "@skillos/lib-shared";
 import { checkAndTriggerWalkover, triggerSettle } from "./settle";
 
 /**
@@ -39,7 +39,7 @@ import { checkAndTriggerWalkover, triggerSettle } from "./settle";
  * write it to a `game_slug` column on v2_duels.
  */
 export interface DuelHandlerConfig {
-  /** bytes32 hex (keccak256 of the game name). See @skillbase/contracts. */
+  /** bytes32 hex (keccak256 of the game name). See @skillos/contracts. */
   gameSlug: Hex;
   /**
    * Optional game-type literal forwarded into settle/walkover hooks for

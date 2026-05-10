@@ -5,7 +5,7 @@
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` when hitting
 // the endpoint. Local/manual triggers must include the same header to pass.
 
-import { runSettleTournaments } from "@skillbase/duel-backend";
+import { runSettleTournaments } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // batch settles can stack up after a deploy
