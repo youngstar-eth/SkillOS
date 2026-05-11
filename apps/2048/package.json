@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
@@ -16,6 +16,7 @@
     "@skillos/duel-backend": "*",
     "@skillos/game-types": "*",
     "@skillos/lib-shared": "*",
+    "@skillos/sdk": "*",
     "@skillos/sp-engine": "*",
     "@skillos/ui": "*",
     "@supabase/supabase-js": "^2.104.0",
