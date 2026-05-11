@@ -1,6 +1,6 @@
 {
   "name": "@skillos/sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Official TypeScript SDK for the SkillOS protocol — typed API client, React hooks, and Base Account SIWB auth.",
   "type": "module",
   "license": "MIT",
