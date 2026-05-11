@@ -1,0 +1,6 @@
+node_modules
+templates/skill-game-scaffold/node_modules
+templates/skill-game-scaffold/dist
+templates/skill-game-scaffold/.vite
+*.tsbuildinfo
+.DS_Store
