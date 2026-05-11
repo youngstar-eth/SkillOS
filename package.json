@@ -19,6 +19,8 @@
     "@buildersgarden/siwa": "0.0.24",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tsx": "^4.21.0",
     "turbo": "^2.3.3",
     "typescript": "^5.6.3"
