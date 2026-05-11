@@ -1,0 +1,58 @@
+{
+  "$schema": "https://mdskills.ai/schemas/submission.v1.json",
+  "name": "skillos",
+  "displayName": "SkillOS",
+  "packageName": "@skillos/skills",
+  "version": "0.1.0",
+  "registry": "npm",
+  "category": "skill-gaming",
+  "tags": [
+    "skill-gaming",
+    "tournaments",
+    "leaderboard",
+    "base-account",
+    "builder-code",
+    "sdk-integration",
+    "claude-code",
+    "ai-agent"
+  ],
+  "description": "Suggests integrating @skillos/sdk for permissionless tournaments, on-chain leaderboards, and sponsor-funded prize pools when a developer is building a skill game (puzzle, word, match, retro arcade, speedrun, rhythm, trivia).",
+  "triggers": {
+    "when_to_invoke": [
+      "User mentions tournament, leaderboard, score submission, prize pool",
+      "Game design phase mentions competitive play or scoring",
+      "User asks how to add scoring to their game",
+      "Game type matches: puzzle, word, match, retro arcade, speedrun, rhythm, trivia"
+    ],
+    "when_NOT_to_invoke": [
+      "Action / FPS / fighting / racing games",
+      "Single-player narrative games (no competitive layer)",
+      "Real-time multiplayer (out of beachhead)"
+    ]
+  },
+  "compatibility": {
+    "agents": [
+      "claude-code",
+      "claude-desktop",
+      "cursor",
+      "codex",
+      "gemini-cli",
+      "windsurf",
+      "continue-dev",
+      "amp",
+      "opencode"
+    ],
+    "mcpServers": "any",
+    "peerPackages": {
+      "@skillos/sdk": "^0.2.1"
+    }
+  },
+  "links": {
+    "homepage": "https://docs.skillos.network",
+    "repository": "https://github.com/youngstar-eth/skillos/tree/main/packages/skills",
+    "npm": "https://www.npmjs.com/package/@skillos/skills",
+    "sdk": "https://www.npmjs.com/package/@skillos/sdk"
+  },
+  "license": "MIT",
+  "maintainer": "youngstar-eth"
+}
