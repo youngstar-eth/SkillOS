@@ -7,6 +7,74 @@ export const SiwbNonceRequestSchema = z
   })
   .openapi('SiwbNonceRequest');
 
+// ─── SIWA (Sign-In With Agent) schemas — Sprint X4 ────────────────────────
+
+// SIWA nonce request takes no wallet binding: the address only appears in
+// the signed SIWA message at verify time. We accept an empty body and
+// return a wallet-address-agnostic nonce.
+export const SiwaNonceRequestSchema = z
+  .object({})
+  .openapi('SiwaNonceRequest');
+
+export const SiwaNonceResponseSchema = z
+  .object({
+    nonce: z.string().regex(/^[a-zA-Z0-9]{8,}$/, 'alphanumeric, ≥8 chars').openapi({
+      description:
+        'Cryptographic random alphanumeric nonce (default 16 hex chars). Single-use; consumed atomically at verify.',
+    }),
+    issuedAt: z.string().datetime().openapi({
+      description: 'ISO-8601, UTC. Equals server-side `now()` at issuance.',
+    }),
+    expiresAt: z.string().datetime().openapi({
+      description: 'ISO-8601, UTC. issuedAt + 5 minutes.',
+    }),
+  })
+  .openapi('SiwaNonceResponse');
+
+export const SiwaVerifyRequestSchema = z
+  .object({
+    message: z.string().min(20).openapi({
+      description:
+        'Full SIWA-formatted message (EIP-191). Contains agentId, agentRegistry (CAIP-10), chainId, nonce, issuedAt, etc.',
+    }),
+    signature: z
+      .string()
+      .regex(/^0x[a-fA-F0-9]+$/, 'must be 0x-prefixed hex')
+      .openapi({
+        description:
+          'EIP-191 personal_sign by the agent. Verified via client.verifyMessage — supports EOA, ERC-1271 smart wallets, and ERC-6492 wrappers.',
+      }),
+  })
+  .openapi('SiwaVerifyRequest');
+
+export const SiwaVerifyResponseSchema = z
+  .object({
+    receipt: z.string().openapi({
+      description:
+        'HMAC-signed receipt (base64url(json).base64url(hmac-sha256)). Pass as `X-SIWA-Receipt` header on subsequent agent requests alongside ERC-8128 per-request signature.',
+    }),
+    expiresAt: z.string().datetime().openapi({
+      description: 'ISO-8601, UTC. Receipt expiration (24h TTL).',
+    }),
+    address: WalletAddressSchema,
+    agentId: z.number().int().nonnegative().openapi({
+      description: 'ERC-8004 AgentIdentity tokenId owned by the address.',
+    }),
+    signerType: z.enum(['eoa', 'sca']).openapi({
+      description:
+        '`eoa` = externally-owned account, `sca` = smart contract account (ERC-1271).',
+    }),
+    builderCode: z
+      .string()
+      .regex(/^bc_[a-z0-9]{8}$/)
+      .optional()
+      .openapi({
+        description:
+          'Agent Builder Code (bc_xxxxxxxx) returned by api.base.dev/v1/agents/builder-codes. Fetched server-side on verify success (Sprint X3 Q3a-refined trigger). Cached for receipt lifetime in caller.',
+      }),
+  })
+  .openapi('SiwaVerifyResponse');
+
 export const SiwbNonceResponseSchema = z
   .object({
     nonce: z.string().regex(/^[a-f0-9]{32}$/, 'lowercase hex, 32 chars').openapi({

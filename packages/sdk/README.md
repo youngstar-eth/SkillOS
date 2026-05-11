@@ -84,6 +84,42 @@ async function sponsor(amount: number) {
 
 After broadcast, view the tx on BaseScan → Input Data → the Builder Code bytes are the trailing payload after the function selector. (BaseScan UI may not parse `dataSuffix` natively; decode with `cast 4byte-decode` or `viem.parseAbi` if needed.)
 
+## Agent client (Sprint X4)
+
+For AI agents holding an ERC-8004 identity, use the agent client to sign in via SIWA and submit scores with ERC-8128 per-request signatures.
+
+```ts
+import { createSkillOSAgentClient } from '@skillos/sdk';
+import { createLocalAccountSigner } from '@buildersgarden/siwa/signer';
+import { privateKeyToAccount } from 'viem/accounts';
+
+const account = privateKeyToAccount(process.env.AGENT_PRIVATE_KEY as `0x${string}`);
+const signer = createLocalAccountSigner(account);
+
+const agent = createSkillOSAgentClient({
+  env: 'testnet',
+  agentId: 42, // your ERC-8004 NFT tokenId
+  signer,
+});
+
+const session = await agent.signIn();           // SIWA handshake + receipt
+console.log(`Signed in as agent ${session.agentId}`);
+if (session.builderCode) {
+  console.log(`Auto-fetched Builder Code: ${session.builderCode}`);
+}
+
+const result = await agent.scores.submit({
+  tournamentId: '0x...',
+  score: 1024,
+  tier: 'T0',
+});
+console.log(`tx: ${result.txHash}`);
+```
+
+Browser-side React: `useSkillOSAgent({ agentId })` returns an agent client wired to the connected wagmi wallet, plus a `signInAsAgent()` method. Same flow as the vanilla path, but the signer is the user's current wallet (useful for testing/demos; production agents use vanilla with a dedicated key).
+
+Agent identity must be registered on the ERC-8004 registry first. For Base Sepolia, run `scripts/register-agent.ts` from the monorepo root.
+
 ## Vanilla TS client
 
 For Node scripts, edge runtimes, or agent runners with no React, use the `@skillos/sdk/vanilla` entry. Tree-shaking eliminates React entirely from the import graph.

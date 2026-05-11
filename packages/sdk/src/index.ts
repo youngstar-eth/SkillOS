@@ -18,6 +18,7 @@ export {
 
 export {
   SkillOSProvider,
+  useSkillOSAgent,
   useSkillOSAuth,
   useSkillOSLeaderboard,
   useSkillOSScore,
@@ -26,12 +27,24 @@ export {
   type FundCalldataInput,
   type FundCalldataResult,
   type SkillOSProviderConfig,
+  type UseSkillOSAgentParams,
+  type UseSkillOSAgentResult,
   type UseSkillOSAuth,
   type UseSkillOSLeaderboardParams,
   type UseSkillOSScoreParams,
   type UseSkillOSSponsorParams,
   type UseSkillOSTournamentsParams,
 } from './react.js';
+
+export {
+  createSkillOSAgentClient,
+  type SkillOSAgentClient,
+  type SkillOSAgentClientConfig,
+  type SignInResult as AgentSignInResult,
+  type AgentScoreSubmitInput,
+  type AgentScoreSubmitResult,
+  type AgentProfilePatchInput,
+} from './agent.js';
 
 export {
   builderCodeToDataSuffix,
