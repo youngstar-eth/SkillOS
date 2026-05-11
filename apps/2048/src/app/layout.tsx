@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Header, Providers, ReadyMarker } from "@skillos/ui";
+import { SkillOSProvider } from "@skillos/sdk/react";
 import { SimplAd } from "@/components/SimplAd";
 import "./globals.css";
 
@@ -39,9 +40,17 @@ export default function RootLayout({
       <body className="min-h-screen antialiased bg-bg text-neutral-100">
         <SimplAd />
         <Providers>
-          <ReadyMarker />
-          <Header brand="SkillOS" />
-          <div className="mx-auto max-w-5xl px-4">{children}</div>
+          <SkillOSProvider
+            config={{
+              env: "testnet",
+              builderCode: "bc_o6szuvg1",
+              persistAuth: "localStorage",
+            }}
+          >
+            <ReadyMarker />
+            <Header brand="SkillOS" />
+            <div className="mx-auto max-w-5xl px-4">{children}</div>
+          </SkillOSProvider>
         </Providers>
       </body>
     </html>
