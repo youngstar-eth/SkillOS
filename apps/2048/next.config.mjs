@@ -30,6 +30,15 @@ const nextConfig = {
       pino: false,
       "pino-pretty": false,
       encoding: false,
+      // @buildersgarden/siwa ships signer factories for Circle, Openfort, Privy
+      // as peer-optional deps. apps/2048's /dev/sdk-demo only uses the wagmi
+      // walletClient signer, so the others can be stubbed at bundle time.
+      "@circle-fin/developer-controlled-wallets": false,
+      "@openfort/openfort-node": false,
+      "@privy-io/server-auth": false,
+      // siwa.dist.identity imports fs for filesystem-backed keystore (server-
+      // side only). Browser bundle doesn't use it; stub the Node built-in.
+      fs: false,
     };
     return config;
   },
