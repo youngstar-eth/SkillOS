@@ -31,7 +31,14 @@ import {
   useAccount,
   useConnect,
   useSignMessage,
+  useWalletClient,
 } from 'wagmi';
+import { createWalletClientSigner } from '@buildersgarden/siwa/signer';
+import {
+  createSkillOSAgentClient,
+  type SkillOSAgentClient,
+  type SignInResult as AgentSignInResult,
+} from './agent.js';
 import {
   createSkillOSClient,
   SkillOSNotSignedInError,
@@ -357,6 +364,132 @@ export interface FundCalldataResult {
     functionName: 'sponsorPool';
     args: readonly [`0x${string}`, bigint];
     dataSuffix: `0x${string}` | undefined;
+  };
+}
+
+// ─── useSkillOSAgent ──────────────────────────────────────────────────────
+//
+// Browser-side agent flow — for testing/demos where the developer signs in
+// AS an agent via their connected wallet. Real agent operators use
+// createSkillOSAgentClient from '@skillos/sdk/vanilla' with a non-wallet
+// signer (private key, Circle, etc.).
+//
+// Receipt persists in memory (not localStorage by default) — agent receipts
+// are short-lived enough that re-signing is cheap, and they're typically
+// per-session, not per-device.
+
+const AGENT_BEARER_STORAGE_KEY = 'skillos.agent.receipt';
+
+interface AgentReceiptSnapshot {
+  receipt: string;
+  expiresAt: number;
+  address: `0x${string}`;
+  agentId: number;
+  builderCode?: string;
+}
+
+export interface UseSkillOSAgentParams {
+  agentId: number;
+  domain?: string;
+  agentRegistry?: `0x${string}`;
+  persistReceipt?: 'localStorage' | false;
+}
+
+export interface UseSkillOSAgentResult {
+  signInAsAgent: () => Promise<AgentSignInResult>;
+  signOut: () => void;
+  client: SkillOSAgentClient | null;
+  isSignedIn: boolean;
+  receipt: AgentReceiptSnapshot | null;
+}
+
+export function useSkillOSAgent(params: UseSkillOSAgentParams): UseSkillOSAgentResult {
+  const { config } = useSkillOSCtx();
+  const { data: walletClient } = useWalletClient();
+  const persist = params.persistReceipt === 'localStorage';
+
+  const [receipt, setReceiptState] = useState<AgentReceiptSnapshot | null>(() => {
+    if (!persist || typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(AGENT_BEARER_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as AgentReceiptSnapshot;
+      if (parsed.expiresAt < Date.now()) {
+        window.localStorage.removeItem(AGENT_BEARER_STORAGE_KEY);
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  });
+
+  const setReceipt = useCallback(
+    (next: AgentReceiptSnapshot | null) => {
+      setReceiptState(next);
+      if (!persist || typeof window === 'undefined') return;
+      if (next) {
+        window.localStorage.setItem(AGENT_BEARER_STORAGE_KEY, JSON.stringify(next));
+      } else {
+        window.localStorage.removeItem(AGENT_BEARER_STORAGE_KEY);
+      }
+    },
+    [persist],
+  );
+
+  useEffect(() => {
+    if (!receipt) return;
+    const ms = receipt.expiresAt - Date.now();
+    if (ms <= 0) {
+      setReceipt(null);
+      return;
+    }
+    const timer = setTimeout(() => setReceipt(null), ms);
+    return () => clearTimeout(timer);
+  }, [receipt, setReceipt]);
+
+  const client = useMemo<SkillOSAgentClient | null>(() => {
+    if (!walletClient) return null;
+    const signer = createWalletClientSigner(walletClient);
+    const c = createSkillOSAgentClient({
+      env: config.env,
+      agentId: params.agentId,
+      signer,
+      ...(config.baseUrl !== undefined && { baseUrl: config.baseUrl }),
+      ...(params.domain !== undefined && { domain: params.domain }),
+      ...(params.agentRegistry !== undefined && { agentRegistry: params.agentRegistry }),
+    });
+    if (receipt) c.setReceipt(receipt);
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletClient, config.env, config.baseUrl, params.agentId, params.domain, params.agentRegistry]);
+
+  const signInAsAgent = useCallback(async () => {
+    if (!client) {
+      throw new Error('SkillOS: useSkillOSAgent requires a connected wagmi wallet client');
+    }
+    const result = await client.signIn();
+    setReceipt({
+      receipt: result.receipt,
+      expiresAt: result.expiresAt,
+      address: result.address,
+      agentId: result.agentId,
+      ...(result.builderCode ? { builderCode: result.builderCode } : {}),
+    });
+    return result;
+  }, [client, setReceipt]);
+
+  const signOut = useCallback(() => {
+    if (client) client.setReceipt({ receipt: '', expiresAt: 0, address: '0x0' as `0x${string}` });
+    setReceipt(null);
+  }, [client, setReceipt]);
+
+  return {
+    signInAsAgent,
+    signOut,
+    client,
+    isSignedIn: !!receipt,
+    receipt,
   };
 }
 
