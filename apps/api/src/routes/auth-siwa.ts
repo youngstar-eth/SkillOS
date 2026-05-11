@@ -14,7 +14,10 @@
 //     itself, not first agent-attributed tx).
 
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
-import { generateNonce } from '@buildersgarden/siwa';
+// Subpath import (not barrel): the barrel re-exports signer/index.js which
+// eagerly imports peer-optional wallet SDKs we don't install (@circle-fin/...,
+// @privy-io/node, @openfort/openfort-node) — boom at function cold-start.
+import { generateNonce } from '@buildersgarden/siwa/siwa';
 import { ApiError } from '../middleware/errorEnvelope.js';
 import { ErrorEnvelopeSchema } from '../schemas/common.js';
 import {

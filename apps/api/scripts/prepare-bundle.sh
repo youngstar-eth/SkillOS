@@ -98,6 +98,24 @@ node -e "
   fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
 "
 
+echo "→ verifying critical prod deps landed in bundle"
+# Sparse bundles silently deploy then fail at Vercel's deploy-time file
+# validation with ENOENT on the first missing path in filePathMap.
+REQUIRED_DEPS=(hono viem ethers siwe jose @adraffy/ens-normalize @supabase/supabase-js)
+MISSING_DEPS=()
+for dep in "${REQUIRED_DEPS[@]}"; do
+  if [ ! -d "$FUNC_DIR/node_modules/$dep" ]; then
+    MISSING_DEPS+=("$dep")
+  fi
+done
+if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+  echo "ERROR: function bundle missing critical deps: ${MISSING_DEPS[*]}" >&2
+  echo "  Check 'npm ls --omit=dev --all --parseable' output from \$APP_ROOT" >&2
+  echo "  and the awk filter at the top of this script." >&2
+  exit 1
+fi
+echo "✓ all ${#REQUIRED_DEPS[@]} critical deps verified"
+
 echo "✓ Bundle ready at $FUNC_DIR"
 echo "  Size: $(du -sh "$FUNC_DIR" | cut -f1)"
 echo

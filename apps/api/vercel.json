@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "cd ../.. && npm install",
+  "installCommand": "cd ../.. && npm install -w apps/api --include-workspace-root",
   "buildCommand": "echo 'no build step — TypeScript bundled by @vercel/node'",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api" }

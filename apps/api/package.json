@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "smoke": "tsx test/smoke.ts",
     "smoke:x2": "tsx test/smoke-x2.ts",
-    "build:vercel": "scripts/prepare-bundle.sh"
+    "build:vercel": "scripts/prepare-bundle.sh",
+    "deploy:prod": "npm run build:vercel && vercel deploy --prebuilt --prod --archive=tgz"
   },
   "dependencies": {
     "@buildersgarden/siwa": "0.0.24",
