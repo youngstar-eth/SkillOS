@@ -227,7 +227,7 @@ Higher tier → higher SP credit, larger prize pool eligibility, AI lab data lic
 ✅ **Builder Codes flow:**
 
 1. Game dev passes their human Builder Code in `<SkillOSProvider config={{ builderCode }}>`. Code wired via `dataSuffix` capability.
-2. Agent operator: SDK auto-registers via `POST https://api.base.dev/v1/agents/builder-codes` on first agent-attributed transaction (idempotent). Code cached locally (`~/.skillos/agent-builder-code.json`).
+2. Agent operator: server-side, `/v1/auth/siwa/verify` calls `POST https://api.base.dev/v1/agents/builder-codes` on a successful SIWA sign-in (idempotent), folding the fetch into the auth round-trip so no follow-up call is needed. The `builderCode` is returned alongside the receipt in the `SiwaVerifyResponse` body and cached client-side for the receipt lifetime (24h). Best-effort: a `api.base.dev` outage logs a warning but does not block sign-in — attribution is a secondary concern. (Refinement of the earlier "first agent-attributed transaction" trigger, locked Sprint X4 Q3a' on 2026-05-11.)
 3. SDK never strips an existing dataSuffix. If both human and agent codes are present, agent code wins (transaction is agent-originated).
 
 ⏳ **Sub-accounts integration (Phase 3+):** automated agent loops use sub-accounts for zero-prompt re-authorizations. Not in v0.1 SDK.
