@@ -3,7 +3,9 @@ import { cors } from 'hono/cors';
 import { stringify as yamlStringify } from './lib/yaml.js';
 import { errorHandler, notFound } from './middleware/errorEnvelope.js';
 import { requestId } from './middleware/requestId.js';
+import { agentRoutes } from './routes/agents.js';
 import { authRoutes } from './routes/auth.js';
+import { authSiwaRoutes } from './routes/auth-siwa.js';
 import { healthRoutes } from './routes/health.js';
 import { scoreRoutes } from './routes/scores.js';
 import { sponsorRoutes } from './routes/sponsors.js';
@@ -19,8 +21,17 @@ app.use(
   '*',
   cors({
     origin: '*',
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-Id',
+      // SIWA + ERC-8128 headers (Sprint X4).
+      'X-SIWA-Receipt',
+      'Signature',
+      'Signature-Input',
+      'Content-Digest',
+    ],
     exposeHeaders: [
       'X-Request-Id',
       'X-RateLimit-Reset',
@@ -40,11 +51,24 @@ app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
   description: 'Bearer JWT issued by POST /v1/auth/siwb/verify (24h TTL).',
 });
 
+// SIWA receipt + ERC-8128 per-request signature scheme — agent endpoints.
+// Receipt carried as X-SIWA-Receipt header; write endpoints additionally
+// require Signature + Signature-Input + Content-Digest (RFC 9421 / ERC-8128).
+app.openAPIRegistry.registerComponent('securitySchemes', 'siwaReceipt', {
+  type: 'apiKey',
+  in: 'header',
+  name: 'X-SIWA-Receipt',
+  description:
+    'Opaque HMAC-signed receipt issued by POST /v1/auth/siwa/verify (24h TTL). On write endpoints (POST /v1/agents/scores, PATCH /v1/agents/profile), MUST be accompanied by ERC-8128 request signature headers.',
+});
+
 app.route('/', healthRoutes);
 app.route('/', authRoutes);
+app.route('/', authSiwaRoutes);
 app.route('/', tournamentRoutes);
 app.route('/', scoreRoutes);
 app.route('/', sponsorRoutes);
+app.route('/', agentRoutes);
 
 // ─── OpenAPI 3.1 spec endpoints ───────────────────────────────────────────
 
