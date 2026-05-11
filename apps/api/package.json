@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "smoke": "tsx test/smoke.ts",
     "smoke:x2": "tsx test/smoke-x2.ts",
+    "smoke:x5": "tsx test/smoke-x5.ts",
     "build:vercel": "scripts/prepare-bundle.sh",
     "deploy:prod": "npm run build:vercel && vercel deploy --prebuilt --prod --archive=tgz"
   },
@@ -17,6 +18,9 @@
     "@buildersgarden/siwa": "0.0.24",
     "@hono/zod-openapi": "^1.4.0",
     "@supabase/supabase-js": "^2.105.0",
+    "@x402/core": "^2.11.0",
+    "@x402/evm": "^2.11.0",
+    "@x402/hono": "^2.11.0",
     "dotenv": "^16.4.7",
     "ethers": "^6.16.0",
     "hono": "^4.12.0",
