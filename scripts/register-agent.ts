@@ -2,9 +2,8 @@
 //
 // scripts/register-agent.ts — register an agent on Base Sepolia ERC-8004.
 //
-// Wraps @buildersgarden/siwa/registry.registerAgent for the SkillOS flow.
-// Reads a private key from REGISTER_AGENT_PRIVATE_KEY env, builds an inline
-// data: URL AgentMetadata, and broadcasts the register(agentURI) transaction.
+// Calls the IdentityRegistry's register(agentURI) function via viem.writeContract,
+// then parses the Registered event from the receipt to extract agentId.
 //
 // Founder usage:
 //   REGISTER_AGENT_PRIVATE_KEY=0xabc... tsx scripts/register-agent.ts \
@@ -15,18 +14,57 @@
 // Output: the agentId (ERC-8004 NFT tokenId) — pass to createSkillOSAgentClient
 // or useSkillOSAgent on subsequent SIWA sign-ins.
 //
-// Per Sprint X4 scope-addition note: this script formalizes "manual ERC-8004
-// onboarding scripted" from the X4 lock criteria. Production agents may
-// alternatively register via the 8004scan.io UI.
+// Why direct viem and NOT @buildersgarden/siwa/registry.registerAgent:
+//   The library helper kept opening signer-interface mismatch surfaces — three
+//   distinct failure modes in two days (barrel cascade pulling signer/circle.js,
+//   "signer.getAddress is not a function" when passing a viem WalletClient, then
+//   "maxFeePerGas is not a valid Legacy Transaction attribute" when wrapping
+//   the account in an inline signer). Each "fix" opened a new layer because the
+//   helper's signer abstraction sits between two stable APIs (the lib's ethers-
+//   shaped TransactionSigner interface, and viem's account/walletClient shape)
+//   without an adapter that handles either cleanly. Direct contract-write is
+//   the canonical, stable pattern; the helper is bypassed entirely.
+//
+// Library footprint kept: only the AgentMetadata type (compile-time erased).
+// SIWA + ERC-8128 flows in scripts/agent-smoke.mjs still use the library's
+// /siwa + /erc8128 subpaths — those are clean.
 
 import { parseArgs } from 'node:util';
-import { registerAgent, type AgentMetadata } from '@buildersgarden/siwa/registry';
-import { createWalletClient, http } from 'viem';
+import type { AgentMetadata } from '@buildersgarden/siwa/registry';
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseEventLogs,
+} from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia } from 'viem/chains';
 
 const BASE_SEPOLIA_CHAIN_ID = 84532;
 const DEFAULT_RPC = 'https://sepolia.base.org';
+const ERC8004_REGISTRY_ADDRESS = '0x8004A818BFB912233c491871b3d84c89A494BD9e' as const;
+
+// Minimal ERC-8004 IdentityRegistry ABI — register fn + Registered event.
+// Schema lifted verbatim from @buildersgarden/siwa/dist/registry.js so the
+// function/event selectors match what the on-chain contract emits.
+const IDENTITY_REGISTRY_ABI = [
+  {
+    name: 'register',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'agentURI', type: 'string' }],
+    outputs: [{ name: 'agentId', type: 'uint256' }],
+  },
+  {
+    name: 'Registered',
+    type: 'event',
+    inputs: [
+      { name: 'agentId', type: 'uint256', indexed: true },
+      { name: 'agentURI', type: 'string', indexed: false },
+      { name: 'owner', type: 'address', indexed: true },
+    ],
+  },
+] as const;
 
 function usage(exitCode = 0): never {
   console.error(
@@ -71,6 +109,11 @@ if (!pk || !/^0x[a-fA-F0-9]{64}$/.test(pk)) {
 
 const account = privateKeyToAccount(pk as `0x${string}`);
 const rpcUrl = values.rpc ?? process.env.BASE_SEPOLIA_RPC_URL ?? DEFAULT_RPC;
+
+const publicClient = createPublicClient({
+  chain: baseSepolia,
+  transport: http(rpcUrl),
+});
 const walletClient = createWalletClient({
   account,
   chain: baseSepolia,
@@ -82,7 +125,7 @@ const metadata: AgentMetadata = {
   name: values.name!,
   description: values.description!,
   image: values.image ?? 'https://skillos.network/agent-default.png',
-  services: [{ type: 'web', endpoint: values.endpoint! } as AgentMetadata['services'][number]],
+  services: [{ name: 'web', endpoint: values.endpoint! }],
   active: true,
   supportedTrust: ['reputation'],
 };
@@ -93,27 +136,47 @@ async function main(): Promise<void> {
   console.log('[register-agent] account:    ', account.address);
   console.log('[register-agent] chainId:    ', BASE_SEPOLIA_CHAIN_ID);
   console.log('[register-agent] rpcUrl:     ', rpcUrl);
+  console.log('[register-agent] registry:   ', ERC8004_REGISTRY_ADDRESS);
   console.log('[register-agent] agentURI:   ', agentURI.slice(0, 80) + '... (truncated)');
   console.log('[register-agent] metadata:   ', JSON.stringify(metadata));
   console.log('[register-agent] broadcasting register(agentURI)...');
 
-  const result = await registerAgent({
-    agentURI,
-    chainId: BASE_SEPOLIA_CHAIN_ID,
-    rpcUrl,
-    signer: walletClient,
+  const txHash = await walletClient.writeContract({
+    address: ERC8004_REGISTRY_ADDRESS,
+    abi: IDENTITY_REGISTRY_ABI,
+    functionName: 'register',
+    args: [agentURI],
   });
+  console.log('[register-agent] txHash:     ', txHash);
+  console.log('[register-agent] waiting for receipt...');
+
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+  if (receipt.status !== 'success') {
+    throw new Error(`register tx reverted: ${txHash}`);
+  }
+
+  const logs = parseEventLogs({
+    abi: IDENTITY_REGISTRY_ABI,
+    logs: receipt.logs,
+    eventName: 'Registered',
+  });
+  if (logs.length === 0) {
+    throw new Error(`register tx ${txHash} succeeded but emitted no Registered event`);
+  }
+  const { agentId, owner } = logs[0]!.args;
+  const agentRegistry = `eip155:${BASE_SEPOLIA_CHAIN_ID}:${ERC8004_REGISTRY_ADDRESS}`;
 
   console.log('');
   console.log('[register-agent] ✓ registered');
-  console.log('  agentId:         ', result.agentId);
-  console.log('  registry:        ', result.registryAddress);
-  console.log('  agentRegistry:   ', result.agentRegistry);
-  console.log('  txHash:          ', result.txHash);
+  console.log('  agentId:         ', agentId.toString());
+  console.log('  registry:        ', ERC8004_REGISTRY_ADDRESS);
+  console.log('  agentRegistry:   ', agentRegistry);
+  console.log('  owner:           ', owner);
+  console.log('  txHash:          ', txHash);
   console.log('');
   console.log('Next:');
-  console.log(`  - Set agentId=${result.agentId} in your useSkillOSAgent / createSkillOSAgentClient config.`);
-  console.log(`  - BaseScan: https://sepolia.basescan.org/tx/${result.txHash}`);
+  console.log(`  - Set agentId=${agentId} in your useSkillOSAgent / createSkillOSAgentClient config.`);
+  console.log(`  - BaseScan: https://sepolia.basescan.org/tx/${txHash}`);
 }
 
 main().catch((err: unknown) => {

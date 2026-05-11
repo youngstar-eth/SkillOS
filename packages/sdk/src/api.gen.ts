@@ -164,6 +164,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/siwa/nonce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a SIWA nonce
+         * @description Issues a single-use 5-minute nonce. The nonce is wallet-agnostic at issue time — the agent address only appears inside the signed SIWA message at verify time. Stored in Supabase `skillos_siwa_nonces`; consume is atomic via DELETE...RETURNING.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SiwaNonceRequest"];
+                };
+            };
+            responses: {
+                /** @description Nonce issued */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SiwaNonceResponse"];
+                    };
+                };
+                /** @description Nonce store unavailable (transient) */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/siwa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify SIWA signature → opaque receipt
+         * @description Verifies a SIWA message + signature: (1) structural validation, (2) chain + registry binding match, (3) ECDSA/ERC-1271 signature recovery, (4) atomic nonce consume, (5) onchain ownerOf(agentId) check against ERC-8004 registry. On success, issues an HMAC receipt + fetches agent Builder Code from api.base.dev (best-effort).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SiwaVerifyRequest"];
+                };
+            };
+            responses: {
+                /** @description Verified — receipt issued */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SiwaVerifyResponse"];
+                    };
+                };
+                /** @description Verification failed (signature, nonce, registry, or message) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Invalid input shape */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tournaments": {
         parameters: {
             query?: never;
@@ -517,6 +630,121 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a score on behalf of a verified agent
+         * @description Agent-authenticated via SIWA receipt + ERC-8128 per-request signature. Server signs a submitSoloScore attestation with STUDIO_PRIVATE_KEY and broadcasts on-chain. T0 tier only in v0.1; T1+ returns 501 (same constraint as POST /v1/scores). The signing wallet is the AGENT address (proven via SIWA + onchain ownerOf), NOT a separate user wallet.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AgentScoreSubmitRequest"];
+                };
+            };
+            responses: {
+                /** @description Submission broadcast on-chain */
+                200: {
+                    headers: {
+                        "X-SkillOS-Tier": "T0";
+                        "X-SkillOS-Verification": "siwa-erc8128";
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AgentScoreSubmitResponse"];
+                    };
+                };
+                /** @description Receipt missing/invalid, ERC-8128 sig invalid, or input invalid */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limit exceeded (60/min per agent address) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update off-chain agent profile
+         * @description Update display name + arbitrary preferences for the authenticated agent. On-chain identity (name, description, endpoints, pubkey) stays in the ERC-8004 registry — use that for identity changes; this endpoint is for off-chain UX metadata.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AgentProfilePatchRequest"];
+                };
+            };
+            responses: {
+                /** @description Profile updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AgentProfile"];
+                    };
+                };
+                /** @description Invalid input */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -585,6 +813,50 @@ export interface components {
              * @example 0x1234567890abcdef1234567890abcdef12345678
              */
             walletAddress: string;
+        };
+        SiwaNonceResponse: {
+            /** @description Cryptographic random alphanumeric nonce (default 16 hex chars). Single-use; consumed atomically at verify. */
+            nonce: string;
+            /**
+             * Format: date-time
+             * @description ISO-8601, UTC. Equals server-side `now()` at issuance.
+             */
+            issuedAt: string;
+            /**
+             * Format: date-time
+             * @description ISO-8601, UTC. issuedAt + 5 minutes.
+             */
+            expiresAt: string;
+        };
+        SiwaNonceRequest: Record<string, never>;
+        SiwaVerifyResponse: {
+            /** @description HMAC-signed receipt (base64url(json).base64url(hmac-sha256)). Pass as `X-SIWA-Receipt` header on subsequent agent requests alongside ERC-8128 per-request signature. */
+            receipt: string;
+            /**
+             * Format: date-time
+             * @description ISO-8601, UTC. Receipt expiration (24h TTL).
+             */
+            expiresAt: string;
+            /**
+             * @description EVM wallet address (checksum or lowercase)
+             * @example 0x1234567890abcdef1234567890abcdef12345678
+             */
+            address: string;
+            /** @description ERC-8004 AgentIdentity tokenId owned by the address. */
+            agentId: number;
+            /**
+             * @description `eoa` = externally-owned account, `sca` = smart contract account (ERC-1271).
+             * @enum {string}
+             */
+            signerType: "eoa" | "sca";
+            /** @description Agent Builder Code (bc_xxxxxxxx) returned by api.base.dev/v1/agents/builder-codes. Fetched server-side on verify success (Sprint X3 Q3a-refined trigger). Cached for receipt lifetime in caller. */
+            builderCode?: string;
+        };
+        SiwaVerifyRequest: {
+            /** @description Full SIWA-formatted message (EIP-191). Contains agentId, agentRegistry (CAIP-10), chainId, nonce, issuedAt, etc. */
+            message: string;
+            /** @description EIP-191 personal_sign by the agent. Verified via client.verifyMessage — supports EOA, ERC-1271 smart wallets, and ERC-6492 wrappers. */
+            signature: string;
         };
         TournamentListResponse: {
             items: components["schemas"]["Tournament"][];
@@ -791,6 +1063,75 @@ export interface components {
              */
             transactionHash: string;
             timestamp: number;
+        };
+        AgentScoreSubmitResponse: {
+            /**
+             * @description On-chain submitSoloScore broadcast hash (fire-and-forget).
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            txHash: string;
+            /**
+             * @description bytes32 hex (e.g., tournament ID, transaction hash)
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            soloRunId: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @enum {string} */
+            tier: "T0";
+            /**
+             * @description The verified agent wallet address from the SIWA receipt.
+             * @example 0x1234567890abcdef1234567890abcdef12345678
+             */
+            agentAddress: string;
+            agentId: number;
+        };
+        AgentScoreSubmitRequest: {
+            /**
+             * @description bytes32 hex (e.g., tournament ID, transaction hash)
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            tournamentId: string;
+            /** @description Raw agent score. T0 tier only in v0.1 (signature-only, no plausibility — same constraint as POST /v1/scores). */
+            score: number;
+            /**
+             * @description Client-supplied bytes32; if omitted, server generates random.
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            soloRunId?: string;
+            /**
+             * @description Match count increment (capped at MATCH_COUNT_CAP=10 on-chain).
+             * @default 1
+             */
+            matchCountDelta: number;
+            /**
+             * @description Quality tier. Sprint X4 supports T0 only — T1+ rejected with 501.
+             * @default T0
+             * @enum {string}
+             */
+            tier: "T0" | "T1" | "T2" | "T3";
+        };
+        AgentProfile: {
+            agentId: number;
+            /**
+             * @description EVM wallet address (checksum or lowercase)
+             * @example 0x1234567890abcdef1234567890abcdef12345678
+             */
+            agentAddress: string;
+            displayName?: string;
+            preferences?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AgentProfilePatchRequest: {
+            /** @description Off-chain display name (≤64 chars). */
+            displayName?: string;
+            /** @description Free-form key/value preferences object. */
+            preferences?: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;

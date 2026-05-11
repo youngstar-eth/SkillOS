@@ -33,7 +33,7 @@ import {
   useSignMessage,
   useWalletClient,
 } from 'wagmi';
-import { createWalletClientSigner } from '@buildersgarden/siwa/signer';
+import type { WalletClient } from 'viem';
 import {
   createSkillOSAgentClient,
   type SkillOSAgentClient,
@@ -364,6 +364,40 @@ export interface FundCalldataResult {
     functionName: 'sponsorPool';
     args: readonly [`0x${string}`, bigint];
     dataSuffix: `0x${string}` | undefined;
+  };
+}
+
+// Inline createWalletClientSigner — matches @buildersgarden/siwa's signer
+// interface (getAddress + signMessage + signRawMessage). Inlined to avoid
+// importing from '@buildersgarden/siwa/signer', which transitively
+// re-exports signer/circle.js + signer/privy.js + signer/openfort.js — each
+// statically imports a peer-optional wallet SDK we don't ship. Inline keeps
+// the SDK consumable in Node without those optional peers installed.
+// Source equivalent to dist/signer/wallet-client.js in the upstream lib.
+function createWalletClientSigner(
+  client: WalletClient,
+  accountAddress?: `0x${string}`,
+) {
+  const resolveAccount = async (): Promise<`0x${string}`> => {
+    if (accountAddress) return accountAddress;
+    const addresses = await client.getAddresses();
+    if (!addresses || addresses.length === 0) {
+      throw new Error('No address found in wallet');
+    }
+    return addresses[0]!;
+  };
+  return {
+    async getAddress() {
+      return resolveAccount();
+    },
+    async signMessage(message: string) {
+      const addr = await resolveAccount();
+      return client.signMessage({ account: addr, message });
+    },
+    async signRawMessage(rawHex: `0x${string}`) {
+      const addr = await resolveAccount();
+      return client.signMessage({ account: addr, message: { raw: rawHex } });
+    },
   };
 }
 

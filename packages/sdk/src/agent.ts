@@ -15,7 +15,11 @@
 //
 // Browser/React consumers use useSkillOSAgent from '@skillos/sdk/react'.
 
-import { signSIWAMessage } from '@buildersgarden/siwa';
+// Subpath import (not barrel): the barrel re-exports signer/index.js which
+// eagerly imports peer-optional wallet SDKs (@circle-fin/developer-controlled-
+// wallets, @privy-io/node, @openfort/openfort-node) — SDK consumers that
+// don't install these would hit ERR_MODULE_NOT_FOUND at cold-start.
+import { signSIWAMessage } from '@buildersgarden/siwa/siwa';
 import type { Signer as SiwaSigner } from '@buildersgarden/siwa/signer';
 import { signAuthenticatedRequest } from '@buildersgarden/siwa/erc8128';
 import { SkillOSApiError } from './vanilla.js';
