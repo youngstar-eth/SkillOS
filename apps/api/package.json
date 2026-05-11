@@ -13,6 +13,7 @@
     "build:vercel": "scripts/prepare-bundle.sh"
   },
   "dependencies": {
+    "@buildersgarden/siwa": "0.0.24",
     "@hono/zod-openapi": "^1.4.0",
     "@supabase/supabase-js": "^2.105.0",
     "dotenv": "^16.4.7",
