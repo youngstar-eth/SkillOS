@@ -15,7 +15,12 @@
 // On success, returns the structured agent fields the caller uses to mint
 // a receipt via @buildersgarden/siwa/receipt createReceipt.
 
-import { verifySIWA, parseSIWAMessage, type SIWAVerificationResult } from '@buildersgarden/siwa';
+// Import from the /siwa subpath rather than the barrel. The barrel re-exports
+// signer/index.js, which eagerly imports peer-optional wallet SDKs
+// (@circle-fin/developer-controlled-wallets, @privy-io/node, @openfort/openfort-node)
+// that we don't install — ESM static resolution fails at module load with
+// ERR_MODULE_NOT_FOUND. The /siwa subpath exposes the verification core only.
+import { verifySIWA, parseSIWAMessage, type SIWAVerificationResult } from '@buildersgarden/siwa/siwa';
 import type { Address, Hex, PublicClient } from 'viem';
 import { getPublicClient } from './viem.js';
 import { createSupabaseSIWANonceStore } from './siwa-nonce-store.js';
