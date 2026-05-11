@@ -21,6 +21,8 @@ Stack: **Hono** + **@hono/zod-openapi** (OpenAPI 3.1) + **Zod** + **viem** on Ve
 | **POST** | **`/v1/auth/siwb/nonce`** | — | issue 5-min SIWE nonce |
 | **POST** | **`/v1/auth/siwb/verify`** | — | verify SIWE → 24h bearer JWT |
 | **POST** | **`/v1/scores`** | **Bearer** | submit score (T0 tier, signature-only) |
+| **GET** | **`/v1/data/match-replay/:id`** | **x402** ($0.01) | tournament match replay (T2 tier) |
+| **GET** | **`/v1/data/cohort-snapshot`** | **x402** ($0.10) | aggregated cohort statistics (T3 tier) |
 | GET | `/openapi.yaml` | — | OpenAPI 3.1 spec (YAML) |
 | GET | `/openapi.json` | — | OpenAPI 3.1 spec (JSON) |
 | GET | `/docs` | — | Stoplight Elements documentation UI |
@@ -128,6 +130,91 @@ Game-app frontends (`2048.skillos.games`, `wordle.skillos.games`, etc.) keep usi
 | 400 | `AUTH_BEARER_EXPIRED` | JWT past `exp` claim (re-sign SIWE for fresh token) |
 | 400 | `RATE_LIMITED` | 60/min per-wallet cap exceeded on `/v1/scores` |
 | 400 | `TIER_NOT_IMPLEMENTED` | Submission tier T1+ requested (only T0 in X2) |
+
+## x402 paywalled data tier (X5)
+
+Two endpoints under `/v1/data/*` are gated by the [x402 protocol](https://docs.cdp.coinbase.com/x402/welcome) — HTTP-native USDC micropayments on Base Sepolia. Testnet uses the public [x402.org facilitator](https://x402.org/facilitator) (no signup); mainnet path swaps to the CDP facilitator in Phase 2.
+
+| Path | Tier | Price | Asset | Network |
+|---|---|---|---|---|
+| `GET /v1/data/match-replay/:id` | T2 | $0.01 USDC | `0x036C…F7e` | `eip155:84532` |
+| `GET /v1/data/cohort-snapshot` | T3 | $0.10 USDC | `0x036C…F7e` | `eip155:84532` |
+
+### Flow
+
+```bash
+# 1. Unauthenticated request → HTTP 402 with PAYMENT-REQUIRED header
+curl -sS -i 'https://api.skillos.network/v1/data/match-replay/0xabcd...1234'
+# HTTP/2 402
+# PAYMENT-REQUIRED: <base64-encoded JSON, see X402PaymentRequirements schema>
+# Content-Type: application/json
+#
+# {}    (empty body; payment requirements live in the header per x402 v2)
+
+# Decode the PAYMENT-REQUIRED header to inspect the requirements
+curl -sS -i 'https://api.skillos.network/v1/data/match-replay/0xabcd...1234' \
+  | awk 'tolower($1) == "payment-required:" { print $2 }' \
+  | tr -d '\r' \
+  | base64 -d \
+  | jq
+# → {
+#     "x402Version": 2,
+#     "error": "Payment required",
+#     "resource": {
+#       "url": "https://api.skillos.network/v1/data/match-replay/0xabcd...1234",
+#       "description": "Tournament match event replay (T2 tier data).",
+#       "mimeType": "application/json"
+#     },
+#     "accepts": [{
+#       "scheme": "exact",
+#       "network": "eip155:84532",
+#       "amount": "10000",
+#       "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+#       "payTo": "0x<X402_RECEIVER_ADDRESS>",
+#       "maxTimeoutSeconds": 300,
+#       "extra": { "name": "USDC", "version": "2" }
+#     }]
+#   }
+
+# 2. Client signs an EIP-3009 USDC transferWithAuthorization for the requested
+#    amount, base64-encodes the signed payload, and retries with PAYMENT-SIGNATURE.
+#    Easy paths for clients:
+#      - Node:    @x402/axios (auto handles 402 → sign → retry)
+#      - Browser: @coinbase/cdp-sdk wallet methods
+#      - MCP:     `npx @coinbase/payments-mcp` Claude Desktop client
+curl -sS 'https://api.skillos.network/v1/data/match-replay/0xabcd...1234' \
+  -H "PAYMENT-SIGNATURE: <base64-encoded signed payload>"
+# HTTP/2 200
+# X-SkillOS-Tier: T2
+# X-SkillOS-Verification: x402
+#
+# { "tournamentId": "0xabcd...", "tier": "T2", "entries": [...], "sampleData": true }
+```
+
+The `@x402/axios` reference client and the [Coinbase x402 MCP server](https://docs.cdp.coinbase.com/x402/mcp-server) both implement the 402-handshake automatically — direct curl is shown above purely to illustrate the wire-level shape.
+
+### Phase 1 stub disclosure
+
+Responses currently include `sampleData: true` — match-replay entries are hash-derived from the tournament id (so each id produces plausibly-different output for buyer testing) and the cohort snapshot is a fixed plausible aggregate. Real per-submission data lands once the indexer captures per-submission seed + duration alongside `ScoreSubmitted` events; the response shape is the long-term contract.
+
+### Environment
+
+| Var | Required | Purpose |
+|---|---|---|
+| `X402_RECEIVER_ADDRESS` | **yes** | Fresh testnet wallet (zero on-chain history) that receives USDC payments. NEVER reuse trustedSigner / sponsor / deployer / agent test addresses. |
+| `X402_FACILITATOR_URL` | optional | Defaults to `https://x402.org/facilitator`. Override for mainnet (`https://api.cdp.coinbase.com/platform/v2/x402`) once Phase 2 lands. |
+
+Provision in Vercel (founder action; agent does not see private key):
+
+```bash
+# Address-only — paste the `cast wallet new` address (NOT the private key)
+vercel env add X402_RECEIVER_ADDRESS production --scope simpl3s-projects
+vercel env add X402_RECEIVER_ADDRESS preview --scope simpl3s-projects
+
+# Facilitator URL (uses default if omitted; explicit is clearer)
+echo 'https://x402.org/facilitator' | vercel env add X402_FACILITATOR_URL production --scope simpl3s-projects
+echo 'https://x402.org/facilitator' | vercel env add X402_FACILITATOR_URL preview --scope simpl3s-projects
+```
 
 ## Local development
 

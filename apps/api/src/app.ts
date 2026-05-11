@@ -1,11 +1,13 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
+import { getX402Middleware } from './lib/x402.js';
 import { stringify as yamlStringify } from './lib/yaml.js';
 import { errorHandler, notFound } from './middleware/errorEnvelope.js';
 import { requestId } from './middleware/requestId.js';
 import { agentRoutes } from './routes/agents.js';
 import { authRoutes } from './routes/auth.js';
 import { authSiwaRoutes } from './routes/auth-siwa.js';
+import { dataRoutes } from './routes/data.js';
 import { healthRoutes } from './routes/health.js';
 import { scoreRoutes } from './routes/scores.js';
 import { sponsorRoutes } from './routes/sponsors.js';
@@ -31,16 +33,29 @@ app.use(
       'Signature',
       'Signature-Input',
       'Content-Digest',
+      // x402 client retry header (Sprint X5). The legacy `X-PAYMENT`
+      // alias is also accepted by the middleware.
+      'PAYMENT-SIGNATURE',
+      'X-PAYMENT',
     ],
     exposeHeaders: [
       'X-Request-Id',
       'X-RateLimit-Reset',
       'X-SkillOS-Tier',
       'X-SkillOS-Verification',
+      // x402 server response header (Sprint X5). Carries base64-encoded
+      // payment requirements JSON on the 402 response, and the
+      // settlement receipt on the 200 retry.
+      'PAYMENT-REQUIRED',
+      'PAYMENT-RESPONSE',
     ],
     maxAge: 86400,
   }),
 );
+
+// x402 paywall middleware (Sprint X5). Self-scoped to the routes listed in
+// lib/x402.ts (currently /v1/data/*); all other paths pass through to next().
+app.use('*', getX402Middleware());
 
 // Register the JWT bearer security scheme on the OpenAPI registry so it
 // shows up in /docs and clients can discover the auth requirement.
@@ -62,6 +77,17 @@ app.openAPIRegistry.registerComponent('securitySchemes', 'siwaReceipt', {
     'Opaque HMAC-signed receipt issued by POST /v1/auth/siwa/verify (24h TTL). On write endpoints (POST /v1/agents/scores, PATCH /v1/agents/profile), MUST be accompanied by ERC-8128 request signature headers.',
 });
 
+// x402 paywall (Sprint X5) — paid data tier. Client signs an EIP-3009 USDC
+// transfer for the price advertised in the 402 PAYMENT-REQUIRED header,
+// then retries with PAYMENT-SIGNATURE. Testnet facilitator: x402.org.
+app.openAPIRegistry.registerComponent('securitySchemes', 'x402Payment', {
+  type: 'apiKey',
+  in: 'header',
+  name: 'PAYMENT-SIGNATURE',
+  description:
+    'x402 payment signature (EIP-3009 USDC transfer authorization). Initial request returns HTTP 402 with payment requirements in the PAYMENT-REQUIRED response header. Client signs the requested amount and retries with PAYMENT-SIGNATURE. Base Sepolia testnet uses the public x402.org facilitator; USDC contract 0x036CbD53842c5426634e7929541eC2318f3dCF7e.',
+});
+
 app.route('/', healthRoutes);
 app.route('/', authRoutes);
 app.route('/', authSiwaRoutes);
@@ -69,6 +95,7 @@ app.route('/', tournamentRoutes);
 app.route('/', scoreRoutes);
 app.route('/', sponsorRoutes);
 app.route('/', agentRoutes);
+app.route('/', dataRoutes);
 
 // ─── OpenAPI 3.1 spec endpoints ───────────────────────────────────────────
 
