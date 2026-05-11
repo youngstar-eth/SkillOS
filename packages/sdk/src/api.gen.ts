@@ -745,6 +745,118 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/data/match-replay/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tournament match replay (paywalled, T2 tier)
+         * @description Returns per-submission event entries for a tournament — score, seed, duration, on-chain anchor. Replay-verifiable. Costs $0.01 USDC on Base Sepolia via x402; unauthenticated requests receive HTTP 402 with the payment requirements in the `PAYMENT-REQUIRED` response header. Phase 1 returns a hash-derived stubbed sample (`sampleData: true`); shape is the long-term contract.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description bytes32 hex (e.g., tournament ID, transaction hash) */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paid request — match replay payload */
+                200: {
+                    headers: {
+                        "X-SkillOS-Tier": "T2";
+                        "X-SkillOS-Verification": "x402";
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchReplay"];
+                    };
+                };
+                /** @description Payment required. Body is empty per x402 v2; payment requirements are encoded in the `PAYMENT-REQUIRED` response header (base64-encoded JSON matching X402PaymentRequirements). */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["X402PaymentRequirements"];
+                    };
+                };
+                /** @description Invalid tournament id */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data/cohort-snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aggregated cohort snapshot (paywalled, T3 tier)
+         * @description Cross-tournament aggregated statistics — totals, per-game breakdown, agent vs human submission split. Costs $0.10 USDC on Base Sepolia via x402; unauthenticated requests receive HTTP 402 with the payment requirements in the `PAYMENT-REQUIRED` response header. Phase 1 returns a fixed plausible sample (`sampleData: true`); shape is the long-term contract.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paid request — cohort snapshot payload */
+                200: {
+                    headers: {
+                        "X-SkillOS-Tier": "T3";
+                        "X-SkillOS-Verification": "x402";
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CohortSnapshot"];
+                    };
+                };
+                /** @description Payment required. Body is empty per x402 v2; payment requirements are encoded in the `PAYMENT-REQUIRED` response header (base64-encoded JSON matching X402PaymentRequirements). */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["X402PaymentRequirements"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1132,6 +1244,158 @@ export interface components {
             preferences?: {
                 [key: string]: unknown;
             };
+        };
+        MatchReplay: {
+            /**
+             * @description bytes32 hex (e.g., tournament ID, transaction hash)
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            tournamentId: string;
+            /**
+             * @description Quality tier (score + seed + duration; replay-verifiable).
+             * @enum {string}
+             */
+            tier: "T2";
+            entries: components["schemas"]["MatchReplayEntry"][];
+            /**
+             * @description True while Phase 1 stub is served; flips to false once the indexer captures per-submission seed + duration.
+             * @example true
+             */
+            sampleData: boolean;
+        };
+        MatchReplayEntry: {
+            /**
+             * @description Ordinal index within the tournament (zero-based).
+             * @example 0
+             */
+            submissionIndex: number;
+            /**
+             * @description EVM wallet address (checksum or lowercase)
+             * @example 0x1234567890abcdef1234567890abcdef12345678
+             */
+            player: string;
+            /**
+             * @description uint256 as decimal string (JSON cannot represent BigInt)
+             * @example 1000000
+             */
+            score: string;
+            /**
+             * @description bytes32 hex (e.g., tournament ID, transaction hash)
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            seed: string;
+            /**
+             * @description Game duration in milliseconds.
+             * @example 47213
+             */
+            durationMs: number;
+            /**
+             * @description On-chain block number for the ScoreSubmitted event.
+             * @example 12345678
+             */
+            blockNumber: number;
+            /**
+             * @description bytes32 hex (e.g., tournament ID, transaction hash)
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            transactionHash: string;
+            /**
+             * @description Unix seconds at block timestamp.
+             * @example 1715000000
+             */
+            timestamp: number;
+        };
+        X402PaymentRequirements: {
+            /** @example 2 */
+            x402Version: number;
+            /** @example Payment required */
+            error?: string;
+            resource: components["schemas"]["X402Resource"];
+            accepts: {
+                /** @example exact */
+                scheme: string;
+                /** @example eip155:84532 */
+                network: string;
+                /**
+                 * @description USDC amount in atomic units (6 decimals).
+                 * @example 10000
+                 */
+                amount: string;
+                /**
+                 * @description USDC contract address for the chosen network.
+                 * @example 0x036CbD53842c5426634e7929541eC2318f3dCF7e
+                 */
+                asset: string;
+                /**
+                 * @description EVM wallet address (checksum or lowercase)
+                 * @example 0x1234567890abcdef1234567890abcdef12345678
+                 */
+                payTo: string;
+                /** @example 300 */
+                maxTimeoutSeconds: number;
+                /** @description Scheme-specific extras (e.g., EIP-712 name + version). */
+                extra?: {
+                    [key: string]: unknown;
+                };
+            }[];
+        };
+        X402Resource: {
+            /** @description Fully-qualified URL of the requested resource. */
+            url: string;
+            /** @example Tournament match event replay (T2 tier data). */
+            description: string;
+            /** @example application/json */
+            mimeType: string;
+        };
+        CohortSnapshot: {
+            /**
+             * @description Unix seconds for the snapshot cut-off.
+             * @example 1715000000
+             */
+            snapshotAt: number;
+            /**
+             * @description Quality tier (aggregated cohort statistics).
+             * @enum {string}
+             */
+            tier: "T3";
+            totals: components["schemas"]["CohortTotals"];
+            byGame: components["schemas"]["CohortGameStats"][];
+            /**
+             * @description True while Phase 1 stub is served; flips to false once the v2_submissions materialised view lands.
+             * @example true
+             */
+            sampleData: boolean;
+        };
+        CohortTotals: {
+            /** @example 24 */
+            tournaments: number;
+            /** @example 1183 */
+            participants: number;
+            /** @example 5921 */
+            submissions: number;
+            /** @example 612 */
+            agentSubmissions: number;
+        };
+        CohortGameStats: {
+            /**
+             * @description Game slug.
+             * @example 2048
+             */
+            game: string;
+            /** @example 412 */
+            participants: number;
+            /** @example 1837 */
+            submissions: number;
+            /**
+             * @description uint256 as decimal string (JSON cannot represent BigInt)
+             * @example 1000000
+             */
+            medianScore: string;
+            /**
+             * @description uint256 as decimal string (JSON cannot represent BigInt)
+             * @example 1000000
+             */
+            p90Score: string;
         };
     };
     responses: never;
