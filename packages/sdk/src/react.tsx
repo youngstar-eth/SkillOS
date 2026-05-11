@@ -239,11 +239,26 @@ export function useSkillOSAuth(): UseSkillOSAuth {
 
   const signOut = useCallback(() => setBearer(null), [setBearer]);
 
+  // Auto-clear the bearer when it crosses expiry. Keeps isSignedIn pure
+  // (React 19's react-hooks/purity rule forbids Date.now() during render).
+  // The timeout fires exactly once when expiry hits; signOut, provider
+  // unmount, and bearer rotation all cancel it via the cleanup return.
+  useEffect(() => {
+    if (!bearer) return;
+    const ms = bearer.expiresAt - Date.now();
+    if (ms <= 0) {
+      setBearer(null);
+      return;
+    }
+    const timer = setTimeout(() => setBearer(null), ms);
+    return () => clearTimeout(timer);
+  }, [bearer, setBearer]);
+
   return {
     signIn,
     signOut,
     address: bearer?.address ?? null,
-    isSignedIn: !!bearer && bearer.expiresAt > Date.now(),
+    isSignedIn: !!bearer,
     expiresAt: bearer?.expiresAt ?? null,
   };
 }
