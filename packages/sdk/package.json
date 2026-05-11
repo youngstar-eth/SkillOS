@@ -1,0 +1,96 @@
+{
+  "name": "@skillos/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the SkillOS protocol — typed API client, React hooks, and Base Account SIWB auth.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://docs.skillos.network",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/youngstar-eth/skillos.git",
+    "directory": "packages/sdk"
+  },
+  "keywords": [
+    "skillos",
+    "base",
+    "ethereum",
+    "wagmi",
+    "siwb",
+    "siwe",
+    "tournament",
+    "sdk"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./react": {
+      "import": "./dist/react.js",
+      "types": "./dist/react.d.ts"
+    },
+    "./vanilla": {
+      "import": "./dist/vanilla.js",
+      "types": "./dist/vanilla.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "generate-types": "tsx scripts/generate-types.ts",
+    "prebuild": "npm run generate-types",
+    "build": "tsup && node scripts/post-build.mjs",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.13.0",
+    "siwe": "^3.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "viem": "^2.0.0",
+    "wagmi": "^2.0.0 || ^3.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@base-org/account": "^1.0.0",
+    "@base-org/account-ui": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@base-org/account": {
+      "optional": true
+    },
+    "@base-org/account-ui": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.99.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "openapi-typescript": "^7.13.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tsup": "^8.3.5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.3",
+    "viem": "^2.48.1",
+    "wagmi": "^3.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
