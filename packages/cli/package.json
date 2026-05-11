@@ -1,0 +1,63 @@
+{
+  "name": "@skillos/cli",
+  "version": "0.1.0",
+  "description": "Official command-line interface for the SkillOS protocol — list tournaments, submit scores, fund prize pools, register ERC-8004 agents, and fetch x402-paywalled tier data from your terminal.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://docs.skillos.network",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/youngstar-eth/skillos.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "skillos",
+    "cli",
+    "base",
+    "x402",
+    "siwa",
+    "siwb",
+    "tournament",
+    "command-line"
+  ],
+  "bin": {
+    "skillos": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@buildersgarden/siwa": "0.0.24",
+    "@skillos/sdk": "^0.2.1",
+    "@x402/axios": "^2.11.0",
+    "@x402/core": "^2.11.0",
+    "@x402/evm": "^2.11.0",
+    "axios": "^1.15.0",
+    "citty": "^0.2.2",
+    "siwe": "^3.0.0",
+    "viem": "^2.48.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
