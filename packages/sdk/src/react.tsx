@@ -557,3 +557,18 @@ export function useSkillOSSponsor(params: UseSkillOSSponsorParams) {
 
   return { fundCalldata, builderCode: config.builderCode ?? null };
 }
+
+// ─── useSkillOSDataSuffix ──────────────────────────────────────────────────
+//
+// Returns the builder-code-encoded hex suffix for the active SkillOSProvider
+// config, or undefined when no `builderCode` is set. Encoding is 11-byte raw
+// ASCII (see contracts.ts builderCodeToDataSuffix). Spread as
+// `...(dataSuffix && { dataSuffix })` into wagmi `writeContract` args to
+// attribute on-chain calls. Useful for write paths that don't go through
+// useSkillOSSponsor.fundCalldata — e.g. chargeRetryFee in @skillos/ui's
+// useSoloRetry.
+
+export function useSkillOSDataSuffix(): `0x${string}` | undefined {
+  const { config } = useSkillOSCtx();
+  return builderCodeToDataSuffix(config.builderCode);
+}

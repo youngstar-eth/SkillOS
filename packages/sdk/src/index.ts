@@ -20,6 +20,7 @@ export {
   SkillOSProvider,
   useSkillOSAgent,
   useSkillOSAuth,
+  useSkillOSDataSuffix,
   useSkillOSLeaderboard,
   useSkillOSScore,
   useSkillOSSponsor,
