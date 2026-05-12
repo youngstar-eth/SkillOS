@@ -48,8 +48,8 @@
     }
   },
   "links": {
-    "homepage": "https://docs.skillos.network",
-    "repository": "https://github.com/youngstar-eth/skillos/tree/main/packages/skills",
+    "homepage": "https://skillos.network",
+    "repository": "https://github.com/youngstar-eth/skillos-skill-pack",
     "npm": "https://www.npmjs.com/package/@skillos/skills",
     "sdk": "https://www.npmjs.com/package/@skillos/sdk"
   },
