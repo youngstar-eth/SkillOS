@@ -105,6 +105,7 @@ import {
   TOURNAMENT_POOL_V2_ADDRESS,
   USDC_ADDRESS,
 } from "@skillos/contracts";
+import { useSkillOSDataSuffix } from "@skillos/sdk/react";
 import { parseWalletError } from "./utils";
 
 // ─── public types ─────────────────────────────────────────────────────────
@@ -294,6 +295,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
   } = params;
 
   const { address } = useAccount();
+  const dataSuffix = useSkillOSDataSuffix();
 
   const [status, setStatus] = useState<UseSoloRetryStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -376,6 +378,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
         abi: TOURNAMENT_POOL_ABI,
         functionName: "chargeRetryFee",
         args: [tournamentOnChainId, address],
+        ...(dataSuffix && { dataSuffix }),
       },
       {
         onError: (e) => {
@@ -391,6 +394,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
     chargeHash,
     address,
     tournamentOnChainId,
+    dataSuffix,
     writeCharge,
   ]);
 
@@ -533,6 +537,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
           abi: ERC20_ABI,
           functionName: "approve",
           args: [TOURNAMENT_POOL_V2_ADDRESS, maxUint256],
+          ...(dataSuffix && { dataSuffix }),
         },
         {
           onSuccess: () => {
@@ -555,6 +560,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
         abi: TOURNAMENT_POOL_ABI,
         functionName: "chargeRetryFee",
         args: [tournamentOnChainId, address],
+        ...(dataSuffix && { dataSuffix }),
       },
       {
         onError: (e) => {
@@ -570,6 +576,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
     tournamentOnChainId,
     eligibility,
     hasAllowance,
+    dataSuffix,
     writeApprove,
     writeCharge,
     resetCharge,

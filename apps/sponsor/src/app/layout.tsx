@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@skillos/ui";
+import { SkillOSProvider } from "@skillos/sdk/react";
 import { Nav } from "../components/Nav";
 import { Footer } from "../components/Footer";
 import "./globals.css";
@@ -57,9 +58,17 @@ export default function RootLayout({
     >
       <body className="min-h-screen font-sans antialiased">
         <Providers>
-          <Nav />
-          {children}
-          <Footer />
+          <SkillOSProvider
+            config={{
+              env: "testnet",
+              builderCode: "bc_2hg1v71w",
+              persistAuth: "localStorage",
+            }}
+          >
+            <Nav />
+            {children}
+            <Footer />
+          </SkillOSProvider>
         </Providers>
       </body>
     </html>

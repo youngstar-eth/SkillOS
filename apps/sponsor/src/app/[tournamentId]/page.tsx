@@ -41,6 +41,7 @@ import {
   USDC_ADDRESS,
   CHAIN_ID,
 } from "@skillos/contracts";
+import { useSkillOSSponsor } from "@skillos/sdk/react";
 
 const USDC_DECIMALS = 6;
 const MIN_AMOUNT_USDC = 1; // contract has ZeroAmount; UX min is 1 USDC.
@@ -105,6 +106,7 @@ export default function SponsorFlowPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const sponsor = useSkillOSSponsor({ tournamentId });
 
   const [amount, setAmount] = useState("5");
   const [step, setStep] = useState<"input" | "approving" | "sponsoring" | "done" | "error">(
@@ -120,6 +122,18 @@ export default function SponsorFlowPage() {
       return 0n;
     }
   }, [amount]);
+
+  // Derives approve + sponsorPool calldata (with builder-code dataSuffix attached)
+  // from the active <SkillOSProvider config.builderCode>. Returns null when the
+  // amount string fails usdcAtoms validation; handlers guard on this.
+  const calls = useMemo(() => {
+    if (!amount) return null;
+    try {
+      return sponsor.fundCalldata({ amountUsdc: amount });
+    } catch {
+      return null;
+    }
+  }, [sponsor, amount]);
 
   const isValidTournamentId = /^0x[0-9a-fA-F]{64}$/.test(tournamentId);
 
@@ -187,21 +201,17 @@ export default function SponsorFlowPage() {
       setErrorMsg(`Wrong network — switch to chain ${CHAIN_ID}`);
       return;
     }
+    if (!calls) {
+      setErrorMsg("Invalid amount.");
+      return;
+    }
     setStep("approving");
-    writeApprove(
-      {
-        address: USDC_ADDRESS,
-        abi: ERC20_MIN_ABI,
-        functionName: "approve",
-        args: [SPONSORSHIP_MODULE_ADDRESS, amountUsdc],
+    writeApprove(calls.approve, {
+      onError: (err) => {
+        setErrorMsg(err.message);
+        setStep("error");
       },
-      {
-        onError: (err) => {
-          setErrorMsg(err.message);
-          setStep("error");
-        },
-      },
-    );
+    });
   }
 
   function handleSponsor() {
@@ -210,21 +220,17 @@ export default function SponsorFlowPage() {
       setErrorMsg("Invalid tournament id in URL.");
       return;
     }
+    if (!calls) {
+      setErrorMsg("Invalid amount.");
+      return;
+    }
     setStep("sponsoring");
-    writeSponsor(
-      {
-        address: SPONSORSHIP_MODULE_ADDRESS,
-        abi: SPONSORSHIP_MODULE_ABI,
-        functionName: "sponsorPool",
-        args: [tournamentId, amountUsdc],
+    writeSponsor(calls.fund, {
+      onError: (err) => {
+        setErrorMsg(decodeSponsorError(err));
+        setStep("error");
       },
-      {
-        onError: (err) => {
-          setErrorMsg(decodeSponsorError(err));
-          setStep("error");
-        },
-      },
-    );
+    });
   }
 
   if (!isValidTournamentId) {

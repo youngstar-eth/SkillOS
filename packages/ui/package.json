@@ -17,6 +17,7 @@
     "@skillos/game-types": "*"
   },
   "peerDependencies": {
+    "@skillos/sdk": "*",
     "@tanstack/react-query": "^5.99.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -24,6 +25,7 @@
     "wagmi": "^3.6.3"
   },
   "devDependencies": {
+    "@skillos/sdk": "*",
     "@tanstack/react-query": "^5.99.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
