@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Header, Providers, ReadyMarker } from "@skillos/ui";
+import { SkillOSProvider } from "@skillos/sdk/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,9 +38,17 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen antialiased bg-bg text-neutral-100">
         <Providers>
-          <ReadyMarker />
-          <Header brand="SkillOS · Clicker" />
-          <div className="mx-auto max-w-5xl px-4">{children}</div>
+          <SkillOSProvider
+            config={{
+              env: "testnet",
+              builderCode: "bc_m59xxykm",
+              persistAuth: "localStorage",
+            }}
+          >
+            <ReadyMarker />
+            <Header brand="SkillOS · Clicker" />
+            <div className="mx-auto max-w-5xl px-4">{children}</div>
+          </SkillOSProvider>
         </Providers>
       </body>
     </html>
