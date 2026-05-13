@@ -54,7 +54,6 @@ jobs:
     name: ${{ matrix.game }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event.inputs.game == '' || github.event.inputs.game == matrix.game
     strategy:
       fail-fast: false
       matrix:
@@ -73,17 +72,23 @@ jobs:
       AGENT_ID_CLICKER: ${{ secrets.AGENT_ID_CLICKER }}
       MODE: ${{ github.event.inputs.mode }}
       GAME: ${{ matrix.game }}
+      INPUT_GAME: ${{ github.event.inputs.game }}
+      MATRIX_GAME: ${{ matrix.game }}
     steps:
       - name: Checkout
+        if: env.INPUT_GAME == '' || env.INPUT_GAME == env.MATRIX_GAME
         uses: actions/checkout@v4
       - name: Setup Node
+        if: env.INPUT_GAME == '' || env.INPUT_GAME == env.MATRIX_GAME
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       - name: Install
+        if: env.INPUT_GAME == '' || env.INPUT_GAME == env.MATRIX_GAME
         run: npm ci
       - name: Run agent
+        if: env.INPUT_GAME == '' || env.INPUT_GAME == env.MATRIX_GAME
         working-directory: apps/agent-runner
         run: |
           if [ "$MODE" = "live" ]; then
