@@ -335,6 +335,11 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
     // Broadcast on-chain create. If contract already has this id (e.g. a
     // prior cron left a DB gap), swallow TournamentAlreadyExists.
     let txHash: Hex;
+    // X9: audit-trail fields for the DB insert below. NULL on the swallow
+    // path so index-tournaments-created can backfill from on-chain events
+    // (its UPDATE is gated on creation_tx_hash IS NULL).
+    let creationTxHash: Hex | null;
+    let creationBlockNumber: bigint | null;
     try {
       txHash = await walletClient.writeContract({
         address: TOURNAMENT_POOL_V2_ADDRESS,
@@ -352,10 +357,12 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
         account: walletClient.account ?? null,
         chain: walletClient.chain,
       });
-      await getPublicClient().waitForTransactionReceipt({
+      const receipt = await getPublicClient().waitForTransactionReceipt({
         hash: txHash,
         timeout: 60_000,
       });
+      creationTxHash = txHash;
+      creationBlockNumber = receipt.blockNumber;
     } catch (err) {
       const errorName = decodeRevertErrorName(err);
       if (errorName === "TournamentAlreadyExists") {
@@ -369,6 +376,8 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
           error_name: errorName,
         });
         txHash = "0x" + "0".repeat(64) as Hex;
+        creationTxHash = null;
+        creationBlockNumber = null;
       } else {
         // X9 strict policy: any non-TournamentAlreadyExists revert is fatal
         // for the sweep. Subsequent targets share state (sponsor role,
@@ -388,7 +397,11 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
       }
     }
 
-    // Persist DB row.
+    // Persist DB row. X9: populate audit trail at write time for
+    // orchestrator-originated rows. On the swallow path creator_address +
+    // creation_tx_hash + creation_block_number stay NULL so the
+    // index-tournaments-created cron backfills them from on-chain events
+    // (gated on creation_tx_hash IS NULL).
     const { data: inserted, error: insertErr } = await supabase
       .from("v2_tournaments")
       .insert({
@@ -401,6 +414,12 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
         participation_bonus: t.bonus,
         sponsor_address: sponsor,
         sponsor_name: "Skillbase",
+        creator_address:
+          creationTxHash === null ? null : sponsor.toLowerCase(),
+        created_via: "orchestrator",
+        creation_tx_hash: creationTxHash,
+        creation_block_number:
+          creationBlockNumber === null ? null : Number(creationBlockNumber),
       })
       .select("id")
       .single();
