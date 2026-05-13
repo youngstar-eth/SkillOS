@@ -1,0 +1,19 @@
+{
+  "name": "@skillos/agent-runner",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "agent": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@buildersgarden/siwa": "0.0.24",
+    "viem": "^2.48.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.3"
+  }
+}
