@@ -36,6 +36,14 @@ export const metadata: Metadata = {
       "Fund any SkillOS tournament prize pool on-chain. One tx, soulbound receipt.",
     siteName: "SkillOS Sponsor",
   },
+  twitter: {
+    card: "summary_large_image",
+    site: "@SkillOS",
+    creator: "@web3simpl",
+    title: "SkillOS — Sponsor a Pool",
+    description:
+      "Fund any SkillOS tournament prize pool on-chain. One tx, soulbound receipt.",
+  },
   other: {
     "base:app_id": "69f5034cd7175bf80cb81fd0",
   },

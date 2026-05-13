@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@SkillOS",
+    creator: "@web3simpl",
     title: "Minesweeper · SkillOS",
     description: "Read the board. Beat the clock. Earn SP.",
   },
