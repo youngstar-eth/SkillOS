@@ -42,6 +42,9 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import {
+  BaseError,
+  ContractFunctionRevertedError,
+  zeroAddress,
   type Address,
   type Hex,
   encodeAbiParameters,
@@ -126,6 +129,63 @@ function startOfWeekMondayUtcSec(nowMs: number = Date.now()): number {
   return Math.floor(d.getTime() / 1000);
 }
 
+// ─── Logging + error types ─────────────────────────────────────────────────
+
+/** Fatal sweep-aborting error for createTournament reverts. Per X9 strict
+ *  policy: any non-TournamentAlreadyExists contract revert is treated as
+ *  signaling shared-state corruption (sponsor role, prize pool funding,
+ *  derivation logic) and aborts the whole loop — subsequent targets would
+ *  hit the same root cause. Next cron tick retries. */
+export class TournamentCreateError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "TournamentCreateError";
+  }
+}
+
+/** Structured JSON-line log for Vercel log search. Event names are
+ *  dot-separated paths so filters can use prefix matches
+ *  (e.g. `tournament.create.*`). */
+function logEvent(
+  level: "info" | "warn" | "error",
+  event: string,
+  ctx: Record<string, unknown>,
+): void {
+  const payload = JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    event,
+    ...ctx,
+  });
+  if (level === "error") console.error(payload);
+  else if (level === "warn") console.warn(payload);
+  else console.log(payload);
+}
+
+// ─── Revert decoding ───────────────────────────────────────────────────────
+
+/** Walk a viem error chain to the ABI-decoded revert reason, if any.
+ *  Returns the custom error name (e.g. "TournamentAlreadyExists") or null
+ *  if the error didn't carry decoded revert data (network failure,
+ *  non-ABI revert, malformed RPC response).
+ *
+ *  Why not substring match on err.message: viem's shortMessage format
+ *  varies between versions and providers; the selector (4-byte error sig)
+ *  encoded in revert data does not. Selector-based decode is invariant.
+ *
+ *  Note: settle-tournaments has a similar TournamentAlreadySettled
+ *  substring match at line ~739; Phase 2 backlog. */
+function decodeRevertErrorName(err: unknown): string | null {
+  if (!(err instanceof BaseError)) return null;
+  const revert = err.walk(
+    (e) => e instanceof ContractFunctionRevertedError,
+  );
+  if (revert instanceof ContractFunctionRevertedError) {
+    return revert.data?.errorName ?? null;
+  }
+  return null;
+}
+
 // ─── ID derivation ─────────────────────────────────────────────────────────
 
 /** Deterministic on-chain id: keccak256(abi.encode(gameSlug, cycle, startsAt)).
@@ -196,6 +256,7 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
   const sponsor = walletClient.account?.address;
   if (!sponsor) throw new Error("runCreateTournaments: wallet client has no account");
 
+  const cronRunId = crypto.randomUUID();
   const prizePool = defaultPrizePoolUsdc();
 
   const nowSec = Math.floor(Date.now() / 1000);
@@ -260,8 +321,35 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
       continue;
     }
     if (existing) {
-      result.skipped.push({ game: t.game, cycle: t.cycle, reason: "already exists" });
-      continue;
+      // X9 Commit 4: on-chain verify before trusting the dedupe row.
+      // If on-chain sponsor === zero, this is a DB-orphan — DB has a row
+      // but the chain side was never populated (prior cron crashed after
+      // INSERT but before/during writeContract, or a reorg dropped the
+      // create tx). Fall through to re-create; the UPSERT below will
+      // UPDATE the existing row with real audit data.
+      const onChainState = await getPublicClient().readContract({
+        address: TOURNAMENT_POOL_V2_ADDRESS,
+        abi: TOURNAMENT_POOL_ABI,
+        functionName: "getTournament",
+        args: [onChainId],
+      });
+      const sponsorOnChain = (onChainState as { sponsor: Address }).sponsor;
+      const isOrphan = sponsorOnChain === zeroAddress;
+      if (!isOrphan) {
+        result.skipped.push({
+          game: t.game,
+          cycle: t.cycle,
+          reason: "already exists (verified on-chain)",
+        });
+        continue;
+      }
+      logEvent("warn", "tournament.dedupe.orphan_recovery", {
+        cron_run_id: cronRunId,
+        game: t.game,
+        cycle: t.cycle,
+        on_chain_id: onChainId,
+        db_id: existing.id,
+      });
     }
 
     // Already-ended tournaments (e.g. cron fired late after window closed)
@@ -275,6 +363,11 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
     // Broadcast on-chain create. If contract already has this id (e.g. a
     // prior cron left a DB gap), swallow TournamentAlreadyExists.
     let txHash: Hex;
+    // X9: audit-trail fields for the DB insert below. NULL on the swallow
+    // path so index-tournaments-created can backfill from on-chain events
+    // (its UPDATE is gated on creation_tx_hash IS NULL).
+    let creationTxHash: Hex | null;
+    let creationBlockNumber: bigint | null;
     try {
       txHash = await walletClient.writeContract({
         address: TOURNAMENT_POOL_V2_ADDRESS,
@@ -292,36 +385,83 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
         account: walletClient.account ?? null,
         chain: walletClient.chain,
       });
-      await getPublicClient().waitForTransactionReceipt({
+      const receipt = await getPublicClient().waitForTransactionReceipt({
         hash: txHash,
         timeout: 60_000,
       });
+      creationTxHash = txHash;
+      creationBlockNumber = receipt.blockNumber;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown";
-      if (message.includes("TournamentAlreadyExists")) {
+      const errorName = decodeRevertErrorName(err);
+      if (errorName === "TournamentAlreadyExists") {
         // Chain has it but DB doesn't — reconcile by inserting the DB row
         // below with a null tx hash (we don't know which tx created it).
+        logEvent("info", "tournament.create.duplicate", {
+          cron_run_id: cronRunId,
+          game: t.game,
+          cycle: t.cycle,
+          on_chain_id: onChainId,
+          error_name: errorName,
+        });
         txHash = "0x" + "0".repeat(64) as Hex;
+        creationTxHash = null;
+        creationBlockNumber = null;
       } else {
-        result.errors.push({ game: t.game, cycle: t.cycle, message });
-        continue;
+        // X9 strict policy: any non-TournamentAlreadyExists revert is fatal
+        // for the sweep. Subsequent targets share state (sponsor role,
+        // prize-pool funding, derivation logic) — if one reverts on these
+        // grounds, the rest will too. Throw to the route handler; the next
+        // cron tick retries from a fresh sweep.
+        const shortMessage =
+          err instanceof BaseError
+            ? err.shortMessage
+            : err instanceof Error
+              ? err.message
+              : "unknown";
+        logEvent("error", "tournament.create.failed", {
+          cron_run_id: cronRunId,
+          game: t.game,
+          cycle: t.cycle,
+          on_chain_id: onChainId,
+          error_name: errorName ?? "unknown",
+          error_message: shortMessage.slice(0, 500),
+        });
+        throw new TournamentCreateError(
+          `createTournament reverted: ${errorName ?? shortMessage}`,
+          { cause: err },
+        );
       }
     }
 
-    // Persist DB row.
+    // Persist DB row. X9 Commit 4: UPSERT (not INSERT) so the orphan-
+    // recovery path UPDATES the existing DB row with real audit fields
+    // instead of failing on the on_chain_id unique constraint. On the
+    // swallow path creator_address + creation_tx_hash +
+    // creation_block_number stay NULL so the index-tournaments-created
+    // cron backfills them from on-chain events (gated on
+    // creation_tx_hash IS NULL).
     const { data: inserted, error: insertErr } = await supabase
       .from("v2_tournaments")
-      .insert({
-        on_chain_id: onChainId,
-        game: t.game,
-        cycle_type: t.cycle,
-        starts_at: new Date(t.startsAt * 1000).toISOString(),
-        ends_at: new Date(t.endsAt * 1000).toISOString(),
-        prize_pool_usdc: Number(prizePool) / 1_000_000,
-        participation_bonus: t.bonus,
-        sponsor_address: sponsor,
-        sponsor_name: "Skillbase",
-      })
+      .upsert(
+        {
+          on_chain_id: onChainId,
+          game: t.game,
+          cycle_type: t.cycle,
+          starts_at: new Date(t.startsAt * 1000).toISOString(),
+          ends_at: new Date(t.endsAt * 1000).toISOString(),
+          prize_pool_usdc: Number(prizePool) / 1_000_000,
+          participation_bonus: t.bonus,
+          sponsor_address: sponsor,
+          sponsor_name: "Skillbase",
+          creator_address:
+            creationTxHash === null ? null : sponsor.toLowerCase(),
+          created_via: "orchestrator",
+          creation_tx_hash: creationTxHash,
+          creation_block_number:
+            creationBlockNumber === null ? null : Number(creationBlockNumber),
+        },
+        { onConflict: "on_chain_id" },
+      )
       .select("id")
       .single();
     if (insertErr) {
@@ -333,12 +473,25 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
       continue;
     }
 
+    const dbId = (inserted as { id: string }).id;
+    logEvent("info", "tournament.create.success", {
+      cron_run_id: cronRunId,
+      game: t.game,
+      cycle: t.cycle,
+      on_chain_id: onChainId,
+      db_id: dbId,
+      tx_hash: creationTxHash,
+      block_number:
+        creationBlockNumber !== null ? Number(creationBlockNumber) : null,
+      mode: creationTxHash === null ? "swallow" : "fresh",
+    });
+
     result.created.push({
       game: t.game,
       cycle: t.cycle,
       onChainId,
       txHash,
-      dbId: (inserted as { id: string }).id,
+      dbId,
     });
   }
 
