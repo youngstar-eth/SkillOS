@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@SkillOS",
+    creator: "@web3simpl",
     title: "Wordle · SkillOS",
     description: "Guess smarter. Score higher. Earn SP.",
   },
