@@ -42,6 +42,8 @@
 // ───────────────────────────────────────────────────────────────────────────
 
 import {
+  BaseError,
+  ContractFunctionRevertedError,
   type Address,
   type Hex,
   encodeAbiParameters,
@@ -126,6 +128,63 @@ function startOfWeekMondayUtcSec(nowMs: number = Date.now()): number {
   return Math.floor(d.getTime() / 1000);
 }
 
+// ─── Logging + error types ─────────────────────────────────────────────────
+
+/** Fatal sweep-aborting error for createTournament reverts. Per X9 strict
+ *  policy: any non-TournamentAlreadyExists contract revert is treated as
+ *  signaling shared-state corruption (sponsor role, prize pool funding,
+ *  derivation logic) and aborts the whole loop — subsequent targets would
+ *  hit the same root cause. Next cron tick retries. */
+export class TournamentCreateError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "TournamentCreateError";
+  }
+}
+
+/** Structured JSON-line log for Vercel log search. Event names are
+ *  dot-separated paths so filters can use prefix matches
+ *  (e.g. `tournament.create.*`). */
+function logEvent(
+  level: "info" | "warn" | "error",
+  event: string,
+  ctx: Record<string, unknown>,
+): void {
+  const payload = JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    event,
+    ...ctx,
+  });
+  if (level === "error") console.error(payload);
+  else if (level === "warn") console.warn(payload);
+  else console.log(payload);
+}
+
+// ─── Revert decoding ───────────────────────────────────────────────────────
+
+/** Walk a viem error chain to the ABI-decoded revert reason, if any.
+ *  Returns the custom error name (e.g. "TournamentAlreadyExists") or null
+ *  if the error didn't carry decoded revert data (network failure,
+ *  non-ABI revert, malformed RPC response).
+ *
+ *  Why not substring match on err.message: viem's shortMessage format
+ *  varies between versions and providers; the selector (4-byte error sig)
+ *  encoded in revert data does not. Selector-based decode is invariant.
+ *
+ *  Note: settle-tournaments has a similar TournamentAlreadySettled
+ *  substring match at line ~739; Phase 2 backlog. */
+function decodeRevertErrorName(err: unknown): string | null {
+  if (!(err instanceof BaseError)) return null;
+  const revert = err.walk(
+    (e) => e instanceof ContractFunctionRevertedError,
+  );
+  if (revert instanceof ContractFunctionRevertedError) {
+    return revert.data?.errorName ?? null;
+  }
+  return null;
+}
+
 // ─── ID derivation ─────────────────────────────────────────────────────────
 
 /** Deterministic on-chain id: keccak256(abi.encode(gameSlug, cycle, startsAt)).
@@ -196,6 +255,7 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
   const sponsor = walletClient.account?.address;
   if (!sponsor) throw new Error("runCreateTournaments: wallet client has no account");
 
+  const cronRunId = crypto.randomUUID();
   const prizePool = defaultPrizePoolUsdc();
 
   const nowSec = Math.floor(Date.now() / 1000);
@@ -297,14 +357,34 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
         timeout: 60_000,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "unknown";
-      if (message.includes("TournamentAlreadyExists")) {
+      const errorName = decodeRevertErrorName(err);
+      if (errorName === "TournamentAlreadyExists") {
         // Chain has it but DB doesn't — reconcile by inserting the DB row
         // below with a null tx hash (we don't know which tx created it).
+        logEvent("info", "tournament.create.duplicate", {
+          cron_run_id: cronRunId,
+          game: t.game,
+          cycle: t.cycle,
+          on_chain_id: onChainId,
+          error_name: errorName,
+        });
         txHash = "0x" + "0".repeat(64) as Hex;
       } else {
-        result.errors.push({ game: t.game, cycle: t.cycle, message });
-        continue;
+        // X9 strict policy: any non-TournamentAlreadyExists revert is fatal
+        // for the sweep. Subsequent targets share state (sponsor role,
+        // prize-pool funding, derivation logic) — if one reverts on these
+        // grounds, the rest will too. Throw to the route handler; the next
+        // cron tick retries from a fresh sweep.
+        const shortMessage =
+          err instanceof BaseError
+            ? err.shortMessage
+            : err instanceof Error
+              ? err.message
+              : "unknown";
+        throw new TournamentCreateError(
+          `createTournament reverted: ${errorName ?? shortMessage}`,
+          { cause: err },
+        );
       }
     }
 
