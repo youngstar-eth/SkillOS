@@ -44,6 +44,7 @@
 import {
   BaseError,
   ContractFunctionRevertedError,
+  zeroAddress,
   type Address,
   type Hex,
   encodeAbiParameters,
@@ -320,8 +321,35 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
       continue;
     }
     if (existing) {
-      result.skipped.push({ game: t.game, cycle: t.cycle, reason: "already exists" });
-      continue;
+      // X9 Commit 4: on-chain verify before trusting the dedupe row.
+      // If on-chain sponsor === zero, this is a DB-orphan — DB has a row
+      // but the chain side was never populated (prior cron crashed after
+      // INSERT but before/during writeContract, or a reorg dropped the
+      // create tx). Fall through to re-create; the UPSERT below will
+      // UPDATE the existing row with real audit data.
+      const onChainState = await getPublicClient().readContract({
+        address: TOURNAMENT_POOL_V2_ADDRESS,
+        abi: TOURNAMENT_POOL_ABI,
+        functionName: "getTournament",
+        args: [onChainId],
+      });
+      const sponsorOnChain = (onChainState as { sponsor: Address }).sponsor;
+      const isOrphan = sponsorOnChain === zeroAddress;
+      if (!isOrphan) {
+        result.skipped.push({
+          game: t.game,
+          cycle: t.cycle,
+          reason: "already exists (verified on-chain)",
+        });
+        continue;
+      }
+      logEvent("warn", "tournament.dedupe.orphan_recovery", {
+        cron_run_id: cronRunId,
+        game: t.game,
+        cycle: t.cycle,
+        on_chain_id: onChainId,
+        db_id: existing.id,
+      });
     }
 
     // Already-ended tournaments (e.g. cron fired late after window closed)
@@ -405,30 +433,35 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
       }
     }
 
-    // Persist DB row. X9: populate audit trail at write time for
-    // orchestrator-originated rows. On the swallow path creator_address +
-    // creation_tx_hash + creation_block_number stay NULL so the
-    // index-tournaments-created cron backfills them from on-chain events
-    // (gated on creation_tx_hash IS NULL).
+    // Persist DB row. X9 Commit 4: UPSERT (not INSERT) so the orphan-
+    // recovery path UPDATES the existing DB row with real audit fields
+    // instead of failing on the on_chain_id unique constraint. On the
+    // swallow path creator_address + creation_tx_hash +
+    // creation_block_number stay NULL so the index-tournaments-created
+    // cron backfills them from on-chain events (gated on
+    // creation_tx_hash IS NULL).
     const { data: inserted, error: insertErr } = await supabase
       .from("v2_tournaments")
-      .insert({
-        on_chain_id: onChainId,
-        game: t.game,
-        cycle_type: t.cycle,
-        starts_at: new Date(t.startsAt * 1000).toISOString(),
-        ends_at: new Date(t.endsAt * 1000).toISOString(),
-        prize_pool_usdc: Number(prizePool) / 1_000_000,
-        participation_bonus: t.bonus,
-        sponsor_address: sponsor,
-        sponsor_name: "Skillbase",
-        creator_address:
-          creationTxHash === null ? null : sponsor.toLowerCase(),
-        created_via: "orchestrator",
-        creation_tx_hash: creationTxHash,
-        creation_block_number:
-          creationBlockNumber === null ? null : Number(creationBlockNumber),
-      })
+      .upsert(
+        {
+          on_chain_id: onChainId,
+          game: t.game,
+          cycle_type: t.cycle,
+          starts_at: new Date(t.startsAt * 1000).toISOString(),
+          ends_at: new Date(t.endsAt * 1000).toISOString(),
+          prize_pool_usdc: Number(prizePool) / 1_000_000,
+          participation_bonus: t.bonus,
+          sponsor_address: sponsor,
+          sponsor_name: "Skillbase",
+          creator_address:
+            creationTxHash === null ? null : sponsor.toLowerCase(),
+          created_via: "orchestrator",
+          creation_tx_hash: creationTxHash,
+          creation_block_number:
+            creationBlockNumber === null ? null : Number(creationBlockNumber),
+        },
+        { onConflict: "on_chain_id" },
+      )
       .select("id")
       .single();
     if (insertErr) {
