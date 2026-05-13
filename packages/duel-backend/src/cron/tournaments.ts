@@ -390,6 +390,14 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
             : err instanceof Error
               ? err.message
               : "unknown";
+        logEvent("error", "tournament.create.failed", {
+          cron_run_id: cronRunId,
+          game: t.game,
+          cycle: t.cycle,
+          on_chain_id: onChainId,
+          error_name: errorName ?? "unknown",
+          error_message: shortMessage.slice(0, 500),
+        });
         throw new TournamentCreateError(
           `createTournament reverted: ${errorName ?? shortMessage}`,
           { cause: err },
@@ -432,12 +440,25 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
       continue;
     }
 
+    const dbId = (inserted as { id: string }).id;
+    logEvent("info", "tournament.create.success", {
+      cron_run_id: cronRunId,
+      game: t.game,
+      cycle: t.cycle,
+      on_chain_id: onChainId,
+      db_id: dbId,
+      tx_hash: creationTxHash,
+      block_number:
+        creationBlockNumber !== null ? Number(creationBlockNumber) : null,
+      mode: creationTxHash === null ? "swallow" : "fresh",
+    });
+
     result.created.push({
       game: t.game,
       cycle: t.cycle,
       onChainId,
       txHash,
-      dbId: (inserted as { id: string }).id,
+      dbId,
     });
   }
 
