@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util';
 import { loadWallet, GAMES, type Game } from './lib/wallet.js';
 import { resolveTournament } from './lib/tournament.js';
+import { dailySeed, generateScoreFor } from './scoring/index.js';
 
 function usage(exitCode = 0): never {
   console.error(
@@ -49,19 +50,23 @@ const mode: 'dry-run' | 'live' = values.live ? 'live' : 'dry-run';
 async function main(): Promise<void> {
   const wallet = loadWallet(game!);
   const tournamentId = values.tournament ?? (await resolveTournament(game!));
+  const seed = dailySeed(wallet.address);
+  const scoring = generateScoreFor(game!, seed);
 
-  // Phase A scaffold — submit wrapper lands in Phase B (B.2).
+  // Phase B.1 — scoring wired; submit wrapper lands in Phase B.2.
   console.log(
     JSON.stringify(
       {
-        phase: 'A-scaffold',
+        phase: 'B1-scoring',
         mode,
         game,
         agent: wallet.address,
         agentId: wallet.agentId,
         tournament: tournamentId,
+        score: scoring.score,
+        metadata: scoring.metadata,
         baseUrl: process.env.SKILLOS_BASE_URL ?? 'https://api.skillos.network',
-        note: 'scoring + submit wrapper land in Phase B',
+        note: 'submit wrapper lands in Phase B.2',
       },
       null,
       2,
