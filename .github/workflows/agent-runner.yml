@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Skillbase MAS — agent-runner workflow.
+#
+# Drives the 5 game-locked agent identities through their daily SkillOS
+# Phase 1 testnet submission flow:
+#   load wallet → resolve today's tournament → score → SIWA Steps 1-3 →
+#   ERC-8128 sign → POST /v1/agents/scores (api.skillos.network)
+#
+# Path A (locked): API mediates submission; agent never calls submitSoloScore
+# directly. See apps/agent-runner/src/lib/submit.ts for the canonical flow.
+#
+# Trigger: workflow_dispatch only — initial sprint stability gate. The
+# `schedule:` block is intentionally commented out; enable in a follow-up PR
+# after 7 days of stable manual runs.
+#
+# Matrix-of-5: each game runs in its own job (fail-fast: false) so a single
+# agent failure doesn't poison the others — useful for diagnosing per-game
+# API regressions in isolation.
+#
+# Security posture (workflow-injection hardening):
+# All workflow_dispatch inputs and matrix values are routed through `env:`
+# rather than interpolated into `run:` expressions. The `if:` filter is
+# evaluated in GHA expression context (not shell) so direct reference there
+# is safe. See:
+# https://github.blog/security/vulnerability-research/how-to-catch-github-actions-workflow-injections-before-attackers-do/
+# ─────────────────────────────────────────────────────────────────────────
+
+name: agent-runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Execution mode (live posts to /v1/agents/scores)'
+        required: true
+        default: 'dry-run'
+        type: choice
+        options:
+          - dry-run
+          - live
+      game:
+        description: 'Single game (empty = all 5)'
+        required: false
+        type: string
+        default: ''
+  # schedule:
+  #   - cron: '0 2 * * *'  # 02:00 UTC daily. Enable in follow-up PR after 7-day stability.
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: ${{ matrix.game }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.inputs.game == '' || github.event.inputs.game == matrix.game
+    strategy:
+      fail-fast: false
+      matrix:
+        game: [wordle, sudoku, match3, minesweeper, clicker]
+    env:
+      SKILLOS_BASE_URL: ${{ secrets.SKILLOS_BASE_URL }}
+      AGENT_PK_WORDLE: ${{ secrets.AGENT_PK_WORDLE }}
+      AGENT_PK_SUDOKU: ${{ secrets.AGENT_PK_SUDOKU }}
+      AGENT_PK_MATCH3: ${{ secrets.AGENT_PK_MATCH3 }}
+      AGENT_PK_MINESWEEPER: ${{ secrets.AGENT_PK_MINESWEEPER }}
+      AGENT_PK_CLICKER: ${{ secrets.AGENT_PK_CLICKER }}
+      AGENT_ID_WORDLE: ${{ secrets.AGENT_ID_WORDLE }}
+      AGENT_ID_SUDOKU: ${{ secrets.AGENT_ID_SUDOKU }}
+      AGENT_ID_MATCH3: ${{ secrets.AGENT_ID_MATCH3 }}
+      AGENT_ID_MINESWEEPER: ${{ secrets.AGENT_ID_MINESWEEPER }}
+      AGENT_ID_CLICKER: ${{ secrets.AGENT_ID_CLICKER }}
+      MODE: ${{ github.event.inputs.mode }}
+      GAME: ${{ matrix.game }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install
+        run: npm ci
+      - name: Run agent
+        working-directory: apps/agent-runner
+        run: |
+          if [ "$MODE" = "live" ]; then
+            npx tsx src/cli.ts --game "$GAME" --live
+          else
+            npx tsx src/cli.ts --game "$GAME" --dry-run
+          fi
