@@ -28,6 +28,7 @@ import {
 } from '../lib/contracts.js';
 import { signSoloSubmitAttestation } from '../lib/contracts-vendored/attestation.js';
 import { getWalletClient } from '../lib/contracts-vendored/wallet-client.js';
+import { dataSuffixForGame, type KnownGame } from '../lib/games.js';
 import { ApiError } from '../middleware/errorEnvelope.js';
 import { requireSiwaAuth } from '../middleware/agent-auth.js';
 import { check as rateLimit } from '../lib/rate-limit.js';
@@ -106,6 +107,12 @@ agentRoutes.openapi(submitRoute, async (c) => {
   });
 
   const walletClient = getWalletClient();
+  // X10: Path A attribution via ERC-8021 dataSuffix. Resolved server-side
+  // from the per-game Builder Code map (apps/api/src/lib/games.ts). viem's
+  // writeContract appends this to the encoded calldata; the contract
+  // ignores trailing bytes (invisible at EVM execution level) but the
+  // off-chain attribution indexer reads them from tx.input.
+  const dataSuffix = dataSuffixForGame(body.game as KnownGame);
   let txHash: Hex;
   try {
     txHash = await walletClient.writeContract({
@@ -121,6 +128,7 @@ agentRoutes.openapi(submitRoute, async (c) => {
         onChainNonce,
         signature,
       ],
+      dataSuffix,
     });
   } catch (err) {
     if (err instanceof BaseError) {
