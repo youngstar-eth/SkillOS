@@ -13,6 +13,26 @@ remappings = [
   "forge-std/=lib/forge-std/src/",
 ]
 
+# Phase 1 legacy pipeline (pre-X19a deploys: TournamentPool v2.1, SponsorshipModule,
+# SponsorReceiptSBT, MockSanctionsOracle, SkillbaseAnchor). Their Blockscout-verified
+# compiler_settings show via_ir=false. Use this profile to reproduce / verify those
+# specific deployed bytecodes. Default profile applies to ChallengeEscrow and all
+# Phase 2 deploys. See docs/adr/0002-dual-profile-pipeline-split.md.
+[profile.phase1-legacy]
+src = "src"
+out = "out-phase1-legacy"
+libs = ["lib"]
+solc = "0.8.26"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+evm_version = "cancun"
+bytecode_hash = "ipfs"
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "forge-std/=lib/forge-std/src/",
+]
+
 [rpc_endpoints]
 base_sepolia = "https://sepolia.base.org"
 
