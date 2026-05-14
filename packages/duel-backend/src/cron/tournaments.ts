@@ -234,6 +234,64 @@ async function ensureUsdcAllowance(sponsor: Address, need: bigint): Promise<void
   await publicClient.waitForTransactionReceipt({ hash: approveHash, timeout: 60_000 });
 }
 
+// ─── Balance preflight ─────────────────────────────────────────────────────
+
+/** X9.1: pre-flight sponsor USDC balance check. Catches wallet burndown
+ *  BEFORE the loop starts. Without this, ERC20-balance reverts surface
+ *  mid-sweep as TournamentCreateError (X9 strict throw) AFTER some games
+ *  have already broadcast — leaving partial daily coverage and operators
+ *  chasing per-game logs to find the root cause. Failing loud at the top
+ *  with a structured deficit log lets ops top up the sponsor wallet
+ *  before the next 00:00 UTC tick.
+ *
+ *  RCA evidence: GitHub issue #79. Match3 chronic (since 2026-05-09) was
+ *  the last-iteration manifestation of this burndown — TOURNAMENT_GAMES
+ *  iterates ["2048", "wordle", "sudoku", "minesweeper", "clicker", "match3"]
+ *  so match3 is first to be unfunded as balance depletes. 5/10 whole-cron
+ *  outage was the all-iteration manifestation (balance zero at start; all
+ *  6 reverted). Pre-X9 substring-match catch silently swallowed these
+ *  ERC20 reverts via ABI-metadata false-positive on the literal string
+ *  "TournamentAlreadyExists" present in viem error context.
+ *
+ *  Exported for testability; used internally by runCreateTournaments. */
+export async function preflightSponsorBalance(args: {
+  publicClient: ReturnType<typeof getPublicClient>;
+  sponsor: Address;
+  totalNeed: bigint;
+  cronRunId: string;
+  numTargets: number;
+  prizePoolPerTarget: bigint;
+}): Promise<void> {
+  const {
+    publicClient,
+    sponsor,
+    totalNeed,
+    cronRunId,
+    numTargets,
+    prizePoolPerTarget,
+  } = args;
+  const balance = (await publicClient.readContract({
+    address: USDC_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [sponsor],
+  })) as bigint;
+  if (balance < totalNeed) {
+    logEvent("error", "tournament.create.preflight.insufficient_balance", {
+      cron_run_id: cronRunId,
+      sponsor,
+      balance_wei: balance.toString(),
+      need_wei: totalNeed.toString(),
+      deficit_wei: (totalNeed - balance).toString(),
+      num_targets: numTargets,
+      prize_pool_per_target_wei: prizePoolPerTarget.toString(),
+    });
+    throw new Error(
+      `runCreateTournaments: insufficient sponsor USDC balance — have ${balance.toString()} wei, need ${totalNeed.toString()} wei (${numTargets} targets × ${prizePoolPerTarget.toString()})`,
+    );
+  }
+}
+
 // ─── createTournaments ─────────────────────────────────────────────────────
 
 export interface CreateTournamentsResult {
@@ -306,6 +364,17 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
       `runCreateTournaments: USDC approval failed — ${err instanceof Error ? err.message : "unknown"}`,
     );
   }
+
+  // X9.1: pre-flight sponsor USDC balance check (see preflightSponsorBalance
+  // for rationale + RCA evidence).
+  await preflightSponsorBalance({
+    publicClient: getPublicClient(),
+    sponsor,
+    totalNeed: prizePool * BigInt(targets.length),
+    cronRunId,
+    numTargets: targets.length,
+    prizePoolPerTarget: prizePool,
+  });
 
   for (const t of targets) {
     const onChainId = deriveTournamentId(t.game, t.cycleEnum, t.startsAt);
