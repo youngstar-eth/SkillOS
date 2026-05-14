@@ -9,6 +9,12 @@ import { Bytes32HexSchema, WalletAddressSchema } from './common.js';
 export const AgentScoreSubmitRequestSchema = z
   .object({
     tournamentId: Bytes32HexSchema,
+    game: z
+      .enum(['2048', 'wordle', 'sudoku', 'minesweeper', 'clicker', 'match3'])
+      .openapi({
+        description:
+          'Game slug. X10: server uses this to resolve the per-game Builder Code for ERC-8021 dataSuffix attribution on the submitSoloScore broadcast. Required for Path A attribution. Must match the game of the targeted tournamentId — the server does NOT verify this match-up; mis-attribution is the caller risk.',
+      }),
     score: z
       .number()
       .int()

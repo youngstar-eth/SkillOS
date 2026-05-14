@@ -48,6 +48,7 @@ interface LiveOutput {
 
 interface SubmitRequestBody {
   tournamentId: string;
+  game: Game;
   score: number;
   matchCountDelta: number;
   tier: 'T0';
@@ -131,11 +132,15 @@ export async function submit(input: SubmitInput): Promise<DryRunOutput | LiveOut
 
   const verify = await siwaAuthenticate(baseUrl, domain, input.account, input.agentId);
 
-  // Drift 3: request body — { tournamentId, score, matchCountDelta, tier }.
+  // Drift 3: request body — { tournamentId, game, score, matchCountDelta, tier }.
   // No agentId (server resolves from SIWA receipt → wallet address → registry).
   // No metadata (T0 tier doesn't accept it in request body).
+  // X10: `game` added so the API can resolve the per-game Builder Code for
+  // ERC-8021 dataSuffix attribution. Required field — without it the server
+  // rejects with 400 (mis-attribution would lose Path A revenue share).
   const requestBody: SubmitRequestBody = {
     tournamentId: input.tournamentId,
+    game: input.game,
     score: input.scoring.score,
     matchCountDelta: 1,
     tier: 'T0',
