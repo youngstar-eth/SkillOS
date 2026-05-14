@@ -55,8 +55,12 @@ docs/                    — sponsor-flow.md, audit/, superpowers/
 reports/                 — point-in-time audits
 scripts/                 — backfill-sp, jury-tournaments seed, x402-smoke
 
-@skillos/sdk           — planned Phase 2 public release. Not yet scaffolded on disk;
-                           do not import from this name yet.
+@skillos/sdk           — scaffolded at v0.2.1. Hooks (useSkillOSAuth, useSkillOSScore,
+                           useSkillOSTournaments, useSkillOSLeaderboard, useSkillOSAgent,
+                           useSkillOSSponsor) + Node-side agent client. npm publish
+                           pending Phase 2 launch window.
+@skillos/skills        — agent skill pack v0.2.0. Wires @skillos/sdk into AI coding
+                           agents; see packages/skills/SKILL.md.
 ```
 
 ## The six games
@@ -169,7 +173,9 @@ forge test --match-contract TournamentPool # focused suite
 
 **Vercel deployment.** Each app is its own Vercel project; install/build commands are pinned via per-app `vercel.json` (Vercel UI parsing has historically truncated workspace-relative install commands — do not rely on the dashboard for these). See [`CLAUDE.md`](./CLAUDE.md#vercel-push-gating) for the canonical git author identity required for pushes to Vercel-linked branches.
 
-**No CI today.** `.github/workflows/` does not exist. PR checks are honor-system in Phase 1; required typecheck + lint + Foundry test gates land with the Phase 2 discipline transition.
+**CI active.** `.github/workflows/ci.yml` (typecheck, lint, test-ts, test-foundry) + `agent-runner.yml` (workflow_dispatch + scheduled) gate every PR. The X9-X10 sprint thread (PRs #78, #80, #81, #82) was fully CI-gated and PR-driven; branch protection enforced on `main`.
+
+**Operational invariants (X9-X10 codified).** Unit test green ≠ live integration verified — post-merge Vercel production commit verification is mandatory, and live tx attribution must be checked on Blockscout (`raw_input` length + dataSuffix hex tail) before sprint close. See [`packages/skills/prompts/verify-attribution-live.md`](./packages/skills/prompts/verify-attribution-live.md) for the canonical procedure.
 
 ## Engineering principles
 
@@ -178,7 +184,7 @@ forge test --match-contract TournamentPool # focused suite
 3. **Class-agnostic protocol.** Storage doesn't differentiate human vs. agent player class.
 4. **Honest framing > overclaim.** Pitch what's shipped; signal what's roadmap; never promise unconditional tokens.
 5. **CLI/MCP first.** Use `vercel`, `gh`, `cast`, `forge`, `supabase`, `npm` over dashboard manual work.
-6. **Phase 2 discipline (transitioning):** direct-to-main BANNED, branch + PR + review mandatory, ADR docs (`docs/adr/`) for major decisions, pre-commit hooks (typecheck + secret scan), integration test expansion.
+6. **Phase 2 discipline (active).** Direct-to-main BANNED, branch + PR + review mandatory, ADR docs (`docs/adr/`) for major decisions, pre-commit hooks (typecheck + secret scan), CI gates on every PR, integration test expansion (extending `settle-guard` tripwire pattern). The X9-X10 thread (PRs #78, #80, #81, #82) is the case study — fully PR-driven, CI-gated, with post-merge live attribution verification per [`packages/skills/prompts/verify-attribution-live.md`](./packages/skills/prompts/verify-attribution-live.md).
 
 See [`CLAUDE.md`](./CLAUDE.md) for the full operational playbook.
 

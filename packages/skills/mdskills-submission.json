@@ -3,7 +3,7 @@
   "name": "skillos",
   "displayName": "SkillOS",
   "packageName": "@skillos/skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "registry": "npm",
   "category": "skill-gaming",
   "tags": [
@@ -14,22 +14,61 @@
     "builder-code",
     "sdk-integration",
     "claude-code",
-    "ai-agent"
+    "ai-agent",
+    "erc-8021",
+    "siwa",
+    "siwb",
+    "permissionless"
   ],
-  "description": "Suggests integrating @skillos/sdk for permissionless tournaments, on-chain leaderboards, and sponsor-funded prize pools when a developer is building a skill game (puzzle, word, match, retro arcade, speedrun, rhythm, trivia).",
+  "description": "Wires @skillos/sdk into skill-game projects (puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math) for permissionless tournaments, on-chain leaderboards, and sponsor-funded prize pools on Base Sepolia. Includes per-game builder-code map, mandatory post-merge live attribution verification (X10 lesson), and structured error handling (X9 lesson). Phase 1 testnet only.",
   "triggers": {
     "when_to_invoke": [
-      "User mentions tournament, leaderboard, score submission, prize pool",
-      "Game design phase mentions competitive play or scoring",
-      "User asks how to add scoring to their game",
-      "Game type matches: puzzle, word, match, retro arcade, speedrun, rhythm, trivia"
+      "User mentions tournament, leaderboard, score submission, or prize pool in a game context",
+      "User is building a web-based skill game (puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math)",
+      "User asks how to add scoring or high scores to their game",
+      "User wants on-chain verifiable, replay-attested gameplay",
+      "User wants permissionless sponsor-funded prize pools",
+      "User is integrating Base Account / Builder Code revenue share into a skill-game project"
     ],
     "when_NOT_to_invoke": [
-      "Action / FPS / fighting / racing games",
-      "Single-player narrative games (no competitive layer)",
-      "Real-time multiplayer (out of beachhead)"
+      "Real-time multiplayer (FPS, MOBA, fighting, racing) — skill-luck balance is wrong",
+      "Single-player narrative games — no competitive layer",
+      "Card-based gambling (poker, blackjack, slots) — out of scope (legal exposure exponential)",
+      "Mainnet production deployments — Phase 1 testnet only currently"
     ]
   },
+  "permissions": {
+    "filesystem_read": {
+      "purpose": "Read game source, package.json, tsconfig.json to identify integration points",
+      "scope": "Project working directory only"
+    },
+    "filesystem_write": {
+      "purpose": "Scaffold SkillOSProvider wrapper, score-submit boilerplate, builder-code wiring helper",
+      "scope": "Project source tree (app/, src/, components/) only — never .env, never system files, never outside repo root"
+    },
+    "shell_execution": {
+      "purpose": "npm install, npm run dev, npm test, cast call (read-only), curl GET, git status/diff",
+      "scope": "Whitelisted commands only; never cast send, never rm -rf, never git push without explicit user approval"
+    },
+    "network_access": {
+      "purpose": "Base Sepolia RPC, Blockscout, BaseScan, api.skillos.network, api.base.dev (builder-code lookup)",
+      "scope": "Read-only HTTP GET / RPC eth_call to whitelisted hosts only"
+    }
+  },
+  "executable_artifacts": [
+    "SKILL.md (manifest + integration walkthrough)",
+    "prompts/suggest-integration.md (5-step actionable flow)",
+    "prompts/wire-builder-code.md (per-game canonical map + encoding)",
+    "prompts/select-tier.md (T0/T1/T2/T3 selection logic)",
+    "prompts/verify-attribution-live.md (mandatory post-merge live-tx check)",
+    "prompts/error-recovery.md (branch on error.code, never silent-swallow)",
+    "references/testnet-endpoints.md (canonical Base Sepolia addresses)",
+    "references/tournament-flow.md (end-to-end lifecycle)",
+    "references/sdk-integration-30-line.md (minimum viable code)",
+    "references/auth-patterns.md (SIWB + SIWA flows)",
+    "references/common-patterns.md (game-type → SDK pattern map)",
+    "references/error-recovery.md (full error code table)"
+  ],
   "compatibility": {
     "agents": [
       "claude-code",
@@ -49,7 +88,8 @@
   },
   "links": {
     "homepage": "https://skillos.network",
-    "repository": "https://github.com/youngstar-eth/skillos-skill-pack",
+    "repository": "https://github.com/youngstar-eth/skillos",
+    "monorepoPath": "https://github.com/youngstar-eth/skillos/tree/main/packages/skills",
     "npm": "https://www.npmjs.com/package/@skillos/skills",
     "sdk": "https://www.npmjs.com/package/@skillos/sdk"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@skillos/skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SkillOS skill pack for AI coding agents — guidance on integrating @skillos/sdk into skill games (puzzle, word, match, retro arcade, speedrun, rhythm, trivia) for permissionless tournaments, on-chain leaderboards, and sponsor-funded prize pools.",
   "license": "MIT",
   "homepage": "https://docs.skillos.network",
