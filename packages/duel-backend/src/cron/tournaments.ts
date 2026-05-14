@@ -101,10 +101,26 @@ const CYCLE_WEEKLY = 1; // CycleType.Weekly
 const SECONDS_PER_DAY = 86_400;
 const SECONDS_PER_WEEK = 7 * SECONDS_PER_DAY;
 
-/** Default prize pool when env not set. USDC has 6 decimals. */
+/** Default prize pool when env not set. USDC has 6 decimals.
+ *
+ *  Lowered 10 → 5 on 2026-05-14 to manage testnet sponsor wallet burn rate.
+ *  Circle Base Sepolia USDC faucet hard limit is 20 USDC / 2 hrs / address;
+ *  6 games × 10 USDC = 60 USDC daily burn was unsustainable. With 5 USDC
+ *  pool the daily burn is 30 USDC (60 on Mondays with weeklies) — still
+ *  over the faucet rate but manageable with periodic ops top-ups until
+ *  the permissionless sponsor pool (Phase 2) replaces direct orchestrator
+ *  funding.
+ *
+ *  Note: `TESTNET_DEFAULT_PRIZE_POOL` env var (set in Vercel for
+ *  orchestrator, encrypted) overrides this default. Updating the code
+ *  constant alone has no runtime effect until the env value is also
+ *  changed or removed.
+ *
+ *  Revert when Phase 2 permissionless sponsor pool is live and the
+ *  orchestrator no longer funds prize pools directly. */
 function defaultPrizePoolUsdc(): bigint {
   const raw = process.env.TESTNET_DEFAULT_PRIZE_POOL;
-  const n = raw ? Number(raw) : 10;
+  const n = raw ? Number(raw) : 5;
   if (!Number.isFinite(n) || n <= 0) throw new Error("bad TESTNET_DEFAULT_PRIZE_POOL");
   return BigInt(Math.round(n * 1_000_000));
 }
