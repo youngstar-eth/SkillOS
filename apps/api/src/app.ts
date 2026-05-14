@@ -4,6 +4,7 @@ import { getX402Middleware } from './lib/x402.js';
 import { stringify as yamlStringify } from './lib/yaml.js';
 import { errorHandler, notFound } from './middleware/errorEnvelope.js';
 import { requestId } from './middleware/requestId.js';
+import { agentMatchesRoutes } from './routes/agents-matches.js';
 import { agentRoutes } from './routes/agents.js';
 import { authRoutes } from './routes/auth.js';
 import { authSiwaRoutes } from './routes/auth-siwa.js';
@@ -95,6 +96,7 @@ app.route('/', tournamentRoutes);
 app.route('/', scoreRoutes);
 app.route('/', sponsorRoutes);
 app.route('/', agentRoutes);
+app.route('/', agentMatchesRoutes);
 app.route('/', dataRoutes);
 
 // ─── OpenAPI 3.1 spec endpoints ───────────────────────────────────────────
