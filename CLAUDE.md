@@ -30,7 +30,7 @@ Apex tagline / phase-framing changes do **not** auto-propagate to SkillOS README
 - **Script runner:** tsx 4.21.0
 - **Dep overrides:** `axios@^1.15.0` forced across `@coinbase/cdp-sdk` + `axios-retry`
 
-**No CI today:** `.github/workflows/` does not exist. PR checks are honor-system; Phase 2 discipline transition adds required GitHub Actions (typecheck + lint + Foundry test gates) — see Engineering discipline below.
+**CI active:** `.github/workflows/` runs 4 GitHub Actions jobs per PR (`lint`, `test-foundry`, `test-ts`, `typecheck`) plus 8 Vercel preview deploys (one per `mas-*` / `skillbase-*` app under `simpl3s-projects`). Phase 2 discipline transition expands required gates beyond these — see Engineering discipline below.
 
 ## Structure
 
@@ -143,7 +143,7 @@ The shared-package fan-out concern is real either way: changes to `packages/ui/`
 - Integration test expansion (extend settle-guard tripwire pattern)
 - Memory discipline: cross-cutting architectural deltas committed per-decision
 
-**Currently NO CI** — no .github/workflows/. PR review is honor-system. Phase 2 discipline transition adds GitHub Actions for required typecheck + lint + Foundry test gates.
+**CI active** — `.github/workflows/` runs `lint`, `test-foundry`, `test-ts`, `typecheck` per PR; 8 Vercel preview deploys land per push (one per app). Phase 2 discipline transition adds the further hooks listed above (pre-commit, integration test expansion, ADR enforcement).
 
 ## Decision priority order
 
