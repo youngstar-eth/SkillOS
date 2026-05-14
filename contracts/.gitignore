@@ -8,6 +8,7 @@ broadcast/**/run-*.json
 # Env
 .env
 .env.local
+.env.*.local
 
 # Editor / OS
 .DS_Store
