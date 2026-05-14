@@ -15,9 +15,11 @@
     "deploy:prod": "npm run build:vercel && vercel deploy --prebuilt --prod --archive=tgz"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
     "@buildersgarden/siwa": "0.0.24",
     "@hono/zod-openapi": "^1.4.0",
     "@supabase/supabase-js": "^2.105.0",
+    "@vercel/functions": "^1.5.0",
     "@x402/core": "^2.11.0",
     "@x402/evm": "^2.11.0",
     "@x402/hono": "^2.11.0",
