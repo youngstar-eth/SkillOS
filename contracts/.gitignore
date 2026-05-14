@@ -1,6 +1,7 @@
 # Foundry
 cache/
 out/
+out-phase1-legacy/
 broadcast/*/*/dry-run/
 broadcast/**/run-*.json
 
