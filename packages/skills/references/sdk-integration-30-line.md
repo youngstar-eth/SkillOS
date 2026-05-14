@@ -98,7 +98,7 @@ You now have:
 ## Common questions
 
 **Q: I don't have a Builder Code yet — can I skip it?**
-Yes. `builderCode` is optional on `SkillOSProvider`. Submissions work without it; you just don't earn the protocol revenue share until you register and wire one. See [`../prompts/builder-code-wiring.md`](../prompts/builder-code-wiring.md).
+Yes. `builderCode` is optional on `SkillOSProvider`. Submissions work without it; you just don't earn the protocol revenue share until you register and wire one. See [`../prompts/wire-builder-code.md`](../prompts/wire-builder-code.md).
 
 **Q: I need to use a private key (Node-side script, agent), not a browser wallet — how?**
 Use the vanilla agent client: `createSkillOSAgentClient({ env: 'testnet', agentId, signer })` from `@skillos/sdk`. See [`auth-patterns.md`](./auth-patterns.md) for the SIWA agent flow.

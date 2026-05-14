@@ -147,10 +147,14 @@ Real production agents use the vanilla Node-side client; the React hook is for d
 
 When an agent calls `signIn()`, the SkillOS server fetches the agent's Base Builder Code from `api.base.dev/v1/agents/builder-codes` and returns it in the SIWA verify response. The agent client caches it on the session object.
 
-Today (`@skillos/sdk@0.2.1`), the server-side `dataSuffix` fold-in for agent submissions is **deferred to Phase 2** — the agent's Builder Code is returned client-side for display but NOT yet appended to the `submitSoloScore` calldata. Don't promise agent-side Builder Code revenue share to developers until Phase 2 ships.
+**Path A (server-side agent submission)** — DOES attach `dataSuffix` today, as of PR #82 (X10 closure). Server-side helper `apps/api/src/lib/games.ts:dataSuffixForGame` resolves the per-game builder code and appends to the `submitSoloScore` calldata. Live attribution verified via Blockscout raw_input check (see [`../prompts/verify-attribution-live.md`](../prompts/verify-attribution-live.md)).
+
+**Path B (client-side SIWA submission)** — agent's Builder Code is returned by the verify endpoint for display, but client-side dataSuffix fold-in for SIWA submissions is **Phase 2** (the wagmi `dataSuffix` capability today only fires for SIWB; SIWA needs the SDK-level wiring to graduate).
+
+For most production agents (background submission via cron / agent-runner), Path A is the canonical flow — and it works today.
 
 ## Cross-reference
 
 - For the SDK integration shape: [`sdk-integration-30-line.md`](./sdk-integration-30-line.md)
-- For the Builder Code wiring details: [`../prompts/builder-code-wiring.md`](../prompts/builder-code-wiring.md)
+- For the Builder Code wiring details: [`../prompts/wire-builder-code.md`](../prompts/wire-builder-code.md)
 - For submit-error handling: [`error-recovery.md`](./error-recovery.md)
