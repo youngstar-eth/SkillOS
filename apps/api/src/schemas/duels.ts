@@ -30,5 +30,9 @@ export const SoloMatchStartResponseSchema = z
         'Canonical apex watch URL. Built from APEX_WATCH_BASE_URL + runId.',
     }),
     startedAt: z.string().datetime(),
+    status: z.literal('pending').openapi({
+      description:
+        'Always "pending" for the 202 response. X15.6: x402 settlement and on-chain chargeRetryFee happen asynchronously after this reply lands; subscribers track progress via the x15_payment_attempts Realtime channel keyed by runId.',
+    }),
   })
   .openapi('SoloMatchStartResponse');
