@@ -1,14 +1,14 @@
 # X15 — Agent x402 paid retries on SkillOS
 
 **Status:** Phase 1 testnet, shipped May 15, 2026. Mainnet activation gated on Phase 2 audit cycle.
-**Canonical demo:** <https://skillos.network/watch/0c1b0e88-39c2-42a4-930b-fdc6da52795f>
-**Settle proof (Base Sepolia):** <https://base-sepolia.blockscout.com/tx/0xf649727b0681abee9c6a7913ab02c6f0321857b3bc37125c7ef482ef8cdbaa18>
+**Canonical demo:** <https://skillos.network/watch/a9b96de9-3555-4d95-9745-df1bcab1d143>
+**Settle proof (Base Sepolia):** <https://base-sepolia.blockscout.com/tx/0x5d5760cef10fc11e1f5235c3ad086ccd2eb9b122fca2c220142ccaf05bb8bcef>
 
 ---
 
 ## One-paragraph version (for partner outreach + investor updates)
 
-SkillOS shipped end-to-end agent-paid retries on a live 2048 tournament on Base Sepolia. An autonomous Claude-driven agent paid its own way through the protocol: it signed an EIP-3009 x402 invoice for $1.05 USDC (settled by the x402.org facilitator), called `chargeRetryFee` for an additional $1.00 USDC on-chain (`msg.sender == player` constraint preserved, so the agent self-pays — no studio middleware), played a 24-move match, and submitted its score on-chain with full `dataSuffix` Builder Code attribution (`bc_o6szuvg1`). The entire flow runs against a non-custodial Solidity contract; no platform escrow, no permissioned write paths, no human in the settlement loop. The demo run (final score 96) and three Base Sepolia transactions are publicly verifiable. SDK-ready for "bring your own agent" — Phase 2 mainnet activation is audit-gated and follows the published roadmap.
+SkillOS shipped end-to-end agent-paid retries on a live 2048 tournament on Base Sepolia. An autonomous Claude-driven agent paid its own way through the protocol: it signed an EIP-3009 x402 invoice for $1.05 USDC (settled by the x402.org facilitator), called `chargeRetryFee` for an additional $1.00 USDC on-chain (`msg.sender == player` constraint preserved, so the agent self-pays — no studio middleware), played a 51-move match to natural game-over, and submitted its score on-chain with full `dataSuffix` Builder Code attribution (`bc_o6szuvg1`). The entire flow runs against a non-custodial Solidity contract; no platform escrow, no permissioned write paths, no human in the settlement loop. The demo run (final score 272) and three Base Sepolia transactions are publicly verifiable. SDK-ready for "bring your own agent" — Phase 2 mainnet activation is audit-gated and follows the published roadmap.
 
 ---
 
@@ -24,7 +24,7 @@ The 2026 agent ecosystem has converged on three primitives: **agentic identity**
 
 ### What's next
 
-Phase 1 testnet is shipped and demo-verifiable. The Wave 2 sprint that closed this work produced a public canonical demo, a fully-reconciled $5.15 testnet drain across three sequential agent retries, four merged PRs, and zero unrecoverable production state — plus five new operational patterns codified in pattern memory for the next surface that touches the same primitives. The SDK is ready for early third-party agent integrations: bring your own agent, sign the EIP-3009 invoice, anchor your score with your own Builder Code. Phase 2 mainnet activation is audit-gated and follows the published roadmap; the ADR (`docs/adr/0003-agent-x402-retry-payments.md`) documents the mainnet readiness dependencies and the operator-side reconciliation surface explicitly. SkillOS treats public framing as a commitment device, not a teaser — what's shipped, ships; what's roadmap, stays roadmap until the audit gates clear.
+Phase 1 testnet is shipped and demo-verifiable. The Wave 2 sprint that closed this work produced a public canonical demo, a fully-reconciled $5.15 testnet drain across three sequential agent retries, four merged PRs, and zero unrecoverable production state — plus five new operational patterns codified in pattern memory for the next surface that touches the same primitives. The runner now plays to real game-over (24-move cap removed, 240s wall-clock safety net + stuck-detection FSM; end_reason canonicalized: win/game_over/timeout/stuck/error). The SDK is ready for early third-party agent integrations: bring your own agent, sign the EIP-3009 invoice, anchor your score with your own Builder Code. Phase 2 mainnet activation is audit-gated and follows the published roadmap; the ADR (`docs/adr/0003-agent-x402-retry-payments.md`) documents the mainnet readiness dependencies and the operator-side reconciliation surface explicitly. SkillOS treats public framing as a commitment device, not a teaser — what's shipped, ships; what's roadmap, stays roadmap until the audit gates clear.
 
 ---
 
@@ -32,7 +32,7 @@ Phase 1 testnet is shipped and demo-verifiable. The Wave 2 sprint that closed th
 
 - **Code:** [`apps/api/src/lib/x402-client.ts`](../../apps/api/src/lib/x402-client.ts), [`apps/api/src/routes/agents-matches.ts`](../../apps/api/src/routes/agents-matches.ts), [`apps/api/src/lib/duel/charge-retry-fee.ts`](../../apps/api/src/lib/duel/charge-retry-fee.ts)
 - **Contract:** TournamentPool v2.1, `0x52049b812780134d2F69D6c20C2ef881D49702da` (Base Sepolia)
-- **Demo runId:** `0c1b0e88-39c2-42a4-930b-fdc6da52795f` (final score 96, 24 moves)
-- **Settle tx:** `0xf649727b0681abee9c6a7913ab02c6f0321857b3bc37125c7ef482ef8cdbaa18`
+- **Demo runId:** `a9b96de9-3555-4d95-9745-df1bcab1d143` (final score 272, 51 moves, natural game-over)
+- **Settle tx:** `0x5d5760cef10fc11e1f5235c3ad086ccd2eb9b122fca2c220142ccaf05bb8bcef`
 - **ADR (locked architecture, May 15, 2026 verified end-state):** [`docs/adr/0003-agent-x402-retry-payments.md`](../adr/0003-agent-x402-retry-payments.md)
 - **Wave retrospectives:** [Wave 1](../sprints/X15-wave-1-retrospective.md), [Wave 2](../sprints/X15-wave-2-retrospective.md)
