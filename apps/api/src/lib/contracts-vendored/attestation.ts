@@ -29,6 +29,23 @@ export function getSignerAccount() {
   return cachedAccount;
 }
 
+// X15.3 — the agent wallet that self-pays for paid retries (chargeRetryFee
+// msg.sender == player constraint). Separate key from STUDIO_PRIVATE_KEY:
+// studio continues to sign + broadcast submitSoloScore (D11), but the agent
+// is the on-chain `player` and broadcasts chargeRetryFee itself (D1).
+// Pre-X15.3 the studio wallet masqueraded as the agent on testnet; X15.3
+// unwinds that masquerade so the wallet roles match the contract semantics.
+let cachedAgentAccount: ReturnType<typeof privateKeyToAccount> | null = null;
+
+export function getAgentAccount() {
+  if (cachedAgentAccount) return cachedAgentAccount;
+  const key = process.env.AGENT_PRIVATE_KEY;
+  if (!key) throw new Error('AGENT_PRIVATE_KEY is not set');
+  const hex = (key.startsWith('0x') ? key : `0x${key}`) as Hex;
+  cachedAgentAccount = privateKeyToAccount(hex);
+  return cachedAgentAccount;
+}
+
 /**
  * Build the tournament solo-submit digest (TournamentPool v2.1).
  *

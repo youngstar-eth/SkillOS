@@ -25,7 +25,7 @@ import {
   TOURNAMENT_POOL_V21_ADDRESS,
 } from '../contracts.js';
 import {
-  getSignerAccount,
+  getAgentAccount,
   signSoloSubmitAttestation,
 } from '../contracts-vendored/attestation.js';
 import { getWalletClient } from '../contracts-vendored/wallet-client.js';
@@ -69,7 +69,7 @@ export interface StartSoloResult {
  */
 export async function reserveSoloRun(input: StartSoloInput): Promise<StartSoloResult> {
   const seed: Hex = `0x${randomBytes(32).toString('hex')}` as Hex;
-  const agentAddress = getSignerAccount().address;
+  const agentAddress = getAgentAccount().address;
 
   const sb = getSupabaseClient();
   const { data, error } = await sb
@@ -106,7 +106,7 @@ interface RunSoloMatchArgs {
 export async function runSoloMatch(args: RunSoloMatchArgs): Promise<void> {
   const sb = getSupabaseClient();
   const startedAt = Date.now();
-  const agentAddress = getSignerAccount().address;
+  const agentAddress = getAgentAccount().address;
 
   try {
     await sb
