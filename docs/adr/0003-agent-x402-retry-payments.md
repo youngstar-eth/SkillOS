@@ -69,6 +69,9 @@ X15 only touches the **fee payment** path. The `submitSoloScore` attestation pip
 
 This separation matters for audit: the trustedSigner role retains its scoped responsibility (score attestation only). x402 introduces an *additional* signing surface (agent's EIP-3009 on USDC), not a replacement.
 
+> **NOTE — Selector vs source naming dual-state (discovered X15.4):**
+> Local Solidity source at `contracts/src/TournamentPool.sol` renames the function to `chargeEntryFee` (per v2.2 WIP PR #49). Deployed v2.1 bytecode on Base Sepolia continues to expose the `chargeRetryFee` selector. Foundry tests use the X15 lexicon (`chargeRetryFee`) for naming parity in `test_*` names, but test bodies call `pool.chargeEntryFee` since Foundry runs against local source. Phase 2 mainnet deploy of v2.2 resolves the drift: new bytecode selector becomes `chargeEntryFee`, and X15.3 backend wire (`charge-retry-fee.ts`) requires selector rename as part of mainnet cutover sprint (X19b.1 + X11).
+
 ## Consequences
 
 ### Positive
