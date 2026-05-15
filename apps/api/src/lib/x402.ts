@@ -100,27 +100,21 @@ const buildMiddleware = (): MiddlewareHandler => {
         description: 'Aggregated cohort statistics (T3 tier data).',
         mimeType: 'application/json',
       },
-      // Sprint X15.2 — gate solo agent retries (ADR 0003 D2 + D4 + D8).
-      // First solo per (tournament, agent) is free at the contract level
-      // (TournamentPool.sol:486 `priorSolo == 0` branch); the second
-      // submitSoloScore call reverts InsufficientFeePaid unless the agent
-      // has paid ENTRY_FEE via chargeEntryFee first. This entry charges
-      // the agent $1.05 over x402; X15.3 spends the settled USDC on the
-      // downstream chargeEntryFee + submitSoloScore pair (D11 keeps the
-      // submitSoloScore wire unchanged — agent x402 funds the fee path,
-      // not the score-attestation path).
-      '/v1/agents/matches/start-solo': {
-        accepts: [
-          {
-            scheme: 'exact',
-            price: X402_PRICES.agentMatchRetry,
-            network: BASE_SEPOLIA_CAIP2,
-            payTo,
-          },
-        ],
-        description: 'Solo agent match — entry fee for paid retry (X15).',
-        mimeType: 'application/json',
-      },
+      // Sprint X15.6 — /v1/agents/matches/start-solo is intentionally NOT
+      // in this route map (ADR 0003 D5 mechanics resolution). Two reasons:
+      //
+      //   1. Spectator UX: a browser POST that returns 402 instead of 202
+      //      breaks the apex "kick off → subscribe to Realtime" flow on
+      //      /watch/[runId].
+      //   2. Server-side satisfaction: the agent (AGENT_PRIVATE_KEY) is the
+      //      payer, not the spectator. paymentMiddleware can't satisfy its
+      //      own paywall; settlement happens inside the handler after the
+      //      runId is reserved.
+      //
+      // The actual x402 settlement lives in apps/api/src/lib/x402-client.ts
+      // (X15.6) and is called from the start-solo handler's background
+      // worker. X402_PRICES.agentMatchRetry above stays the single source
+      // of truth for the $1.05 amount; the client reads it directly.
     },
     server,
   );
