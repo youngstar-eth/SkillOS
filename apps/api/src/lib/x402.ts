@@ -21,13 +21,19 @@ import { ExactEvmScheme } from '@x402/evm/exact/server';
 const DEFAULT_FACILITATOR_URL = 'https://x402.org/facilitator';
 const BASE_SEPOLIA_CAIP2 = 'eip155:84532' as const;
 
-// Two-tier price table — keep in lock-step with §3.1 and the README.
+// Price table — keep in lock-step with §3.1, the README, and ADR 0003.
 // String form ('$0.01') is canonical for USD-pegged stablecoins; the
 // scheme resolves the asset address per network internally (USDC
 // 0x036CbD53842c5426634e7929541eC2318f3dCF7e on Base Sepolia).
+//
+// agentMatchRetry: ADR 0003 D4. $1.05 = $1.00 ENTRY_FEE (one solo retry
+// at TournamentPool ENTRY_FEE constant) + $0.05 surplus (gas for the
+// downstream chargeEntryFee tx, facilitator margin, observability
+// budget). Atomic: 1_050_000 USDC base units (6 decimals).
 export const X402_PRICES = {
   matchReplay: '$0.01',
   cohortSnapshot: '$0.10',
+  agentMatchRetry: '$1.05',
 } as const;
 
 const isHexAddress = (v: string): v is `0x${string}` =>
@@ -92,6 +98,27 @@ const buildMiddleware = (): MiddlewareHandler => {
           },
         ],
         description: 'Aggregated cohort statistics (T3 tier data).',
+        mimeType: 'application/json',
+      },
+      // Sprint X15.2 — gate solo agent retries (ADR 0003 D2 + D4 + D8).
+      // First solo per (tournament, agent) is free at the contract level
+      // (TournamentPool.sol:486 `priorSolo == 0` branch); the second
+      // submitSoloScore call reverts InsufficientFeePaid unless the agent
+      // has paid ENTRY_FEE via chargeEntryFee first. This entry charges
+      // the agent $1.05 over x402; X15.3 spends the settled USDC on the
+      // downstream chargeEntryFee + submitSoloScore pair (D11 keeps the
+      // submitSoloScore wire unchanged — agent x402 funds the fee path,
+      // not the score-attestation path).
+      '/v1/agents/matches/start-solo': {
+        accepts: [
+          {
+            scheme: 'exact',
+            price: X402_PRICES.agentMatchRetry,
+            network: BASE_SEPOLIA_CAIP2,
+            payTo,
+          },
+        ],
+        description: 'Solo agent match — entry fee for paid retry (X15).',
         mimeType: 'application/json',
       },
     },
