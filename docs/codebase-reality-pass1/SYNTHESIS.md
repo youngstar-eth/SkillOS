@@ -359,57 +359,69 @@ Retry fees and prize pools live on separate storage slots in TournamentPool. Spo
 
 ---
 
-## 6. Phase 2 sprint sequencing (revised)
+## 6. Sprint sequencing (revised per Q-1 = C)
 
-### 6.1 Current sprint queue baseline (per v1.4 §4 — not on disk; reconstructed from memory + R-track references)
+**Founder decision applied:** Q-1 (R1) resolved as Option C — Phase 1 wrap waits for real duel reactivation. This moves X10b human dataSuffix, X14 class-aware fairness, X20 AntiCheat rebuild, and duel reactivation **from Phase 2 entry into Phase 1 wrap final sprints**. Phase 2 begins only after this cluster closes.
 
-| Sprint | Stated focus (per brief) |
-|---|---|
-| X10b | Duel reactivation prep |
-| X11 | 3rd-party SDK rollout (Unity WebGL / Roblox / Phaser / gb-studio adapters) |
-| X12 | External audit firm engagement ($100K — round-spec.md) |
-| X13 | Cayman foundation structuring ($50K — round-spec.md) |
-| X14 | Class fairness (T1+ plausibility + `is_agent` schema columns) |
-| X15 / X15.5 | (already executed per memory — X15 paid retry; X15.5 apex replay rename) |
-| X16 | Refund/dispute path + orphan reconcile cron |
-| X17 | Cron settle throughput refactor |
-| X18 | (TBD — placeholder) |
-| X19 | Schema drift sprint (in flight per `docs/audit-prep/x19-schema-drift-analysis.md`) |
-| X20 | Anti-Cheat rebuild |
+**Velocity calibration applied:** sprint estimates in this section assume the parallel-agent + founder-direction workflow demonstrated by UR Pass 1 (May 16) and CR1 (May 17) — multi-PR-per-day cadence, ≈ 2–3× traditional team velocity. Traditional team estimates would be 2–3× longer. **This calibration is binding for Phase 2 sprint planning** and is the basis for every "effort" cell below.
 
-### 6.2 Revised Phase 2 sprint sequence (informed by CR1 cross-track findings)
+The revised sequence has three clusters: Phase 1 wrap final sprints, Phase 2 pre-mainnet hardening (funding-independent), and funding-dependent Phase 2.
 
-New CR1-discovered sprints are prefixed **P2-Pre-** to mark them as pre-mainnet hardening waves that should precede or run parallel to existing X-numbered sprints. They cluster naturally into 5 themes.
+### 6.1 Cluster 1 — Phase 1 wrap final sprints (~10–14 days)
 
-| Sprint | Source | Funding dep? | Phase tag | Sequencing rationale |
-|---|---|---|---|---|
-| **P2-Pre-A1** — "Sub-day hardening wave" (C1, H1, H2, H4, H6, IM-2, IM-18) | CR1 + UR Pass 1 | Independent | P2 entry | Bundle all sub-day Critical+High fixes into one PR-stack (selector-decode, requireSiwaAuth, verifyOnchain flip, trustedSigner read, x402 scope-fix). Founder can ship this entirely on existing infra. Highest ROI. |
-| **P2-Pre-A2** — "Upstash + facilitator-trust wave" (C2, H5, H7, IM-16, IM-17, IM-20, IM-22) | CR1 + UR Pass 1 | Independent | P2 entry | Upstash REST migration unblocks rate limiter + nonce store + ERC-8128 nonce. Pair with x402 waitForReceipt + Idempotency-Key + tournamentId pre-check. Self-contained backend hardening. |
-| **P2-Pre-B** — "Wallet topology + staging" (MB-11, MB-12, MB-13, M2/M3/M4) | CR1 R3 + UR Pass 1 | Independent (engineering) | P2 mainnet prereq | Wallet rotation runbook + STUDIO role-split planning + staging Supabase. Audit-firm-facing prep. Can start parallel to A1/A2. |
-| **P2-Pre-C** — "Doc + cleanup sweep" (IM-9, IM-10, IM-11, IM-19, IM-23—IM-26, IM-28—IM-34, IM-38—IM-40, IM-43, IM-45, NH-5, NH-12, NH-15) | CR1 R1-R4 | Independent | P2 entry | Single cleanup sprint that resolves doc drift + cron auth consistency + memory corrections + brand cutover decisions. Low-effort, high-clarity-gain. Can run parallel to all others. |
-| **P2-Pre-D** — "Developer surface hardening" (IM-4, IM-5, IM-6, IM-7, IM-8, IM-21, IM-35—IM-37, IM-41, IM-50) | CR1 R2 + UR Pass 1 | Independent | P2 SDK rollout prereq | SDK tests + circular build-dep removal + apps/api CI parity + runner.ts test suite + Idempotency / agent-profile persistence. Mandatory before X11 (3rd-party SDK rollout). |
-| **P2-Pre-Contract** — "Contract coverage + v2.2 deploy" (IM-12, IM-13, IM-15, IM-44, IM-49) | CR1 R3-R4 | $100K (X12) | P2 mainnet contract | ArcadePool/ChallengeEscrow coverage lift + v2.2 fee-splitter ADR-0001 + script test suite. Audit-firm pre-feed. |
-| **P2-Pre-Standards** — "ERC-8021 encoder + Builder Code drift CI" (IM-19, IM-51) | CR1 R2 + memory | Independent | P2 spec compliance | 11B raw ASCII → 16B structured. Runtime working, spec-noncompliant. base.dev lenient today; mainnet posture wants spec compliance. |
-| **P2-Ops** — "Vercel Pro upgrade + sub-daily cron" (IM-27) | $20/mo × N projects (Ops budget — round-spec.md) | Funding-dependent | P2 ops | Unblocks H9 reconcile cadence + TournamentCreated indexer latency. |
-| **X10b** (existing) — Duel reactivation | Existing backlog | Independent (engineering) | P2 entry | **Founder decision Q-1:** Phase 1 wrap = solo-only OR ship minimal duel. Determines whether X10b is P1 wrap or P2 first sprint. Bundle IM-1, IM-2, IM-3, NH-10, NH-11 with the duel decision. |
-| **X11** (existing) — 3rd-party SDK rollout | Existing backlog | Independent | P2 SDK launch | Unity WebGL / Roblox / Phaser / gb-studio adapters. **Blocked-by P2-Pre-D** (SDK tests + circular build dep removal). |
-| **X12** (existing) — External audit firm engagement | Existing backlog | **$100K** (round-spec.md use of funds) | P2 mainnet gate | Trail of Bits / OpenZeppelin / Spearbit slot. **Blocked-by P2-Pre-Contract + P2-Pre-A1/A2/B** (pre-audit findings closure). |
-| **X13** (existing) — Cayman foundation | Existing backlog | **$50K** | P2 mainnet gate | Legal + counsel. Parallel to X12. |
-| **X14** (existing) — Class fairness | Existing backlog | Independent (engineering) | P2 mainnet gate | T1+ plausibility (MB-9) + `is_agent`/`class_tag` schema columns (IM-47, IM-48). |
-| **X16** (existing) — Refund/dispute path + orphan reconcile cron | Existing backlog (H8, H9) | Independent | P2 user-facing posture | Mainnet user-facing posture; auto-refund needs receiver wallet to hold a key (currently receive-only — wallet-topology change required). |
-| **X17** (existing) — Cron settle throughput refactor | Existing backlog (CLAUDE.md L162) | Independent | P2 ops | Survives unchanged. |
-| **X18** | TBD placeholder | — | — | Either drop or repurpose. |
-| **X19** (existing, in flight) — Schema drift sprint | Existing backlog (MB-10) | Independent | P2 audit-prep | 3–5 days per `docs/audit-prep/x19-schema-drift-analysis.md`. |
-| **X20** (existing) — Anti-Cheat rebuild | Existing backlog (IM-46) | Independent | P2 mainnet gate | Pairs with X14 (plausibility + class fairness). |
+Per Q-1 = C, Phase 1 wrap requires matchmaking + class fairness + AntiCheat completion. These sprints close Phase 1 *before* Phase 2 entry:
 
-**Suggested execution order:**
+| Sprint | Source | Effort (realistic) | Funding | Phase | Sequencing |
+|---|---|---|---|---|---|
+| **X10b** — Human path dataSuffix | UR Pass 1 Track C F-3.2 | Sub-day | Independent | P1 final | Parallel with X14 |
+| **X14** — Class-aware fairness X8 (`is_agent` / `class_tag` columns + T1+ plausibility lift; addresses MB-9, IM-47, IM-48) | v1.4 §4 + CR1 R3 §9, R4 §9.1 | 4–7 days | Independent | P1 final | Parallel with X20 |
+| **X20** — AntiCheat rebuild F0–F4 (Haiku 4.5 classifier — addresses IM-46) | v1.4 §3.13 + CR1 T5-3 (`docs/audit-prep/t5-3-anticheat-verification.md`) | 5–8 days | Independent | P1 final | Parallel with X14 |
+| **Duel reactivation** (un-skip `settle-guard.integration.test.ts`, replace `DuelComingSoon` on 18 routes, wire `/api/duel/{queue,submit,status}` BFFs; addresses IM-1, IM-2, IM-3, R1 §5.7, R4 §5.3, memory `project_phase2_duel_reactivation`) | CR1 R1 + R4 + memory | 2–4 days | Independent | P1 final | Sequential after X14 + X20 |
 
-1. **Concurrent Wave 1 (engineering-independent, no funding):** P2-Pre-A1, P2-Pre-A2, P2-Pre-C, P2-Pre-D, X19, X10b-decision. All parallel except A2 depends on A1 (shared Upstash setup PR), and P2-Pre-D blocks X11.
-2. **Concurrent Wave 2 (engineering + funding-prep):** P2-Pre-B, P2-Pre-Contract, P2-Pre-Standards, X14, X16, X17, X20. Wave 2 begins when Wave 1 stabilizes.
-3. **Funding-dependent gate:** X12 (audit) + X13 (Cayman) + P2-Ops fire when round closes (round-spec.md timeline: first close target Q3 2026).
-4. **Mainnet activation:** depends on Wave 2 + funding gate completion.
+**Cluster total: ~10–14 days. Date estimate: 31 May – 4 June 2026.** Phase 1 wrap genuinely complete after this cluster — solo flow + duel flow + class-aware fairness + AntiCheat all shipped. HD-4 (metadata over-promises duel) auto-resolves when duel reactivates.
 
-**Funding-independent sprint count:** 12 sprints (P2-Pre-A1, P2-Pre-A2, P2-Pre-B, P2-Pre-C, P2-Pre-D, P2-Pre-Contract, P2-Pre-Standards, X10b, X14, X16, X17, X19, X20). **Funding-dependent:** 3 sprints (X11, X12, X13, P2-Ops — X11 needs P2-Pre-D first; X12/X13/P2-Ops need round close).
+### 6.2 Cluster 2 — Phase 2 pre-mainnet hardening (funding-independent, ~3–4 weeks)
+
+Per CR1 discovery + UR Pass 1 backlog. Sequential within cluster but parallel across sub-clusters where dependencies permit:
+
+| Sprint | Scope | Effort | Phase |
+|---|---|---|---|
+| **P2-Pre-A1** | Sub-day hardening bundle: C1 SIWA gate (already shipped 2026-05-17 per hotfix `246ba54`), H1 boot-time `trustedSigner` cross-check, H2 `verifyOnchain: true` flip, H4 selector-decode at `packages/duel-backend/src/cron/tournaments.ts:977`, H6 x402 middleware scope to `/v1/data/*`, IM-18 lib-shared digest-copy deletion | 1–2 days | P2 |
+| **P2-Pre-A2** | Upstash KV rate-limit infra (C2 + IM-20 ERC-8128 nonce + nonce-store unification per memory `project_phase2_nonce_store_unify`) + x402 facilitator trust (H5 `waitForReceipt` + log assertion + IM-22 receiver-topology validation + IM-16 tournamentId preflight + IM-17 Idempotency-Key + H7 `x15_payment_attempts` schema reconciliation) | 1 week | P2 |
+| **P2-Pre-B** | Wallet topology cleanup (MB-11 STUDIO broadcaster role-split + ETH preflight in cron, MB-12 rotation runbook for STUDIO + AGENT + cache-singleton revalidation, M2 env-var-name leak fix, M4 wallet-env manifest) + Supabase preview-branch staging (MB-13) | 3–5 days | P2 |
+| **P2-Pre-C** | Doc / cleanup / brand-cutover sweep: CLAUDE.md sync (HD-1, MD-1, MD-2, MD-3, MD-23, MD-24, MD-25), `skillos.games` DNS decision (HD-3 / Q-V1), legacy `skillbase.games` cutover (MD-5 / Q-V2), apps/api README rewrite (MD-15), memory file corrections (HD-6, HD-7, MD-20, MD-21), cron auth consistency (IM-23, IM-24, IM-25, IM-26), drift CI for `dataSuffix` (IM-19), CLAUDE.md ↔ apex CLAUDE.md sync (MD-25), junk Vercel project removal (NH-12), commit-SHA in `/v1/health` (NH-15), Sprint X16–X20 retro backfill (MD-16), phantom-dep cleanup (MD-11), `mas-2048` env shape decision (Q-V5), `mas-wordle` install-cmd fix (Q-V4) | 3–5 days | P2 |
+| **P2-Pre-D** | Developer surface hardening: SDK 0.1→0.2 publish posture decision (MD-8, Q-9), mirror visibility (MD-10, Q-11), test infrastructure (IM-4 apps/api CI parity, IM-5 SDK unit tests, IM-6 vendor `openapi.json` to kill `prebuild` circular dep, IM-7 `runner.ts` test suite, IM-8 agent-runner `tsx --test` gate, IM-21 `PATCH /v1/agents/profile` Supabase persistence, IM-41 test-runner unification, IM-50 EIP-5792 bundler-drop diagnosis, IM-35–IM-37 npm policy decisions, IM-40 sp-engine npm test glob, MD-18, MD-19) | 1 week | P2 |
+| **P2-Pre-Contract** | Contract coverage + v2.2 deploy + manifest ↔ chain assertion: ArcadePool branch coverage lift 11.76→80%+ (IM-12), ChallengeEscrow branch coverage lift 61.54→80%+ (IM-13), Foundry script test suite (IM-15), ADR-0001 v2.2 fee-splitter draft (IM-44), v2.2 `DEV_BPS=7000 / PLATFORM_BPS=3000` contract deploy (IM-49 / MD-26), HD-2 `trustedSigner` config-vs-runtime resolution (`cast call trustedSigner()` + manifest correction), DevAttributionNFT address export to `packages/contracts/src/addresses.ts` (MD-27), legacy AGENT wallet `0x1569A95e…` formal revoke (MD-4 / Q-W2) | 1–2 weeks | P2 |
+| **P2-Pre-Standards** | ERC-8021 encoder spec compliance — 11B raw ASCII → 16B structured (IM-51, memory `project_erc8021_encoder_spec_compliance`); base.dev lenient today, mainnet posture wants spec compliance | 3–5 days | P2 |
+| **X16** | Vercel path-filter migration (turbo-ignore deprecated per CLAUDE.md; refund/dispute path + orphan reconcile cron pairs with H8, H9) | 3–5 days | P2 |
+| **X17** | Cron settle throughput refactor | 1 week | P2 |
+| **X19** | Schema reconciliation 9-item 4-class drift sprint (in flight per `docs/audit-prep/x19-schema-drift-analysis.md`; addresses MB-10, MD-21) | 3–5 days | P2 |
+
+**Estimated cumulative: 3–4 weeks sequential, ~2–3 weeks with parallel sub-clusters** (P2-Pre-A1, P2-Pre-C, P2-Pre-D, X19 can all run concurrently; P2-Pre-A2 depends on A1 Upstash bootstrap; P2-Pre-B can start parallel to A1/A2; P2-Pre-Contract + P2-Pre-Standards + X16/X17 run later in cluster).
+
+### 6.3 Cluster 3 — Funding-dependent Phase 2 (audit + Cayman + mainnet deploy)
+
+Pre-seed window gate. Cannot proceed without capital (round-spec.md: $1M post-money SAFE at $10M cap; a16z Speedrun + Alliance + Coinbase Base Builder Grants + Coinbase Ventures pipeline active 2026-05-16):
+
+| Sprint | Cost / Gate | Effort | Phase |
+|---|---|---|---|
+| **X11** — 3rd-party SDK adapters (Unity WebGL, Roblox, Phaser, gb-studio) | After P2-Pre-D, requires P2-Pre-D shipped (SDK tests + circular build dep removal) | 2–3 weeks per adapter | P2 |
+| **X12** — Audit firm engagement (Trail of Bits / OpenZeppelin / Spearbit slot) | $50–150K (round-spec.md $100K reserved) — blocked-by P2-Pre-Contract + P2-Pre-A1/A2/B closure | 4–8 weeks audit duration | P2 |
+| **X13** — Cayman Foundation structuring (Uniswap / Optimism / Arbitrum precedents) | $30–80K (round-spec.md $50K reserved) | 4–8 weeks counsel | P2 |
+| **P2-Ops** — Vercel Pro upgrade (sub-daily cron unlock; IM-27) | $20/month per project × N | Sub-day | P2 |
+
+**Mainnet activation gate:** all funding-dependent items + Cluster 2 + Phase 1 wrap items in audit-approved state.
+
+### 6.4 Sequencing rationale
+
+1. **Phase 1 wrap closes first** (no parallel with P2 to keep phase boundaries clean per Q-1 = C decision). Cluster 1 finalizes solo + duel + class-aware fairness + AntiCheat before Phase 2 entry.
+2. **Phase 2 pre-mainnet sprints kick off once P1 wrap declared** (Cluster 2 begins after Cluster 1 closes; parallel sub-clusters per §6.2 dependency map).
+3. **Funding-dependent sprints gate-locked behind capital opening** — YC outcome ~August 2026 or parallel VC raise (per round-spec.md first close target Q3 2026).
+4. **Velocity recalibration is binding** — estimates assume parallel-agent workflow (≈ 2–3× traditional team velocity) per the CR1 case study where 4-track audit + Tier-0 fixes + this synthesis shipped same day (2026-05-17).
+
+### 6.5 Velocity calibration note (binding)
+
+Sprint estimates in §6.1–§6.3 assume the parallel-agent + founder-direction workflow demonstrated by **UR Pass 1 (2026-05-16)** and **CR1 (2026-05-17)**. Traditional team estimates would be 2–3× longer. This calibration is **binding for Phase 2 sprint planning** and should be re-checked quarterly against actual shipped-sprint cadence. If the workflow loses parallel-agent leverage (e.g. agent infra outage, founder bandwidth shift), revert to traditional-team multipliers for any in-flight estimate.
 
 ---
 
