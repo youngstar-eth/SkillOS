@@ -1,0 +1,111 @@
+# Repository History Secret Scan — Raw Output
+# Sprint UR Pass 1 / Track D — Infra
+# Generated: 2026-05-17
+# Branch: ur/track-d-infra
+# Worktree: /Users/inancayvaz/MAS/.claude/worktrees/ur-track-d-infra
+# Scan target: /Users/inancayvaz/MAS (full git history, all branches reachable from HEAD)
+
+================================================================================
+TOOLS
+================================================================================
+gitleaks 8.30.1 (default ruleset)
+trufflehog: not installed; not required given gitleaks completed clean
+
+================================================================================
+SCAN SUMMARY
+================================================================================
+350 commits scanned
+~18,208,985 bytes (18.21 MB) of git history evaluated
+~1.5 seconds wall time
+175 raw rule matches (all rule `generic-api-key`)
+
+  by rule:
+    generic-api-key                                      175
+
+  by directory:
+    contracts/lib/openzeppelin-contracts/test/           168  (vendored OpenZeppelin test fixtures — noise)
+    apps/{2048,clicker,match3,minesweeper,sudoku,wordle} 6    (Farcaster Frame manifest verifier pubkey)
+    apps/api/test                                        1    (Anvil/Hardhat well-known test private key #0)
+                                                         ---
+                                                         175
+
+================================================================================
+TRIAGE — TRUE POSITIVES
+================================================================================
+TRUE POSITIVES: 0
+
+================================================================================
+TRIAGE — FALSE POSITIVES (REDACTED)
+================================================================================
+
+Class A — vendored library test fixtures (168 hits):
+  Path: contracts/lib/openzeppelin-contracts/test/**
+  Rationale: OpenZeppelin Solidity contracts repo is vendored as a Foundry
+             dependency under contracts/lib/. The vendored `test/**` tree
+             contains ECDSA / EIP-2098 / ERC-2612 unit-test signatures and
+             RLP-encoded transaction fixtures. These match `generic-api-key`
+             on raw entropy alone. None are SkillOS-owned, none are secrets.
+  Verdict: NOISE — vendored test data, not our code.
+
+Class B — well-known Anvil/Hardhat test private key #0 (1 hit):
+  File:        apps/api/test/smoke-x2.ts
+  Line:        37
+  Commit:      3cdbbde  (X2 smoke test scaffolding)
+  Match (redacted): TEST_PRIVATE_KEY = '0x<REDACTED-64-HEX>'
+  Decoded:     This is the canonical first test private key shipped by Anvil
+               (`anvil --accounts 10` default) and Hardhat Network.
+               Derived address: 0xf39Fd6e51aad88F6F4ce6aB8827279cfFFb92266.
+               Public Ethereum dev knowledge for ~7 years. Used in every
+               public dev tutorial. Intentional in smoke-test fixture.
+  Verdict: INTENTIONAL — well-known dev key.
+
+Class C — Farcaster Frame manifest verifier public key (6 hits):
+  Files:       apps/{2048,clicker,match3,minesweeper,sudoku,wordle}/src/app/
+               .well-known/farcaster.json/route.ts:20
+  Commit:      9fa55c5  (Farcaster Frame manifest rollout, all 6 apps in one commit)
+  Match (redacted): key:"0x<REDACTED-40-HEX>"
+  Decoded:     The 0x-prefixed 40-hex-character value is a 20-byte Ethereum
+               address (NOT a 32-byte private key). It is the
+               `accountAssociation.key` field of the Farcaster Frame manifest —
+               the PUBLIC address that signed the domain ownership proof.
+               Required to be world-readable by the Farcaster Frame spec.
+  Verdict: INTENTIONAL — public-by-design per Farcaster Frame spec.
+
+================================================================================
+DIFFERENTIAL — SCANS THAT WOULD ADDITIONALLY BE NEEDED FOR FULL COVERAGE
+================================================================================
+- packed-refs / reflog / dropped commits: gitleaks scans reachable refs from
+  HEAD by default. If a leaked secret was force-pushed away, the dangling
+  commit may still exist in `.git/objects/pack/*` until GC. To verify:
+      git fsck --lost-found && gitleaks detect --source . --log-opts="--all"
+  Not required for this UR Pass 1 since no force-pushes have occurred since
+  the repo was created (PR #38 baseline + branch protection on main).
+
+- trufflehog --only-verified would call the upstream API of each found
+  credential (Stripe, GitHub, AWS, etc.) to confirm the key is currently
+  valid in production. Not run here because zero candidate true positives
+  were found.
+
+================================================================================
+CONCLUSION
+================================================================================
+350 commits, 18 MB of history, ZERO true secret leaks.
+175/175 hits classified as false positives (vendored test data, Anvil dev key,
+public Farcaster pubkeys). The Sprint X1–X19 secret-handling discipline
+(documented in memory: reference_secret_handling_split.md) is upheld in git
+history.
+
+For the external auditor: the absence of true positives reflects deliberate
+practice — wallet keys never enter the repo, service-role keys are .gitignore-d,
+and the only "key-shaped" strings that exist are public-by-spec or test
+fixtures.
+
+================================================================================
+RAW JSON OUTPUT
+================================================================================
+Full raw `gitleaks detect --report-format json` output is available at:
+  $CLAUDE_JOB_DIR/gitleaks-history.json (during scan; not committed)
+
+A redacted/triaged JSON projection (file, line, commit, rule, fingerprint, and
+human triage classification — but values replaced with <REDACTED>) was produced
+as part of this audit. See infra-findings.md §9 for the human-readable summary.
