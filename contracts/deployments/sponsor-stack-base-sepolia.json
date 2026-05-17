@@ -12,7 +12,7 @@
   "externalReferences": {
     "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     "deployer": "0x3a4F9eB7fBa1A0015a6F070259F3B9E883d95EEe",
-    "trustedSigner": "0xf35c284D9aB07Abb4fc297C2af89B467E30f2273"
+    "trustedSigner": "0xA24f9122568E98B72f4dDD61119C7D92D0975692"
   },
   "verification": {
     "status": "verified",
