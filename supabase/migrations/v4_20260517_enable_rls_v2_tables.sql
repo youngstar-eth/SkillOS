@@ -1,0 +1,42 @@
+-- ───────────────────────────────────────────────────────────────────────────
+-- v4_20260517_enable_rls_v2_tables.sql
+-- Track D security hardening — RLS lock-down for two service-role-only tables.
+--
+-- Problem: v2_sp_snapshots and v2_cron_runs were created without RLS enabled.
+-- Service-role clients work either way (they bypass RLS), but the anon and
+-- authenticated roles inherit the default public grants, which means a
+-- mis-provisioned anon key on a server, or a future direct PostgREST call
+-- with the anon JWT, could read/write either table. Both tables are
+-- intended for server-only orchestration:
+--
+--   v2_sp_snapshots — daily SP ledger snapshot rows. Read/written by:
+--     * apps/orchestrator   (anchor-sp-snapshot cron — insert + update)
+--     * apps/2048           (4 read endpoints under /api/* — all service-role)
+--   v2_cron_runs    — minute-window cron mutex. Read/written by:
+--     * packages/duel-backend (run-lock.ts — insert + read)
+--
+--   All callers go through getSupabaseService() in @skillos/lib-shared,
+--   which uses SUPABASE_SERVICE_ROLE_KEY (verified by grep at PR time —
+--   see PR body for the audit). The service role bypasses RLS, so this
+--   migration cannot break any existing caller.
+--
+-- Pattern: matches v2_20260510_auth_nonces.sql and
+-- v2_20260508_tournament_indexer.sql precedent — ENABLE RLS with no
+-- permissive policies. Without a permissive policy, RLS denies every
+-- non-bypass role, which is exactly the "service-role only" intent.
+-- service_role keeps full access via its built-in bypass.
+--
+-- If a future migration needs to expose either table to anon (e.g. the
+-- public SP-snapshot read endpoint at apps/2048 ever switches to using
+-- the anon key directly), add a scoped `for select to anon using (true)`
+-- policy at that time.
+--
+-- Rollback: alter table v2_sp_snapshots disable row level security;
+--           alter table v2_cron_runs    disable row level security;
+-- ───────────────────────────────────────────────────────────────────────────
+
+alter table public.v2_sp_snapshots enable row level security;
+alter table public.v2_cron_runs    enable row level security;
+
+-- No policies created → no anon/authenticated access. Service role still has
+-- full access via its built-in RLS bypass.
