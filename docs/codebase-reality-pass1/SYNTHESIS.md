@@ -23,9 +23,12 @@
 
 ### Phase trajectory position
 
+**Trajectory (readiness-ordered):** P1 ~90% → P2 ~25% → P4 ~10% (Mode B sub-capability ~15-20%) → P5 ~10% → P3 ~5%.
+
 - **Phase 1 (skill game protocol live on testnet):** ~90% done. Solo flow is end-to-end shipped across 6 games + sponsor app + agent-runner. Remaining: misc doc + drift sweeps, duel reactivation (Phase 1.5 if scoped narrow, Phase 2 if scoped real-time), settle silent-swallow patch (memory `project_settle_tournaments_silent_swallow_phase2` — offchain H4), and resolving the 7 "open questions for founder" surfaced by R1 (§7).
 - **Phase 2 (mainnet activation + 3rd-party SDK rollout):** ~25% done. Audit firm not engaged; Cayman entity pending; T1+ plausibility deferred (memory `project_phase2_mainnet_blocker_plausibility`); STUDIO broadcaster concentration not yet addressed; staging Supabase missing; CI exists but pre-commit hooks absent; v2.2 fee-split contract source-prepared but undeployed; 9 schema-drift items open (X19 plan filed). Two Critical + nine High findings in UR Pass 1 offchain-findings register are pre-mainnet blockers.
 - **Phase 3 (decentralization + dispute layer):** 0–5% done. Centralization vectors that *must* be replaced before Phase 3 is meaningful: STUDIO single-broadcaster, Supabase-as-state-of-record, `MockSanctionsOracle` (real Chainalysis swap is contractually scoped via fresh module deploy). The `TournamentCreated` event indexer (memory: claimed missing; refuted by R4 §3.3 and R1 §2.3 — PR #41 shipped) is a Phase 3 foundation already partly in place.
+- **Phase 4 (governance + opt-in data tokenization + Mode B integration):** ~8–12% done weighted across independent sub-capabilities (NOT averaged — gates are independent). Mode B (AAA studio attestation feed) at ~15–20% is the most-mature sub-capability because v2.1's `submitScore(addr, score, sig)` signer-differentiation primitive is in place. Governance token at ~5% (SP system in production as off-chain accounting, intentionally pre-token). Opt-in data tokenization at ~10–15% (T0–T3 framework in `@skillos/sdk`; tokenization contract + opt-in mechanism + licensing column 0%). MMORPG/TCG is P5+ by design. Full breakdown in §3.
 - **Phase 5 (substrate intelligence + cross-class data flywheel):** ~10% done. Foundation-model input readiness is critically thin (see §3.5). On-chain SP-anchor primitive `SkillbaseAnchor` source ready (17 Foundry tests) but undeployed. SP snapshots already structured in `v2_sp_snapshots` (deny-by-default RLS, 20 rows). Apex `/watch` exists as a showcase seed. The data layer needs explicit Phase 4–5 initiative (R4 §9.3) — not in any current backlog.
 
 ### Top 5 strengths (audit-firm packet input, investor pitch input)
@@ -168,6 +171,28 @@ Solo flow end-to-end working on all 6 games with chain-verified Builder Code att
 2. Supabase-as-state-of-record replaced by on-chain event sourcing with off-chain projection. TournamentCreated indexer (PR #41) is the first piece; settle/sponsor/anchor indexers must follow.
 3. `MockSanctionsOracle` replaced by Chainalysis (immutable address rotation via fresh `SponsorshipModule` deploy).
 4. Dispute / arbitration layer (no current surface; ChallengeEscrow has `walkover` but no dispute endpoint).
+
+### Phase 4 — governance + opt-in data tokenization + Mode B integration
+
+**Framework gap note:** the CR1 prompt framework table skipped Phase 4. This sub-section was inserted post-hoc per founder catch. Phase 4 in project memory + v1.2 supplement = governance token + opt-in data tokenization + Mode B integration (AAA studio attestation feed). MMORPG/TCG is P5+ scope, not P4.
+
+**Readiness: ~8–12% weighted across sub-capabilities (NOT averaged — gates are independent).**
+
+- **Governance token: ~5%.** SP system in production as off-chain accounting; intentionally pre-token. No ERC-20 contract, no token-economics paper. SP → token conversion architecturally possible (utility-bound + storage-segregated invariants intact — CLAUDE.md invariant 7 "achievement-gated tokenization") but not implemented. Communication-frame-v2.md §9 risk filter blocks any public token-roadmap framing until Howey-clearance + organic-economy maturity.
+- **Opt-in data tokenization: ~10–15%.** T0–T3 tier framework exists in `@skillos/sdk` (R2 §4.3 confirmed — T0 shipped; T1+ returns 501 per `project_phase2_mainnet_blocker_plausibility`). Replay artifacts present only in `duel_moves` today (R4 §1.2 §9.3 confirmed — agent-side only, no human-side move trace). Tokenization layer (contract + opt-in mechanism + `data_license_status` column in the data layer) at 0% (R4 §9.3 NH-17).
+- **Mode B integration: ~15–20%.** Architectural primitive present: `submitScore(addr, score, sig)` supports both modes — only signer differs. SDK for Mode B attestation feed + first AAA studio contract not shipped. This is the most-mature P4 sub-capability.
+- **MMORPG/TCG: 0%.** P5+ scope by design (real-time complex games out of beachhead).
+
+**Achievement gates (independent, all required for P4 activation):**
+
+1. Sustained adoption signal (organic economy maturity threshold — pitch-only metric per communication-frame-v2.md §9).
+2. Regulatory clarity (Howey + MiCA reads acceptable per counsel; Cayman foundation operational — round-spec.md $50K X13 prerequisite).
+3. Lawyer review of token mechanics + opt-in data tokenization contract before any public commitment.
+4. First AAA studio attestation contract signed (Mode B unlock signal).
+
+**Strategic note:** Mode B at 15–20% readiness is *more* advanced than P3 decentralization (~5%) because the architectural primitive (signer differentiation in v2.1) was preserved at contract-design time. This unlocks P4 partnership optionality *without* requiring P3 as prerequisite — i.e. AAA-studio attestation feeds can ship before multi-sig / threshold broadcaster work lands.
+
+**Substrate-narrative discipline (binding per communication-frame-v2.md §4 invariant 7):** Phase 4 token + tokenization framing is pitch-only. No public token roadmap, no governance-token claim at any account layer (@SkillOS / @web3simpl / @inancweb3). Mode B framing is publicly defensible *only* once first attestation contract signs (chain-evidenced + counterparty-evidenced).
 
 ### Phase 5 — substrate intelligence
 
