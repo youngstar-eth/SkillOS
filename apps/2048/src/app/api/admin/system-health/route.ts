@@ -71,11 +71,7 @@ function formatBigIntDecimal(value: bigint, decimals: number): string {
 }
 
 function resolveRpcUrl(): string {
-  return (
-    process.env.BASE_SEPOLIA_RPC_URL ??
-    process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL ??
-    "https://sepolia.base.org"
-  );
+  return process.env.BASE_SEPOLIA_RPC_URL ?? "https://sepolia.base.org";
 }
 
 interface AlertEntry {
