@@ -1,0 +1,314 @@
+
+src/TournamentPool.sol
+    4:1   warning  Import in src/TournamentPool.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/IERC20.sol                                                                      import-path-check
+    5:1   warning  Import in src/TournamentPool.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol                                                             import-path-check
+    6:1   warning  Import in src/TournamentPool.sol doesn't exist in: @openzeppelin/contracts/utils/ReentrancyGuard.sol                                                                   import-path-check
+    7:1   warning  Import in src/TournamentPool.sol doesn't exist in: @openzeppelin/contracts/access/Ownable.sol                                                                          import-path-check
+    8:1   warning  Import in src/TournamentPool.sol doesn't exist in: @openzeppelin/contracts/utils/cryptography/ECDSA.sol                                                                import-path-check
+  107:5   warning  GC: For [ Tournament ] struct, packing seems inefficient. Try rearranging to achieve 32bytes slots                                                                     gas-struct-packing
+  202:5   warning  Immutable variables name are set to be in capitalized SNAKE_CASE                                                                                                       immutable-vars-naming
+  251:5   warning  Variable name must be in mixedCase feeCollected_dev                                                                                                                    var-name-mixedcase
+  258:5   warning  Variable name must be in mixedCase feeCollected_platform                                                                                                               var-name-mixedcase
+  262:5   warning  Missing @notice tag in event 'TournamentCreated'                                                                                                                       use-natspec
+  262:5   warning  Missing @param tag in event 'TournamentCreated'                                                                                                                        use-natspec
+  262:5   warning  Mismatch in @param names for event 'TournamentCreated'. Expected: [id, sponsor, game, devAddr, cycleType, startsAt, endsAt, prizePool, participationBonus], Found: []  use-natspec
+  277:5   warning  Missing @param tag in event 'PrizePoolFunded'                                                                                                                          use-natspec
+  277:5   warning  Mismatch in @param names for event 'PrizePoolFunded'. Expected: [id, funder, amount, newPrizePool], Found: []                                                          use-natspec
+  277:5   warning  GC: [amount] on Event [PrizePoolFunded] could be Indexed                                                                                                               gas-indexed-events
+  277:5   warning  GC: [newPrizePool] on Event [PrizePoolFunded] could be Indexed                                                                                                         gas-indexed-events
+  278:5   warning  Missing @notice tag in event 'ScoreSubmitted'                                                                                                                          use-natspec
+  278:5   warning  Missing @param tag in event 'ScoreSubmitted'                                                                                                                           use-natspec
+  278:5   warning  Mismatch in @param names for event 'ScoreSubmitted'. Expected: [id, player, score, matchCountDelta, nonce], Found: []                                                  use-natspec
+  278:5   warning  GC: [score] on Event [ScoreSubmitted] could be Indexed                                                                                                                 gas-indexed-events
+  278:5   warning  GC: [matchCountDelta] on Event [ScoreSubmitted] could be Indexed                                                                                                       gas-indexed-events
+  281:5   warning  Missing @notice tag in event 'SoloScoreSubmitted'                                                                                                                      use-natspec
+  281:5   warning  Missing @param tag in event 'SoloScoreSubmitted'                                                                                                                       use-natspec
+  281:5   warning  Mismatch in @param names for event 'SoloScoreSubmitted'. Expected: [id, player, score, matchCountDelta, nonce, soloRunId, priorSoloCount], Found: []                   use-natspec
+  281:5   warning  GC: [score] on Event [SoloScoreSubmitted] could be Indexed                                                                                                             gas-indexed-events
+  281:5   warning  GC: [matchCountDelta] on Event [SoloScoreSubmitted] could be Indexed                                                                                                   gas-indexed-events
+  281:5   warning  GC: [priorSoloCount] on Event [SoloScoreSubmitted] could be Indexed                                                                                                    gas-indexed-events
+  290:5   warning  Missing @notice tag in event 'EntryFeePaid'                                                                                                                            use-natspec
+  290:5   warning  Missing @param tag in event 'EntryFeePaid'                                                                                                                             use-natspec
+  290:5   warning  Mismatch in @param names for event 'EntryFeePaid'. Expected: [id, player, amount], Found: []                                                                           use-natspec
+  290:5   warning  GC: [amount] on Event [EntryFeePaid] could be Indexed                                                                                                                  gas-indexed-events
+  293:5   warning  Missing @param tag in event 'DevFeesWithdrawn'                                                                                                                         use-natspec
+  293:5   warning  Mismatch in @param names for event 'DevFeesWithdrawn'. Expected: [id, dev, amount], Found: []                                                                          use-natspec
+  293:5   warning  GC: [amount] on Event [DevFeesWithdrawn] could be Indexed                                                                                                              gas-indexed-events
+  297:5   warning  Missing @param tag in event 'PlatformFeesWithdrawn'                                                                                                                    use-natspec
+  297:5   warning  Mismatch in @param names for event 'PlatformFeesWithdrawn'. Expected: [id, admin, amount], Found: []                                                                   use-natspec
+  297:5   warning  GC: [amount] on Event [PlatformFeesWithdrawn] could be Indexed                                                                                                         gas-indexed-events
+  298:5   warning  Missing @notice tag in event 'ScoreFlagged'                                                                                                                            use-natspec
+  298:5   warning  Missing @param tag in event 'ScoreFlagged'                                                                                                                             use-natspec
+  298:5   warning  Mismatch in @param names for event 'ScoreFlagged'. Expected: [id, player], Found: []                                                                                   use-natspec
+  299:5   warning  Missing @notice tag in event 'TournamentSettled'                                                                                                                       use-natspec
+  299:5   warning  Missing @param tag in event 'TournamentSettled'                                                                                                                        use-natspec
+  299:5   warning  Mismatch in @param names for event 'TournamentSettled'. Expected: [id, totalDistributed, refunded], Found: []                                                          use-natspec
+  299:5   warning  GC: [totalDistributed] on Event [TournamentSettled] could be Indexed                                                                                                   gas-indexed-events
+  299:5   warning  GC: [refunded] on Event [TournamentSettled] could be Indexed                                                                                                           gas-indexed-events
+  300:5   warning  Missing @notice tag in event 'PrizePaid'                                                                                                                               use-natspec
+  300:5   warning  Missing @param tag in event 'PrizePaid'                                                                                                                                use-natspec
+  300:5   warning  Mismatch in @param names for event 'PrizePaid'. Expected: [id, player, place, amount], Found: []                                                                       use-natspec
+  300:5   warning  GC: [place] on Event [PrizePaid] could be Indexed                                                                                                                      gas-indexed-events
+  300:5   warning  GC: [amount] on Event [PrizePaid] could be Indexed                                                                                                                     gas-indexed-events
+  301:5   warning  Missing @notice tag in event 'TrustedSignerUpdated'                                                                                                                    use-natspec
+  301:5   warning  Missing @param tag in event 'TrustedSignerUpdated'                                                                                                                     use-natspec
+  301:5   warning  Mismatch in @param names for event 'TrustedSignerUpdated'. Expected: [newSigner], Found: []                                                                            use-natspec
+  342:13  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                        gas-strict-inequalities
+  421:13  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                        gas-strict-inequalities
+  476:13  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                        gas-strict-inequalities
+  486:13  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                        gas-strict-inequalities
+  530:13  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                        gas-strict-inequalities
+  546:5   warning  Missing @param tag in function 'flagScore'                                                                                                                             use-natspec
+  546:5   warning  Mismatch in @param names for function 'flagScore'. Expected: [id, player], Found: []                                                                                   use-natspec
+  591:5   warning  Missing @notice tag in function 'setTrustedSigner'                                                                                                                     use-natspec
+  591:5   warning  Missing @param tag in function 'setTrustedSigner'                                                                                                                      use-natspec
+  591:5   warning  Mismatch in @param names for function 'setTrustedSigner'. Expected: [newSigner], Found: []                                                                             use-natspec
+  636:5   warning  Missing @param tag in function 'emergencyWithdraw'                                                                                                                     use-natspec
+  636:5   warning  Mismatch in @param names for function 'emergencyWithdraw'. Expected: [to], Found: []                                                                                   use-natspec
+  644:5   warning  Missing @notice tag in function 'getTournament'                                                                                                                        use-natspec
+  644:5   warning  Missing @param tag in function 'getTournament'                                                                                                                         use-natspec
+  644:5   warning  Mismatch in @param names for function 'getTournament'. Expected: [id], Found: []                                                                                       use-natspec
+  648:5   warning  Missing @notice tag in function 'getParticipants'                                                                                                                      use-natspec
+  648:5   warning  Missing @param tag in function 'getParticipants'                                                                                                                       use-natspec
+  648:5   warning  Mismatch in @param names for function 'getParticipants'. Expected: [id], Found: []                                                                                     use-natspec
+  652:5   warning  Missing @notice tag in function 'participantCount'                                                                                                                     use-natspec
+  652:5   warning  Missing @param tag in function 'participantCount'                                                                                                                      use-natspec
+  652:5   warning  Mismatch in @param names for function 'participantCount'. Expected: [id], Found: []                                                                                    use-natspec
+  658:5   warning  Missing @param tag in function 'effectiveScoreOf'                                                                                                                      use-natspec
+  658:5   warning  Mismatch in @param names for function 'effectiveScoreOf'. Expected: [id, player], Found: []                                                                            use-natspec
+  666:5   warning  Missing @param tag in function 'getRanking'                                                                                                                            use-natspec
+  666:5   warning  Mismatch in @param names for function 'getRanking'. Expected: [id], Found: []                                                                                          use-natspec
+  680:21  warning  GC: For [ idx ] variable, increment/decrement by 1 using: [ ++variable ] to save gas                                                                                   gas-increment-by-one
+  703:5   warning  Missing @param tag in function 'submissionHistoryLength'                                                                                                               use-natspec
+  703:5   warning  Mismatch in @param names for function 'submissionHistoryLength'. Expected: [id, player], Found: []                                                                     use-natspec
+  708:5   warning  Missing @param tag in function 'submissionAt'                                                                                                                          use-natspec
+  708:5   warning  Mismatch in @param names for function 'submissionAt'. Expected: [id, player, index], Found: []                                                                         use-natspec
+
+src/SponsorshipModule.sol
+    4:1   warning  Import in src/SponsorshipModule.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/IERC20.sol                      import-path-check
+    5:1   warning  Import in src/SponsorshipModule.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol             import-path-check
+    6:1   warning  Import in src/SponsorshipModule.sol doesn't exist in: @openzeppelin/contracts/access/Ownable.sol                          import-path-check
+    7:1   warning  Import in src/SponsorshipModule.sol doesn't exist in: @openzeppelin/contracts/utils/ReentrancyGuard.sol                   import-path-check
+   14:1   warning  Missing @title tag in contract 'ITournamentPool'                                                                          use-natspec
+   14:1   warning  Missing @author tag in contract 'ITournamentPool'                                                                         use-natspec
+   15:5   warning  Missing @notice tag in function 'fundPrizePool'                                                                           use-natspec
+   15:5   warning  Missing @param tag in function 'fundPrizePool'                                                                            use-natspec
+   15:5   warning  Mismatch in @param names for function 'fundPrizePool'. Expected: [id, amount], Found: []                                  use-natspec
+   78:5   warning  Missing @notice tag in event 'PoolSponsored'                                                                              use-natspec
+   78:5   warning  Missing @param tag in event 'PoolSponsored'                                                                               use-natspec
+   78:5   warning  Mismatch in @param names for event 'PoolSponsored'. Expected: [tournamentId, sponsor, amount, receiptTokenId], Found: []  use-natspec
+   78:5   warning  GC: [amount] on Event [PoolSponsored] could be Indexed                                                                    gas-indexed-events
+   78:5   warning  GC: [receiptTokenId] on Event [PoolSponsored] could be Indexed                                                            gas-indexed-events
+   84:5   warning  Missing @notice tag in event 'SanctionsOracleUpdated'                                                                     use-natspec
+   84:5   warning  Missing @param tag in event 'SanctionsOracleUpdated'                                                                      use-natspec
+   84:5   warning  Mismatch in @param names for event 'SanctionsOracleUpdated'. Expected: [previousOracle, newOracle], Found: []             use-natspec
+  139:17  warning  GC: For [ totalSponsorsByTournament ] variable, increment/decrement by 1 using: [ ++variable ] to save gas                gas-increment-by-one
+  151:5   warning  Missing @param tag in function 'setSanctionsOracle'                                                                       use-natspec
+  151:5   warning  Mismatch in @param names for function 'setSanctionsOracle'. Expected: [newOracle], Found: []                              use-natspec
+
+src/SponsorReceiptSBT.sol
+    4:1    warning  Import in src/SponsorReceiptSBT.sol doesn't exist in: @openzeppelin/contracts/token/ERC721/ERC721.sol  import-path-check
+    5:1    warning  Import in src/SponsorReceiptSBT.sol doesn't exist in: @openzeppelin/contracts/utils/Strings.sol        import-path-check
+    6:1    warning  Import in src/SponsorReceiptSBT.sol doesn't exist in: @openzeppelin/contracts/utils/Base64.sol         import-path-check
+   62:5    warning  Missing @param tag in event 'Locked'                                                                   use-natspec
+   62:5    warning  Mismatch in @param names for event 'Locked'. Expected: [tokenId], Found: []                            use-natspec
+   62:5    warning  GC: [tokenId] on Event [Locked] could be Indexed                                                       gas-indexed-events
+  101:5    warning  Missing @param tag in function 'locked'                                                                use-natspec
+  101:5    warning  Mismatch in @param names for function 'locked'. Expected: [tokenId], Found: []                         use-natspec
+  107:5    warning  Missing @param tag in function 'supportsInterface'                                                     use-natspec
+  107:5    warning  Mismatch in @param names for function 'supportsInterface'. Expected: [interfaceId], Found: []          use-natspec
+  123:5    warning  Missing @notice tag in function 'approve'                                                              use-natspec
+  128:5    warning  Missing @notice tag in function 'setApprovalForAll'                                                    use-natspec
+  137:5    warning  Missing @param tag in function 'tokenURI'                                                              use-natspec
+  137:5    warning  Mismatch in @param names for function 'tokenURI'. Expected: [tokenId], Found: []                       use-natspec
+  148:29   warning  GC: String exceeds 32 bytes                                                                            gas-small-strings
+  149:13   error    Use double quotes for string literals                                                                  quotes
+  150:13   error    Use double quotes for string literals                                                                  quotes
+  151:13   error    Use double quotes for string literals                                                                  quotes
+  153:30   warning  GC: String exceeds 32 bytes                                                                            gas-small-strings
+  154:13   error    Use double quotes for string literals                                                                  quotes
+  154:85   error    Use double quotes for string literals                                                                  quotes
+  155:13   error    Use double quotes for string literals                                                                  quotes
+  155:82   error    Use double quotes for string literals                                                                  quotes
+  156:13   error    Use double quotes for string literals                                                                  quotes
+  156:75   error    Use double quotes for string literals                                                                  quotes
+  157:13   error    Use double quotes for string literals                                                                  quotes
+  157:105  error    Use double quotes for string literals                                                                  quotes
+  158:13   error    Use double quotes for string literals                                                                  quotes
+
+src/SkillbaseAnchor.sol
+   4:1  warning  Import in src/SkillbaseAnchor.sol doesn't exist in: @openzeppelin/contracts/access/Ownable.sol                     import-path-check
+   5:1  warning  Import in src/SkillbaseAnchor.sol doesn't exist in: @openzeppelin/contracts/utils/ReentrancyGuard.sol              import-path-check
+  34:1  warning  Missing @author tag in contract 'SkillbaseAnchor'                                                                  use-natspec
+  43:5  warning  Missing @notice tag in event 'SnapshotAnchored'                                                                    use-natspec
+  43:5  warning  Missing @param tag in event 'SnapshotAnchored'                                                                     use-natspec
+  43:5  warning  Mismatch in @param names for event 'SnapshotAnchored'. Expected: [timestamp, snapshotHash, anchoredAt], Found: []  use-natspec
+  43:5  warning  GC: [anchoredAt] on Event [SnapshotAnchored] could be Indexed                                                      gas-indexed-events
+  48:5  warning  Missing @notice tag in event 'AnchorAuthorized'                                                                    use-natspec
+  48:5  warning  Missing @param tag in event 'AnchorAuthorized'                                                                     use-natspec
+  48:5  warning  Mismatch in @param names for event 'AnchorAuthorized'. Expected: [anchor, authorized], Found: []                   use-natspec
+  48:5  warning  GC: [authorized] on Event [AnchorAuthorized] could be Indexed                                                      gas-indexed-events
+  88:9  warning  GC: For [ totalAnchored ] variable, increment/decrement by 1 using: [ ++variable ] to save gas                     gas-increment-by-one
+
+src/MockSanctionsOracle.sol
+   4:1  warning  Import in src/MockSanctionsOracle.sol doesn't exist in: @openzeppelin/contracts/access/Ownable.sol  import-path-check
+  21:5  warning  Missing @notice tag in variable 'sanctioned'                                                        use-natspec
+  23:5  warning  Missing @notice tag in event 'AddedToBlacklist'                                                     use-natspec
+  23:5  warning  Missing @param tag in event 'AddedToBlacklist'                                                      use-natspec
+  23:5  warning  Mismatch in @param names for event 'AddedToBlacklist'. Expected: [addr], Found: []                  use-natspec
+  24:5  warning  Missing @notice tag in event 'RemovedFromBlacklist'                                                 use-natspec
+  24:5  warning  Missing @param tag in event 'RemovedFromBlacklist'                                                  use-natspec
+  24:5  warning  Mismatch in @param names for event 'RemovedFromBlacklist'. Expected: [addr], Found: []              use-natspec
+  29:5  warning  Missing @param tag in function 'addToBlacklist'                                                     use-natspec
+  29:5  warning  Mismatch in @param names for function 'addToBlacklist'. Expected: [addr], Found: []                 use-natspec
+  36:5  warning  Missing @param tag in function 'removeFromBlacklist'                                                use-natspec
+  36:5  warning  Mismatch in @param names for function 'removeFromBlacklist'. Expected: [addr], Found: []            use-natspec
+
+src/ISanctionsOracle.sol
+  10:1  warning  Missing @author tag in contract 'ISanctionsOracle'                                 use-natspec
+  12:5  warning  Missing @param tag in function 'isSanctioned'                                      use-natspec
+  12:5  warning  Mismatch in @param names for function 'isSanctioned'. Expected: [addr], Found: []  use-natspec
+
+src/DevAttributionNFT.sol
+    4:1  warning  Import in src/DevAttributionNFT.sol doesn't exist in: @openzeppelin/contracts/token/ERC721/ERC721.sol  import-path-check
+    9:1  warning  Missing @author tag in contract 'IERC5192'                                                             use-natspec
+    9:1  warning  Missing @notice tag in contract 'IERC5192'                                                             use-natspec
+   11:5  warning  Missing @param tag in event 'Locked'                                                                   use-natspec
+   11:5  warning  Mismatch in @param names for event 'Locked'. Expected: [tokenId], Found: []                            use-natspec
+   11:5  warning  GC: [tokenId] on Event [Locked] could be Indexed                                                       gas-indexed-events
+   14:5  warning  Missing @param tag in event 'Unlocked'                                                                 use-natspec
+   14:5  warning  Mismatch in @param names for event 'Unlocked'. Expected: [tokenId], Found: []                          use-natspec
+   14:5  warning  GC: [tokenId] on Event [Unlocked] could be Indexed                                                     gas-indexed-events
+   17:5  warning  Missing @param tag in function 'locked'                                                                use-natspec
+   17:5  warning  Mismatch in @param names for function 'locked'. Expected: [tokenId], Found: []                         use-natspec
+   21:1  warning  Missing @author tag in contract 'IDevAttributionNFT'                                                   use-natspec
+   21:1  warning  Missing @notice tag in contract 'IDevAttributionNFT'                                                   use-natspec
+   22:5  warning  Missing @notice tag in function 'mint'                                                                 use-natspec
+   22:5  warning  Missing @param tag in function 'mint'                                                                  use-natspec
+   22:5  warning  Mismatch in @param names for function 'mint'. Expected: [dev], Found: []                               use-natspec
+   64:5  warning  Immutable variables name are set to be in capitalized SNAKE_CASE                                       immutable-vars-naming
+   79:5  warning  Missing @param tag in function 'mint'                                                                  use-natspec
+   79:5  warning  Mismatch in @param names for function 'mint'. Expected: [dev], Found: []                               use-natspec
+   91:5  warning  Missing @param tag in function 'locked'                                                                use-natspec
+   91:5  warning  Mismatch in @param names for function 'locked'. Expected: [tokenId], Found: []                         use-natspec
+  110:5  warning  Missing @param tag in function 'supportsInterface'                                                     use-natspec
+  110:5  warning  Mismatch in @param names for function 'supportsInterface'. Expected: [interfaceId], Found: []          use-natspec
+
+src/ChallengeEscrow.sol
+    4:1   warning  Import in src/ChallengeEscrow.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/IERC20.sol                     import-path-check
+    5:1   warning  Import in src/ChallengeEscrow.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol            import-path-check
+    6:1   warning  Import in src/ChallengeEscrow.sol doesn't exist in: @openzeppelin/contracts/utils/ReentrancyGuard.sol                  import-path-check
+    7:1   warning  Import in src/ChallengeEscrow.sol doesn't exist in: @openzeppelin/contracts/access/Ownable.sol                         import-path-check
+    8:1   warning  Import in src/ChallengeEscrow.sol doesn't exist in: @openzeppelin/contracts/utils/cryptography/ECDSA.sol               import-path-check
+   90:5   warning  Missing @notice tag in event 'ChallengeCreated'                                                                        use-natspec
+   90:5   warning  Missing @param tag in event 'ChallengeCreated'                                                                         use-natspec
+   90:5   warning  Mismatch in @param names for event 'ChallengeCreated'. Expected: [id, creator, gameSlug, stake, expiresAt], Found: []  use-natspec
+   90:5   warning  GC: [stake] on Event [ChallengeCreated] could be Indexed                                                               gas-indexed-events
+   90:5   warning  GC: [expiresAt] on Event [ChallengeCreated] could be Indexed                                                           gas-indexed-events
+   97:5   warning  Missing @notice tag in event 'ChallengeAccepted'                                                                       use-natspec
+   97:5   warning  Missing @param tag in event 'ChallengeAccepted'                                                                        use-natspec
+   97:5   warning  Mismatch in @param names for event 'ChallengeAccepted'. Expected: [id, challenger], Found: []                          use-natspec
+   98:5   warning  Missing @notice tag in event 'ChallengeSettled'                                                                        use-natspec
+   98:5   warning  Missing @param tag in event 'ChallengeSettled'                                                                         use-natspec
+   98:5   warning  Mismatch in @param names for event 'ChallengeSettled'. Expected: [id, winner, payout], Found: []                       use-natspec
+   98:5   warning  GC: [payout] on Event [ChallengeSettled] could be Indexed                                                              gas-indexed-events
+   99:5   warning  Missing @notice tag in event 'ChallengeExpired'                                                                        use-natspec
+   99:5   warning  Missing @param tag in event 'ChallengeExpired'                                                                         use-natspec
+   99:5   warning  Mismatch in @param names for event 'ChallengeExpired'. Expected: [id], Found: []                                       use-natspec
+  100:5   warning  Missing @notice tag in event 'FeeVaultUpdated'                                                                         use-natspec
+  100:5   warning  Missing @param tag in event 'FeeVaultUpdated'                                                                          use-natspec
+  100:5   warning  Mismatch in @param names for event 'FeeVaultUpdated'. Expected: [newVault], Found: []                                  use-natspec
+  101:5   warning  Missing @notice tag in event 'TrustedSignerUpdated'                                                                    use-natspec
+  101:5   warning  Missing @param tag in event 'TrustedSignerUpdated'                                                                     use-natspec
+  101:5   warning  Mismatch in @param names for event 'TrustedSignerUpdated'. Expected: [newSigner], Found: []                            use-natspec
+  158:13  warning  GC: Non strict inequality found. Try converting to a strict one                                                        gas-strict-inequalities
+  271:5   warning  Missing @param tag in function 'setFeeVault'                                                                           use-natspec
+  271:5   warning  Mismatch in @param names for function 'setFeeVault'. Expected: [newVault], Found: []                                   use-natspec
+  278:5   warning  Missing @param tag in function 'setTrustedSigner'                                                                      use-natspec
+  278:5   warning  Mismatch in @param names for function 'setTrustedSigner'. Expected: [newSigner], Found: []                             use-natspec
+  286:5   warning  Missing @param tag in function 'emergencyWithdraw'                                                                     use-natspec
+  286:5   warning  Mismatch in @param names for function 'emergencyWithdraw'. Expected: [to], Found: []                                   use-natspec
+  295:5   warning  Missing @param tag in function 'getChallenge'                                                                          use-natspec
+  295:5   warning  Mismatch in @param names for function 'getChallenge'. Expected: [id], Found: []                                        use-natspec
+
+src/ArcadePool.sol
+    2:1   error    Compiler version ^0.8.24 does not satisfy the ^0.8.26 semver requirement                                                                                                                                  compiler-version
+    4:1   warning  global import of path @openzeppelin/contracts/token/ERC20/IERC20.sol is not allowed. Specify names to import individually or bind all exports of the module into a name (import "path" as Name)           no-global-import
+    4:1   warning  Import in src/ArcadePool.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/IERC20.sol                                                                                                             import-path-check
+    5:1   warning  global import of path @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol is not allowed. Specify names to import individually or bind all exports of the module into a name (import "path" as Name)  no-global-import
+    5:1   warning  Import in src/ArcadePool.sol doesn't exist in: @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol                                                                                                    import-path-check
+    6:1   warning  global import of path @openzeppelin/contracts/access/Ownable.sol is not allowed. Specify names to import individually or bind all exports of the module into a name (import "path" as Name)               no-global-import
+    6:1   warning  Import in src/ArcadePool.sol doesn't exist in: @openzeppelin/contracts/access/Ownable.sol                                                                                                                 import-path-check
+    7:1   warning  global import of path @openzeppelin/contracts/utils/cryptography/ECDSA.sol is not allowed. Specify names to import individually or bind all exports of the module into a name (import "path" as Name)     no-global-import
+    7:1   warning  Import in src/ArcadePool.sol doesn't exist in: @openzeppelin/contracts/utils/cryptography/ECDSA.sol                                                                                                       import-path-check
+    8:1   warning  global import of path @openzeppelin/contracts/utils/cryptography/EIP712.sol is not allowed. Specify names to import individually or bind all exports of the module into a name (import "path" as Name)    no-global-import
+    8:1   warning  Import in src/ArcadePool.sol doesn't exist in: @openzeppelin/contracts/utils/cryptography/EIP712.sol                                                                                                      import-path-check
+    9:1   warning  global import of path @openzeppelin/contracts/utils/ReentrancyGuard.sol is not allowed. Specify names to import individually or bind all exports of the module into a name (import "path" as Name)        no-global-import
+    9:1   warning  Import in src/ArcadePool.sol doesn't exist in: @openzeppelin/contracts/utils/ReentrancyGuard.sol                                                                                                          import-path-check
+   11:1   warning  Missing @title tag in contract 'ArcadePool'                                                                                                                                                               use-natspec
+   11:1   warning  Missing @author tag in contract 'ArcadePool'                                                                                                                                                              use-natspec
+   11:1   warning  Missing @notice tag in contract 'ArcadePool'                                                                                                                                                              use-natspec
+   15:5   warning  Missing @notice tag in variable 'USDC'                                                                                                                                                                    use-natspec
+   16:5   warning  Missing @notice tag in variable 'scoreSigner'                                                                                                                                                             use-natspec
+   17:5   warning  Missing @notice tag in variable 'protocolFeeBps'                                                                                                                                                          use-natspec
+   18:5   warning  Missing @notice tag in variable 'feeRecipient'                                                                                                                                                            use-natspec
+   19:5   warning  Missing @notice tag in variable 'nextTournamentId'                                                                                                                                                        use-natspec
+   21:5   warning  GC: For [ Tournament ] struct, packing seems inefficient. Try rearranging to achieve 32bytes slots                                                                                                        gas-struct-packing
+   33:5   warning  Missing @notice tag in variable 'tournaments'                                                                                                                                                             use-natspec
+   34:5   warning  Missing @notice tag in variable 'hasEntered'                                                                                                                                                              use-natspec
+   35:5   warning  Missing @notice tag in variable 'playerScores'                                                                                                                                                            use-natspec
+   36:5   warning  Missing @notice tag in variable 'playerList'                                                                                                                                                              use-natspec
+   37:5   warning  Missing @notice tag in variable 'usedNonces'                                                                                                                                                              use-natspec
+   39:47  warning  GC: String exceeds 32 bytes                                                                                                                                                                               gas-small-strings
+   39:47  warning  GC: String exceeds 32 bytes                                                                                                                                                                               gas-small-strings
+   43:5   warning  Missing @notice tag in event 'TournamentCreated'                                                                                                                                                          use-natspec
+   43:5   warning  Missing @param tag in event 'TournamentCreated'                                                                                                                                                           use-natspec
+   43:5   warning  Mismatch in @param names for event 'TournamentCreated'. Expected: [id, gameId, entryFee, endTime], Found: []                                                                                              use-natspec
+   43:5   warning  GC: [entryFee] on Event [TournamentCreated] could be Indexed                                                                                                                                              gas-indexed-events
+   43:5   warning  GC: [endTime] on Event [TournamentCreated] could be Indexed                                                                                                                                               gas-indexed-events
+   44:5   warning  Missing @notice tag in event 'PlayerEntered'                                                                                                                                                              use-natspec
+   44:5   warning  Missing @param tag in event 'PlayerEntered'                                                                                                                                                               use-natspec
+   44:5   warning  Mismatch in @param names for event 'PlayerEntered'. Expected: [id, player], Found: []                                                                                                                     use-natspec
+   45:5   warning  Missing @notice tag in event 'ScoreSubmitted'                                                                                                                                                             use-natspec
+   45:5   warning  Missing @param tag in event 'ScoreSubmitted'                                                                                                                                                              use-natspec
+   45:5   warning  Mismatch in @param names for event 'ScoreSubmitted'. Expected: [id, player, score], Found: []                                                                                                             use-natspec
+   45:5   warning  GC: [score] on Event [ScoreSubmitted] could be Indexed                                                                                                                                                    gas-indexed-events
+   46:5   warning  Missing @notice tag in event 'TournamentSettled'                                                                                                                                                          use-natspec
+   46:5   warning  Missing @param tag in event 'TournamentSettled'                                                                                                                                                           use-natspec
+   46:5   warning  Mismatch in @param names for event 'TournamentSettled'. Expected: [id, winner, prize], Found: []                                                                                                          use-natspec
+   46:5   warning  GC: [prize] on Event [TournamentSettled] could be Indexed                                                                                                                                                 gas-indexed-events
+   57:5   warning  Missing @notice tag in function 'createTournament'                                                                                                                                                        use-natspec
+   57:5   warning  Missing @param tag in function 'createTournament'                                                                                                                                                         use-natspec
+   57:5   warning  Mismatch in @param names for function 'createTournament'. Expected: [gameId, entryFee, duration], Found: []                                                                                               use-natspec
+   57:5   warning  Missing @return tag in function 'createTournament'                                                                                                                                                        use-natspec
+   57:5   warning  Mismatch in @return names for function 'createTournament'. Expected: [id], Found: []                                                                                                                      use-natspec
+   60:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   61:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   61:17  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                                                           gas-strict-inequalities
+   61:42  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                                                           gas-strict-inequalities
+   62:14  warning  GC: For [ nextTournamentId ] variable, increment/decrement by 1 using: [ ++variable ] to save gas                                                                                                         gas-increment-by-one
+   77:5   warning  Missing @notice tag in function 'enter'                                                                                                                                                                   use-natspec
+   77:5   warning  Missing @param tag in function 'enter'                                                                                                                                                                    use-natspec
+   77:5   warning  Mismatch in @param names for function 'enter'. Expected: [tournamentId], Found: []                                                                                                                        use-natspec
+   79:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   80:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   81:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   89:5   warning  Missing @notice tag in function 'submitScore'                                                                                                                                                             use-natspec
+   89:5   warning  Missing @param tag in function 'submitScore'                                                                                                                                                              use-natspec
+   89:5   warning  Mismatch in @param names for function 'submitScore'. Expected: [tournamentId, score, nonce, signature], Found: []                                                                                         use-natspec
+   91:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   92:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   92:17  warning  GC: Non strict inequality found. Try converting to a strict one                                                                                                                                           gas-strict-inequalities
+   93:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+   97:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+  111:5   warning  Missing @notice tag in function 'settle'                                                                                                                                                                  use-natspec
+  111:5   warning  Missing @param tag in function 'settle'                                                                                                                                                                   use-natspec
+  111:5   warning  Mismatch in @param names for function 'settle'. Expected: [tournamentId], Found: []                                                                                                                       use-natspec
+  113:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+  114:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+  115:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+  124:5   warning  Missing @notice tag in function 'refundIfEmpty'                                                                                                                                                           use-natspec
+  124:5   warning  Missing @param tag in function 'refundIfEmpty'                                                                                                                                                            use-natspec
+  124:5   warning  Mismatch in @param names for function 'refundIfEmpty'. Expected: [tournamentId], Found: []                                                                                                                use-natspec
+  126:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                                       gas-custom-errors
+  127:9   warning  GC: Use Custom Errors instead of require statements                                                                                                                                           
