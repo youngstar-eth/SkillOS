@@ -1,0 +1,16 @@
+Error: ENOTDIR: not a directory, scandir '/Users/inancayvaz/.claude/jobs/ca85b81e/4naly3er-scope.txt/'
+    at Object.readdirSync (node:fs:1554:26)
+    at recursiveExploration (/Users/inancayvaz/.claude/jobs/ca85b81e/4naly3er/src/utils.ts:53:28)
+    at main (/Users/inancayvaz/.claude/jobs/ca85b81e/4naly3er/src/main.ts:45:37)
+    at Object.<anonymous> (/Users/inancayvaz/.claude/jobs/ca85b81e/4naly3er/src/index.ts:20:5)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Module.m._compile (/Users/inancayvaz/.claude/jobs/ca85b81e/4naly3er/node_modules/ts-node/src/index.ts:1618:23)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1969:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/inancayvaz/.claude/jobs/ca85b81e/4naly3er/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12) {
+  errno: -20,
+  code: 'ENOTDIR',
+  syscall: 'scandir',
+  path: '/Users/inancayvaz/.claude/jobs/ca85b81e/4naly3er-scope.txt/'
+}

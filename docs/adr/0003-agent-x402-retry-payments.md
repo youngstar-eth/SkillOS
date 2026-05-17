@@ -72,6 +72,29 @@ This separation matters for audit: the trustedSigner role retains its scoped res
 > **NOTE — Selector vs source naming dual-state (discovered X15.4):**
 > Local Solidity source at `contracts/src/TournamentPool.sol` renames the function to `chargeEntryFee` (per v2.2 WIP PR #49). Deployed v2.1 bytecode on Base Sepolia continues to expose the `chargeRetryFee` selector. Foundry tests use the X15 lexicon (`chargeRetryFee`) for naming parity in `test_*` names, but test bodies call `pool.chargeEntryFee` since Foundry runs against local source. Phase 2 mainnet deploy of v2.2 resolves the drift: new bytecode selector becomes `chargeEntryFee`, and X15.3 backend wire (`charge-retry-fee.ts`) requires selector rename as part of mainnet cutover sprint (X19b.1 + X11).
 
+## Verified end-state (May 15, 2026)
+
+X15.7 closed the loop on production verification. Canonical demo run `0c1b0e88-39c2-42a4-930b-fdc6da52795f` (final score 96, 24 moves) anchored cleanly against tournament `0xe7f14e22…1922e2` on Base Sepolia:
+
+- **x402 EIP-3009 settle** — $1.05 USDC, x402.org testnet facilitator. Authorization signed by the agent (AGENT_PRIVATE_KEY); the facilitator pays gas and submits the on-chain `transferWithAuthorization`. Tx: `0x4e57d7fe…`.
+- **`chargeRetryFee` on-chain** — $1.00 USDC, agent self-pays (`msg.sender == player` constraint preserved). Tx: `0x5d6918ba…`, block 41551888.
+- **`submitSoloScore` on-chain** — trustedSigner via X10 wire (D11 preserved). Tx: `0xf649727b…`, calldata 734 hex with trailing `bc_o6szuvg1` ASCII dataSuffix (matches X10 baseline per [`project_api_server_side_datasuffix_attribution_gap`](../../.claude/memory/) auto-memory).
+- **Per-paid-retry economic drain:** $2.05 ($1.05 x402 to receiver float + $1.00 on-chain to TournamentPool fee accumulator).
+- **Free-first-slot drain:** $1.05 (x402 only; `chargeRetryFee` skipped per the contract's `priorSolo == 0` branch). Empirically reproduced by the founder pre-test run `0e7652d2-…`.
+
+Lifecycle states empirically observed (3 X15.7 retries + 1 pre-test):
+
+| Path | Transitions | Frequency |
+|---|---|---|
+| Paid retry happy path | `pending → x402_settled → anchored` | 2 / 4 |
+| Free-first slot | `pending → x402_settled → skipped` (`reason='free_first_slot'`) | 1 / 4 |
+| Settled-but-not-anchored | `pending → x402_settled → failed` (`needs_manual_review=true`, `error_code='CHARGE_RETRY_FEE_FAILED'`) | 1 / 4 (Run 1; cross-RPC race — see Pattern #21) |
+| x402-failed-pre-settle | `pending → failed` (`error_code='X402_SETTLE_FAILED'`) | 0 successful; 1 transient first-attempt recovered on retry (Pattern #22) |
+
+**`needs_manual_review` ledger pattern proven.** Run 1 produced exactly the failure mode D9 was designed to capture: x402 USDC pulled from the agent, `chargeRetryFee` never broadcast, audit row preserved with both tx context and `error_code`. The operator reconciliation path is the documented `chargeEntryFee`-via-script follow-up; no auto-refund per D9 design.
+
+**End-state validity for mainnet readiness.** Observed lifecycle transitions match ADR predictions exactly — no state transition appeared that was not enumerated in D9. The settled-but-not-anchored failure is operator-recoverable via the ledger; the x402-failed-pre-settle failure is a clean no-op (no USDC moves until the facilitator returns `success=true`). Both modes are auditable end-to-end through the `x15_payment_attempts` Realtime stream.
+
 ## Consequences
 
 ### Positive

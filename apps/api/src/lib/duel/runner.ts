@@ -3,10 +3,13 @@
 // Runs a single agent-vs-deterministic-2048 match end-to-end:
 //   1. Hydrate initial board from seed
 //   2. Loop: agent.getNextMove → engine.move → engine.spawnTile → INSERT duel_moves
-//   3. Loop exits on: no legal moves (game over) | MAX_MOVES hit | timeout
-//   4. UPDATE duel_runs status + final_score
-//   5. If X20_DEMO_TOURNAMENT_ID env set + status='ended': submit on-chain via
-//      existing X10 wire (signSoloSubmitAttestation + dataSuffix + writeContract).
+//   3. Loop exits on: win (2048 tile) | no legal moves (game_over) | 5x same
+//      move (stuck) | wall-clock timeout | Claude error (error)
+//   4. UPDATE duel_runs status + end_reason + final_score
+//   5. If X20_DEMO_TOURNAMENT_ID env set + endReason ∈ {win, game_over, stuck}:
+//      submit on-chain via X10 wire (signSoloSubmitAttestation + dataSuffix +
+//      writeContract). Timeout and error skip submit — timeout is mid-function
+//      so the wallet write may not finish; error means state is corrupted.
 //
 // Called from /v1/agents/matches/start-solo via c.executionCtx.waitUntil so
 // the HTTP response returns the runId immediately while the match runs in the
@@ -37,6 +40,7 @@ import {
 } from './anthropic-agent.js';
 import {
   type Board,
+  BOARD_SIZE,
   canMove,
   createInitialBoard,
   type Direction,
@@ -44,13 +48,22 @@ import {
   spawnTile,
 } from './game-2048.js';
 
-// Match budget. With Haiku 4.5 at ~1.5s/move + Supabase write ~150ms,
-// 24 moves cleanly fits a 60s function (vercel.json maxDuration=60).
-// MATCH_TIMEOUT_MS is a hard wall-clock cap; under high Anthropic
-// latency the loop bails out and marks the run as 'timeout'.
-const MAX_MOVES = 24;
-const MATCH_TIMEOUT_MS = 55_000;
+// Match budget. Phase 2 readiness: play to authentic game-end, not an
+// arbitrary 24-move cap. Vercel function maxDuration is 240s (vercel.json);
+// MATCH_TIMEOUT_MS fires 20s before that so finalizeRun + maybeSubmitOnChain
+// land before the runtime kills the function. STUCK_THRESHOLD detects an
+// agent looping the same legal direction (e.g. repeated 'down') — 5 in a row
+// forfeits, since 2048 rarely needs 5 identical moves to make progress.
+// MAX_DEFENSIVE_MOVES is a sanity bound that should never trip given the
+// terminal checks above; if it does, the run is recorded as 'error'.
+const MAX_DURATION_SECONDS = 240;
+const MATCH_TIMEOUT_MS = (MAX_DURATION_SECONDS - 20) * 1000;
+const STUCK_THRESHOLD = 5;
+const MAX_DEFENSIVE_MOVES = 10_000;
+const WINNING_TILE = 2048;
 const CHALLENGE_ESCROW_ADDRESS = '0x52e5E45456DeC882048b430a968Cda6061575be0';
+
+type EndReason = 'win' | 'game_over' | 'timeout' | 'stuck' | 'error';
 
 export interface StartSoloInput {
   game: '2048';
@@ -107,6 +120,7 @@ export async function runSoloMatch(args: RunSoloMatchArgs): Promise<void> {
   const sb = getSupabaseClient();
   const startedAt = Date.now();
   const agentAddress = getAgentAccount().address;
+  let cumulativeScore = 0;
 
   try {
     await sb
@@ -117,17 +131,33 @@ export async function runSoloMatch(args: RunSoloMatchArgs): Promise<void> {
     const init = createInitialBoard(args.seed);
     let board: Board = init.board;
     const rng = init.rng;
-    let cumulativeScore = 0;
     const recentMoves: Direction[] = [];
 
-    for (let moveNumber = 1; moveNumber <= MAX_MOVES; moveNumber++) {
+    for (let moveNumber = 1; moveNumber <= MAX_DEFENSIVE_MOVES; moveNumber++) {
+      // Terminal: wall-clock timeout. No on-chain submit — wallet write may
+      // not finish before maxDuration kills the function.
       if (Date.now() - startedAt > MATCH_TIMEOUT_MS) {
         await finalizeRun(args.runId, 'timeout', cumulativeScore);
         return;
       }
 
+      // Terminal: agent made the 2048 tile.
+      if (hasWinningTile(board)) {
+        await finalizeRun(args.runId, 'win', cumulativeScore);
+        await maybeSubmitOnChain({ runId: args.runId, game: args.game, score: cumulativeScore, agentAddress });
+        return;
+      }
+
+      // Terminal: board full and no merges available.
       if (!canMove(board)) {
-        await finalizeRun(args.runId, 'ended', cumulativeScore);
+        await finalizeRun(args.runId, 'game_over', cumulativeScore);
+        await maybeSubmitOnChain({ runId: args.runId, game: args.game, score: cumulativeScore, agentAddress });
+        return;
+      }
+
+      // Terminal: agent is looping the same direction. Forfeit.
+      if (isStuck(recentMoves)) {
+        await finalizeRun(args.runId, 'stuck', cumulativeScore);
         await maybeSubmitOnChain({ runId: args.runId, game: args.game, score: cumulativeScore, agentAddress });
         return;
       }
@@ -151,7 +181,8 @@ export async function runSoloMatch(args: RunSoloMatchArgs): Promise<void> {
         // Fallback: pick first legal move. Better than aborting the match.
         const fallback = fallbackMove(board);
         if (!fallback) {
-          await finalizeRun(args.runId, 'ended', cumulativeScore);
+          // Agent threw and engine confirms no legal move — that's game_over.
+          await finalizeRun(args.runId, 'game_over', cumulativeScore);
           await maybeSubmitOnChain({ runId: args.runId, game: args.game, score: cumulativeScore, agentAddress });
           return;
         }
@@ -192,33 +223,50 @@ export async function runSoloMatch(args: RunSoloMatchArgs): Promise<void> {
       }
     }
 
-    // Hit MAX_MOVES cap without game-over. Treat as a clean end for X20 MVP.
-    await finalizeRun(args.runId, 'ended', cumulativeScore);
-    await maybeSubmitOnChain({ runId: args.runId, game: args.game, score: cumulativeScore, agentAddress });
+    // Hit MAX_DEFENSIVE_MOVES without a terminal condition tripping. The
+    // terminal checks above should prevent this; reaching here implies a bug.
+    await finalizeRun(args.runId, 'error', cumulativeScore, `exceeded MAX_DEFENSIVE_MOVES=${MAX_DEFENSIVE_MOVES} sanity bound`);
   } catch (err) {
     const message = err instanceof Error ? err.message.slice(0, 500) : 'unknown error';
     console.error('[duel-runner] unhandled error', err);
-    await sb
-      .from('duel_runs')
-      .update({ status: 'error', error_message: message, ended_at: new Date().toISOString() })
-      .eq('id', args.runId);
+    await finalizeRun(args.runId, 'error', cumulativeScore, message);
   }
+}
+
+function hasWinningTile(board: Board): boolean {
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] >= WINNING_TILE) return true;
+    }
+  }
+  return false;
+}
+
+function isStuck(recentMoves: Direction[]): boolean {
+  if (recentMoves.length < STUCK_THRESHOLD) return false;
+  const tail = recentMoves.slice(-STUCK_THRESHOLD);
+  return tail.every((d) => d === tail[0]);
 }
 
 async function finalizeRun(
   runId: string,
-  status: 'ended' | 'timeout',
+  endReason: EndReason,
   finalScore: number,
+  errorMessage?: string,
 ): Promise<void> {
   const sb = getSupabaseClient();
-  await sb
-    .from('duel_runs')
-    .update({
-      status,
-      final_score: finalScore,
-      ended_at: new Date().toISOString(),
-    })
-    .eq('id', runId);
+  const status: 'ended' | 'timeout' | 'error' =
+    endReason === 'timeout' ? 'timeout' : endReason === 'error' ? 'error' : 'ended';
+
+  const update: Record<string, unknown> = {
+    status,
+    end_reason: endReason,
+    final_score: finalScore,
+    ended_at: new Date().toISOString(),
+  };
+  if (errorMessage) update.error_message = errorMessage;
+
+  await sb.from('duel_runs').update(update).eq('id', runId);
 }
 
 function fallbackMove(board: Board): Direction | null {
