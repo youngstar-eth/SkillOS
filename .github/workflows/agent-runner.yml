@@ -43,8 +43,8 @@ on:
         required: false
         type: string
         default: ''
-  # schedule:
-  #   - cron: '0 2 * * *'  # 02:00 UTC daily. Enable in follow-up PR after 7-day stability.
+  schedule:
+    - cron: '0 2 * * *'  # 02:00 UTC daily. Enabled 2026-05-17 after stability window confirmed (Q-27 / CR1 R3 Q-S1).
 
 permissions:
   contents: read
