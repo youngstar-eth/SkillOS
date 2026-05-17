@@ -1,0 +1,289 @@
+Compiling 78 files with Solc 0.8.26
+Solc 0.8.26 finished in 12.13s
+Compiler run successful!
+Analysing contracts...
+Running tests...
+
+Ran 16 tests for test/SponsorReceiptSBT.t.sol:SponsorReceiptSBTTest
+[PASS] test_approve_reverts() (gas: 170260)
+[PASS] test_constructor_revert_zeroMinter() (gas: 87936)
+[PASS] test_locked_returnsTrue() (gas: 167448)
+[PASS] test_locked_revertsForNonexistent() (gas: 13613)
+[PASS] test_mint_emitsLockedEvent() (gas: 166995)
+[PASS] test_mint_incrementsTokenId() (gas: 407899)
+[PASS] test_mint_revert_notMinter() (gas: 14878)
+[PASS] test_mint_revert_zeroRecipient() (gas: 14932)
+[PASS] test_mint_success_byMinter() (gas: 179052)
+[PASS] test_safeTransferFromWithData_reverts() (gas: 172859)
+[PASS] test_safeTransferFrom_reverts() (gas: 173007)
+[PASS] test_setApprovalForAll_reverts() (gas: 170119)
+[PASS] test_supportsInterface_erc5192() (gas: 10492)
+[PASS] test_tokenURI_returnsBase64DataURI() (gas: 796183)
+[PASS] test_tokenURI_revertsForNonexistent() (gas: 15765)
+[PASS] test_transferFrom_reverts() (gas: 171950)
+Suite result: ok. 16 passed; 0 failed; 0 skipped; finished in 15.08ms (9.70ms CPU time)
+
+Ran 6 tests for test/X15-paid-retry.t.sol:X15PaidRetryTest
+[PASS] test_chargeRetryFee_dataSuffix_attribution() (gas: 472298)
+[PASS] test_chargeRetryFee_n_times_then_n_submissions() (gas: 1429309)
+[PASS] test_chargeRetryFee_only_player_can_call() (gas: 769618)
+[PASS] test_chargeRetryFee_requires_usdc_allowance() (gas: 455114)
+[PASS] test_chargeRetryFee_then_submitSoloScore_passes() (gas: 917011)
+[PASS] test_submitSolo_revert_secondWithoutFee_invariant() (gas: 647162)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 24.12ms (23.55ms CPU time)
+
+Ran 11 tests for test/SponsorshipModule.t.sol:SponsorshipModuleTest
+[PASS] test_multipleSponsors_accumulatePool() (gas: 863531)
+[PASS] test_sameSponsor_twiceCountsOnce() (gas: 753254)
+[PASS] test_setSanctionsOracle_onlyOwner() (gas: 473515)
+[PASS] test_setSanctionsOracle_revert_zeroAddress() (gas: 14495)
+[PASS] test_sponsorPool_emitsEvent() (gas: 599941)
+[PASS] test_sponsorPool_revert_insufficientApproval() (gas: 355982)
+[PASS] test_sponsorPool_revert_nonexistentTournament() (gas: 111353)
+[PASS] test_sponsorPool_revert_sanctioned() (gas: 409655)
+[PASS] test_sponsorPool_revert_settledTournament() (gas: 401940)
+[PASS] test_sponsorPool_revert_zeroAmount() (gas: 305723)
+[PASS] test_sponsorPool_success_mintsReceipt_andForwards() (gas: 648105)
+Suite result: ok. 11 passed; 0 failed; 0 skipped; finished in 29.71ms (9.14ms CPU time)
+
+Ran 17 tests for test/SkillbaseAnchor.t.sol:SkillbaseAnchorTest
+[PASS] test_alreadyAnchoredReverts() (gas: 78096)
+[PASS] test_anchorSnapshot() (gas: 73936)
+[PASS] test_anchorSnapshotEmitsEvent() (gas: 71819)
+[PASS] test_constructorZeroAddress() (gas: 39042)
+[PASS] test_getSnapshotHash() (gas: 71378)
+[PASS] test_getSnapshotHashUnanchored() (gas: 9652)
+[PASS] test_invalidHashReverts() (gas: 23524)
+[PASS] test_multipleTimestamps() (gas: 107988)
+[PASS] test_ownerCanAnchor() (gas: 73879)
+[PASS] test_revokeAuthorizedAnchor() (gas: 25796)
+[PASS] test_setAuthorizedAnchor() (gas: 103053)
+[PASS] test_setAuthorizedAnchorOnlyOwner() (gas: 16615)
+[PASS] test_setAuthorizedAnchorZeroAddress() (gas: 16684)
+[PASS] test_unauthorizedAnchorReverts() (gas: 19187)
+[PASS] test_verifySnapshotFalse() (gas: 71213)
+[PASS] test_verifySnapshotTrue() (gas: 70951)
+[PASS] test_verifySnapshotUnanchored() (gas: 10208)
+Suite result: ok. 17 passed; 0 failed; 0 skipped; finished in 29.70ms (5.40ms CPU time)
+
+Ran 22 tests for test/ArcadePool.t.sol:ArcadePoolTest
+[PASS] test_Admin_OnlyOwnerCanSetFeeRecipient() (gas: 30823)
+[PASS] test_Admin_OnlyOwnerCanSetScoreSigner() (gas: 29548)
+[PASS] test_Admin_SetProtocolFeeCappedAt3000Bps() (gas: 24271)
+[PASS] test_CreateTournament_AssignsIncrementingIdAndStores() (gas: 300742)
+[PASS] test_CreateTournament_RevertsOnOutOfRangeDuration() (gas: 17599)
+[PASS] test_CreateTournament_RevertsOnZeroFee() (gas: 12991)
+[PASS] test_Enter_RevertsAfterEndTime() (gas: 176126)
+[PASS] test_Enter_RevertsOnDoubleEntry() (gas: 314938)
+[PASS] test_Enter_RevertsOnNonExistentTournament() (gas: 24187)
+[PASS] test_Enter_TransfersEscrowsAndRecordsPlayer() (gas: 335467)
+[PASS] test_RefundIfEmpty_RefundsAllEntrants() (gas: 423763)
+[PASS] test_RefundIfEmpty_RevertsIfHasWinner() (gas: 426843)
+[PASS] test_Settle_DistributesPrizeMinusProtocolFee() (gas: 645297)
+[PASS] test_Settle_RevertsBeforeEnd() (gas: 171637)
+[PASS] test_Settle_RevertsIfAlreadySettled() (gas: 477669)
+[PASS] test_Settle_RevertsWithNoWinner() (gas: 314169)
+[PASS] test_SubmitScore_LowerDoesNotLowerPlayerBest() (gas: 465518)
+[PASS] test_SubmitScore_RevertsAfterEndTime() (gas: 318379)
+[PASS] test_SubmitScore_RevertsIfNotEntered() (gas: 178682)
+[PASS] test_SubmitScore_RevertsOnInvalidSignature() (gas: 329805)
+[PASS] test_SubmitScore_RevertsOnReusedNonce() (gas: 430112)
+[PASS] test_SubmitScore_ValidSignatureRecordsAndUpdatesWinner() (gas: 585958)
+Suite result: ok. 22 passed; 0 failed; 0 skipped; finished in 29.72ms (21.94ms CPU time)
+
+Ran 19 tests for test/DevAttributionNFT.t.sol:DevAttributionNFTTest
+[PASS] test_approve_revert_explicit() (gas: 12932)
+[PASS] test_constructor_pinsTournamentPool() (gas: 9329)
+[PASS] test_constructor_revert_zeroPool() (gas: 86874)
+[PASS] test_constructor_setsNameAndSymbol() (gas: 22527)
+[PASS] test_locked_returnsTrue_forMintedToken() (gas: 75501)
+[PASS] test_locked_revert_onNonexistentToken() (gas: 14341)
+[PASS] test_mint_byTournamentPool_succeeds() (gas: 82142)
+[PASS] test_mint_revert_onDoubleMintSameDev() (gas: 78084)
+[PASS] test_mint_revert_onNonTournamentPool() (gas: 16262)
+[PASS] test_mint_revert_onZeroDev() (gas: 14339)
+[PASS] test_mint_tokenId_isDeterministicFromDevAddr() (gas: 136914)
+[PASS] test_mintedToken_remainsWithDev_afterRevertedTransferAttempt() (gas: 92517)
+[PASS] test_safeTransferFromWithData_revert() (gas: 80833)
+[PASS] test_safeTransferFrom_revert() (gas: 80820)
+[PASS] test_setApprovalForAll_revert_explicit() (gas: 13228)
+[PASS] test_supportsInterface_excludesUnknown() (gas: 7817)
+[PASS] test_supportsInterface_includesERC5192() (gas: 10031)
+[PASS] test_supportsInterface_includesERC721() (gas: 10747)
+[PASS] test_transferFrom_revert() (gas: 80545)
+Suite result: ok. 19 passed; 0 failed; 0 skipped; finished in 32.11ms (13.31ms CPU time)
+
+Ran 91 tests for test/TournamentPool.t.sol:TournamentPoolTest
+[PASS] testFuzz_chargeEntryFee_noDust_holdsForFutureEntryFees(uint256) (runs: 256, μ: 4439, ~: 4936)
+[PASS] test_BPS_constants_match_locked_values() (gas: 21899)
+[PASS] test_chargeEntryFee_accumulates() (gas: 522153)
+[PASS] test_chargeEntryFee_atomicSplit_70_30() (gas: 454632)
+[PASS] test_chargeEntryFee_noDust_offBy1_introducesDust() (gas: 3118)
+[PASS] test_chargeEntryFee_revert_playerMismatch() (gas: 373282)
+[PASS] test_chargeEntryFee_revert_tournamentEnded() (gas: 378156)
+[PASS] test_chargeEntryFee_revert_tournamentNotFound() (gas: 98403)
+[PASS] test_chargeEntryFee_success() (gas: 483489)
+[PASS] test_createTournament_cacheFlippedBefore_externalMint() (gas: 5216069)
+[PASS] test_createTournament_differentDevs_mintSeparately() (gas: 554646)
+[PASS] test_createTournament_mintsNFT_onFirstCallPerDev() (gas: 309927)
+[PASS] test_createTournament_observerMock_notCalledOnCacheHit() (gas: 5365149)
+[PASS] test_createTournament_receiverHook_reentrancyCoverage() (gas: 1781188)
+[PASS] test_createTournament_revert_duplicate() (gas: 303010)
+[PASS] test_createTournament_revert_invalidWindow() (gas: 31238)
+[PASS] test_createTournament_revert_zeroDevAddr() (gas: 32795)
+[PASS] test_createTournament_revert_zeroDevAddr_doesNotTouchNFTState() (gas: 31070)
+[PASS] test_createTournament_revert_zeroPrize() (gas: 32563)
+[PASS] test_createTournament_skipsNFTMint_onSecondCallSameDev() (gas: 463651)
+[PASS] test_createTournament_storesDevAddr() (gas: 305713)
+[PASS] test_createTournament_success() (gas: 325287)
+[PASS] test_effectiveScore_belowCap_unchanged() (gas: 1426037)
+[PASS] test_effectiveScore_formulaMatches() (gas: 544255)
+[PASS] test_effectiveScore_matchCountCap_caps_at_ten() (gas: 2624285)
+[PASS] test_emergencyWithdraw_drainsPool() (gas: 320133)
+[PASS] test_flagScore_revert_afterSettle() (gas: 1442633)
+[PASS] test_flagScore_revert_notOwner() (gas: 545967)
+[PASS] test_flagScore_revert_notParticipant() (gas: 306212)
+[PASS] test_flagScore_success() (gas: 576672)
+[PASS] test_fundPrizePool_external_funder_permissionless() (gas: 357330)
+[PASS] test_fundPrizePool_multiple_funders_accumulate() (gas: 395164)
+[PASS] test_fundPrizePool_revert_afterSettle() (gas: 1509696)
+[PASS] test_fundPrizePool_revert_nonexistent() (gas: 25894)
+[PASS] test_fundPrizePool_revert_zeroAmount() (gas: 299231)
+[PASS] test_fundPrizePool_settle_distributesAugmentedPool() (gas: 1493844)
+[PASS] test_fundPrizePool_success_incrementsPrizePool() (gas: 370616)
+[PASS] test_getRanking_sortsDescending_skipsExcluded() (gas: 1028557)
+[PASS] test_integration_dev_canWithdraw_beforeSettle() (gas: 955740)
+[PASS] test_integration_multiTournament_multiDev_flow() (gas: 2372786)
+[PASS] test_integration_settle_insufficientPool_smallPrize() (gas: 1452665)
+[PASS] test_integration_settle_noEntriesReceived() (gas: 352493)
+[PASS] test_integration_singleTournament_fullLifecycle() (gas: 2694872)
+[PASS] test_invariant_balanceReconciliation_acrossTwoTournaments() (gas: 1004219)
+[PASS] test_invariant_feeBuckets_survive_full_lifecycle() (gas: 2223226)
+[PASS] test_invariant_feeCollectedDev_isolated_from_prizePool() (gas: 2495021)
+[PASS] test_invariant_feeCollectedPlatform_isolated_from_prizePool() (gas: 2496715)
+[PASS] test_invariant_fundPrizePool_does_not_touch_feeCollected_anything() (gas: 843266)
+[PASS] test_invariant_settle_does_not_touch_feeCollected_anything() (gas: 999044)
+[PASS] test_setTrustedSigner_ownerOnly() (gas: 30819)
+[PASS] test_settle_degenerate_onePlayer() (gas: 618885)
+[PASS] test_settle_degenerate_threePlayers_winnerTakesAll() (gas: 1132465)
+[PASS] test_settle_excludedPlayerGetsNoPrize() (gas: 1367579)
+[PASS] test_settle_largeN_tier5Split() (gas: 8598036)
+[PASS] test_settle_mixedSoloAndDuel_worksAsBefore() (gas: 1583486)
+[PASS] test_settle_noParticipants_fullRefund() (gas: 323614)
+[PASS] test_settle_revert_alreadySettled() (gas: 1448378)
+[PASS] test_settle_revert_beforeEnd() (gas: 1194756)
+[PASS] test_settle_revert_duplicateInRanking() (gas: 1262482)
+[PASS] test_settle_revert_excludedIncluded() (gas: 1345080)
+[PASS] test_settle_revert_nonParticipantIncluded() (gas: 1321591)
+[PASS] test_settle_revert_wrongLength() (gas: 1429777)
+[PASS] test_settle_revert_wrongOrder() (gas: 1509284)
+[PASS] test_settle_tenParticipants_distribution() (gas: 3109831)
+[PASS] test_settle_ties_callerChoosesOrder() (gas: 1442628)
+[PASS] test_settle_twentyParticipants_tierCoverage() (gas: 5735939)
+[PASS] test_submissionHistory_tagsSourceCorrectly() (gas: 1035591)
+[PASS] test_submitScore_keepsBestScore() (gas: 846775)
+[PASS] test_submitScore_revert_afterEnd() (gas: 312035)
+[PASS] test_submitScore_revert_badSignature() (gas: 321718)
+[PASS] test_submitScore_revert_notFound() (gas: 28763)
+[PASS] test_submitScore_revert_notStarted() (gas: 307289)
+[PASS] test_submitScore_revert_replayNonce() (gas: 542402)
+[PASS] test_submitScore_success_newPlayer() (gas: 560259)
+[PASS] test_submitSolo_nonceSpaceSharedWithSubmitScore() (gas: 548070)
+[PASS] test_submitSolo_nthSubmissionRequiresNMinus1Fees() (gas: 1482853)
+[PASS] test_submitSolo_revert_badSignature() (gas: 322874)
+[PASS] test_submitSolo_revert_replayNonce() (gas: 608228)
+[PASS] test_submitSolo_revert_secondWithoutFee() (gas: 651580)
+[PASS] test_submitSolo_separatePlayers_independentFeeAccounting() (gas: 1202394)
+[PASS] test_submitSolo_success_firstIsFree() (gas: 646941)
+[PASS] test_submitSolo_success_paidRetryAfterFee() (gas: 923425)
+[PASS] test_withdrawFeesToDev_drawsOnlyFromFeeCollectedDev() (gas: 532154)
+[PASS] test_withdrawFeesToDev_noFees_noop() (gas: 310907)
+[PASS] test_withdrawFeesToDev_revert_tournamentNotFound() (gas: 22672)
+[PASS] test_withdrawFeesToDev_revert_unauthorizedCaller() (gas: 463523)
+[PASS] test_withdrawFeesToDev_twiceZeros() (gas: 469238)
+[PASS] test_withdrawFeesToPlatform_drawsOnlyFromFeeCollectedPlatform() (gas: 532174)
+[PASS] test_withdrawFeesToPlatform_noFees_noop() (gas: 310186)
+[PASS] test_withdrawFeesToPlatform_revert_unauthorizedCaller() (gas: 450011)
+[PASS] test_withdrawFeesToPlatform_twiceZeros() (gas: 467001)
+Suite result: ok. 91 passed; 0 failed; 0 skipped; finished in 32.13ms (120.70ms CPU time)
+
+Ran 25 tests for test/ChallengeEscrow.t.sol:ChallengeEscrowTest
+[PASS] test_acceptChallenge_revert_alreadyAccepted() (gas: 288391)
+[PASS] test_acceptChallenge_revert_expired() (gas: 220695)
+[PASS] test_acceptChallenge_revert_selfChallenge() (gas: 218203)
+[PASS] test_acceptChallenge_success() (gas: 298899)
+[PASS] test_createChallenge_revert_duplicate() (gas: 218172)
+[PASS] test_createChallenge_revert_zeroDuration() (gas: 24543)
+[PASS] test_createChallenge_revert_zeroStake() (gas: 24452)
+[PASS] test_createChallenge_success() (gas: 229552)
+[PASS] test_emergencyWithdraw() (gas: 233596)
+[PASS] test_expireAccepted_revert_notExpired() (gas: 285659)
+[PASS] test_expireAccepted_success() (gas: 302651)
+[PASS] test_expireOpen_revert_notExpired() (gas: 217069)
+[PASS] test_expireOpen_success() (gas: 220053)
+[PASS] test_feeMath_invariant() (gas: 368537)
+[PASS] test_setFeeVault() (gas: 18881)
+[PASS] test_setFeeVault_revert_zeroAddress() (gas: 14378)
+[PASS] test_setTrustedSigner() (gas: 19249)
+[PASS] test_settle_aliceWins() (gas: 376158)
+[PASS] test_settle_bobWins() (gas: 352328)
+[PASS] test_settle_revert_badSignature() (gas: 301506)
+[PASS] test_settle_revert_invalidWinner() (gas: 296498)
+[PASS] test_settle_revert_notAccepted() (gas: 225306)
+[PASS] test_walkover_revert_badSignature() (gas: 302494)
+[PASS] test_walkover_revert_notExpired() (gas: 293779)
+[PASS] test_walkover_success() (gas: 365590)
+Suite result: ok. 25 passed; 0 failed; 0 skipped; finished in 32.16ms (13.70ms CPU time)
+
+Ran 8 test suites in 132.04ms (224.74ms CPU time): 207 tests passed, 0 failed, 0 skipped (207 total tests)
+
+╭-----------------------------------------+------------------+------------------+-----------------+-----------------╮
+| File                                    | % Lines          | % Statements     | % Branches      | % Funcs         |
++===================================================================================================================+
+| script/BackfillV2Tournament.s.sol       | 0.00% (0/35)     | 0.00% (0/42)     | 0.00% (0/4)     | 0.00% (0/1)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| script/BackfillV2TournamentsBatch.s.sol | 0.00% (0/51)     | 0.00% (0/57)     | 0.00% (0/5)     | 0.00% (0/3)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| script/Deploy.s.sol                     | 0.00% (0/12)     | 0.00% (0/16)     | 100.00% (0/0)   | 0.00% (0/1)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| script/DeployChallengeEscrow.s.sol      | 0.00% (0/24)     | 0.00% (0/28)     | 0.00% (0/4)     | 0.00% (0/1)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| script/DeploySkillbaseAnchor.s.sol      | 0.00% (0/24)     | 0.00% (0/27)     | 0.00% (0/4)     | 0.00% (0/1)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| script/DeploySponsorStack.s.sol         | 0.00% (0/34)     | 0.00% (0/45)     | 0.00% (0/5)     | 0.00% (0/1)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| script/DeployTournamentPool.s.sol       | 0.00% (0/30)     | 0.00% (0/36)     | 0.00% (0/3)     | 0.00% (0/1)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| script/SetTournamentPoolSigner.s.sol    | 0.00% (0/15)     | 0.00% (0/18)     | 0.00% (0/1)     | 0.00% (0/1)     |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/ArcadePool.sol                      | 100.00% (64/64)  | 100.00% (61/61)  | 11.76% (4/34)   | 100.00% (11/11) |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/ChallengeEscrow.sol                 | 100.00% (95/95)  | 91.34% (116/127) | 61.54% (16/26)  | 100.00% (13/13) |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/DevAttributionNFT.sol               | 100.00% (22/22)  | 100.00% (24/24)  | 100.00% (4/4)   | 100.00% (7/7)   |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/MockSanctionsOracle.sol             | 66.67% (6/9)     | 57.14% (4/7)     | 0.00% (0/1)     | 66.67% (2/3)    |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/SkillbaseAnchor.sol                 | 100.00% (19/19)  | 91.30% (21/23)   | 66.67% (4/6)    | 100.00% (6/6)   |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/SponsorReceiptSBT.sol               | 100.00% (39/39)  | 100.00% (51/51)  | 100.00% (6/6)   | 100.00% (10/10) |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/SponsorshipModule.sol               | 100.00% (26/26)  | 86.67% (26/30)   | 50.00% (4/8)    | 100.00% (3/3)   |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| src/TournamentPool.sol                  | 97.37% (222/228) | 93.64% (265/283) | 73.77% (45/61)  | 96.15% (25/26)  |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| test/ArcadePool.t.sol                   | 50.00% (2/4)     | 50.00% (1/2)     | 100.00% (0/0)   | 50.00% (1/2)    |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| test/ChallengeEscrow.t.sol              | 50.00% (2/4)     | 50.00% (1/2)     | 100.00% (0/0)   | 50.00% (1/2)    |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| test/SponsorshipModule.t.sol            | 50.00% (2/4)     | 50.00% (1/2)     | 100.00% (0/0)   | 50.00% (1/2)    |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| test/TournamentPool.t.sol               | 50.00% (2/4)     | 50.00% (1/2)     | 100.00% (0/0)   | 50.00% (1/2)    |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| test/mocks/MaliciousMockDevNFT.sol      | 100.00% (7/7)    | 83.33% (5/6)     | 0.00% (0/1)     | 100.00% (2/2)   |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| test/mocks/MaliciousReentrantDev.sol    | 84.38% (27/32)   | 80.00% (20/25)   | 100.00% (10/10) | 100.00% (3/3)   |
+|-----------------------------------------+------------------+------------------+-----------------+-----------------|
+| Total                                   | 68.41% (535/782) | 65.32% (597/914) | 50.82% (93/183) | 84.31% (86/102) |
+╰-----------------------------------------+------------------+------------------+-----------------+-----------------╯
+Wrote LCOV report.
