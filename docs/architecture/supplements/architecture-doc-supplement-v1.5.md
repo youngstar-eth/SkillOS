@@ -125,6 +125,24 @@ Solo founder context, common patterns:
 
 Audit firm posture preference: 2-of-3 minimum, hardware wallets, geographically distributed signers. Decision deferred to founder pre-X11.5 kickoff.
 
+**Chain-verified state (May 18, 2026) — TournamentPool v2.1 `0x52049b812780134d2F69D6c20C2ef881D49702da`:**
+
+Direct on-chain inspection via `eth_call` confirmed the actual privileged role state, surfacing one positive finding and one v2.2-pending architectural fact:
+
+| Role | Verified address | Verification | Notes |
+|---|---|---|---|
+| `owner()` | `0x3A4F9eB7fba1A0015A6f070259f3B9e883D95eEE` | ✓ returns address | **DISTINCT EOA from STUDIO/trustedSigner — audit posture upgrade.** Originally documented as "same EOA as Deployer testnet consolidation"; chain reveals separation already exists. |
+| `trustedSigner()` | `0xA24f9122568E98B72f4dDD61119C7D92D0975692` (= STUDIO) | ✓ returns address | Confirms Q-W1 manifest fix (PR #119) — on-chain matches `signer-keys.json`. |
+| `feeVault()` | n/a (selector reverts) | ✗ revert | **v2.1 does NOT expose a separate feeVault getter.** Fees accumulate in TournamentPool contract balance directly; Owner withdraws via single-bucket withdrawal. v2.2 (X11 sprint) introduces `withdrawFeesToDev` + `withdrawFeesToPlatform` recipient split. |
+| `treasury()`, `feeRecipient()` | n/a (selectors revert) | ✗ revert | Confirms feeVault is not aliased under common alternative names. |
+
+**Implications:**
+
+- **X11.5 Owner transfer is clean** — Safe Wallet receives ownership without conflating with STUDIO key rotation. Two independent rotation paths instead of one entangled transition.
+- **v2.2 mainnet deploy gains a new wallet topology row** — `withdrawFeesToDev` recipient + `withdrawFeesToPlatform` recipient become distinct EOA targets (each fresh fiat-onramp per §2.7 invariant #2). X11 sprint scope expanded to include recipient address specification.
+- **Audit firm packet posture stronger than originally documented** — wallet-topology.md residual risk row downgraded from "Owner + trustedSigner single-EOA concentration" to "Owner setFeeVault authority single-EOA concentration" (less severe; setFeeVault is parameter config, not custody or signing authority).
+- **Pending verification (next session):** Provenance of `0x3A4F9eB7...d95EEE` — is this the original Deployer wallet, or was ownership transferred? Check `OwnershipTransferred` events on TournamentPool to confirm.
+
 **Cross-reference:**
 
 - `skillos-wallet-topology.md` audit packet artifact for current state inventory
@@ -440,12 +458,7 @@ After all existing changelog entries (v1.4, v1.3, v1.2, v1.1, v1) at the end of 
   verification chain (code wire + git remote + deploy SHA + runtime 
   broadcast + chain evidence). Cumulative cost 5-15 min, recovery cost 
   per layer drift 30-120 min. Living example: X10b end-to-end (May 17-18).
-- Added §2.7 Mainnet wallet rotation + multi-sig discipline — codifies 
-  zero EOA overlap, fresh fiat-onramp origin, testnet non-portability,
-  legacy authorization revocation, pre-deploy assertion. Introduces 
-  X11.5 Multi-sig deployment sprint as Phase 2 mainnet pre-req 
-  (funding-independent, ~1 week). Threshold open question deferred to 
-  founder strategic decision.
+- Added §2.7 Mainnet wallet rotation + multi-sig discipline — codifies wallet hygiene invariants, X11.5 multi-sig sprint scope, founder threshold decision queue. **Chain-verified subsection appended via addendum PR** — Owner `0x3A4F9eB7...` distinct from STUDIO; feeVault not separate getter in v2.1.
 - Added §3.15 X10b end-to-end chain-verify case study — canonical 
   reference for on-chain attributable sprint verification. Path A 
   (server-side via STUDIO key + X10b wire) and Path B (client-side 
