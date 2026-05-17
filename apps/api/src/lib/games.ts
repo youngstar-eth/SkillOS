@@ -35,10 +35,21 @@ export const decodeGame = (bytes32: `0x${string}`): string =>
  * calldata 712 hex). Post-X10: 712 + 22 = 734 hex chars with a trailing
  * ASCII-encoded "bc_xxxxxxxx" identifier (11 chars × 2 = 22 hex bytes).
  *
- * Why the codes live here (vs @skillos/sdk): apps/api avoids the SDK
- * workspace dep to keep the public API package surface decoupled from
- * client-SDK churn. The SDK has its own client-side copy for SIWB flows;
- * this is the server-side authoritative map. Both must agree.
+ * Why the codes live here (vs @skillos/sdk OR @skillos/contracts):
+ *   - apps/api avoids the SDK workspace dep to keep public API package
+ *     surface decoupled from client-SDK churn.
+ *   - apps/api avoids @skillos/contracts as a workspace dep because the
+ *     prebuilt deploy bundle stays minimal (gameSlug is vendored at
+ *     ./contracts-vendored for the same reason). Adding @skillos/contracts
+ *     here would risk ESM cold-start regressions and undo X10's bundle
+ *     hygiene.
+ *
+ * X10b mirrors the same constants in @skillos/contracts so the human
+ * submit path (packages/duel-backend) can attribute identically. Both
+ * server-side copies must agree; the SDK client copy is a third agreed
+ * surface. Mismatches are tested by `apps/api/test/games.test.ts` regression
+ * pins + `packages/contracts/test/builder-codes.test.ts` (X10b) using the
+ * same pinned values.
  */
 export const BUILDER_CODES: Record<KnownGame, string> = {
   '2048': 'bc_o6szuvg1',
@@ -55,9 +66,10 @@ export const BUILDER_CODES: Record<KnownGame, string> = {
  * calldata; the contract ignores the tail bytes (they're invisible at the
  * EVM execution level but visible in tx.input for off-chain indexers).
  *
- * Equivalent to `@skillos/sdk`'s `builderCodeToDataSuffix` — kept inline
- * here to avoid a public-API → SDK workspace dep. Update both together if
- * the encoding ever changes (it won't — ASCII hex is canonical ERC-8021).
+ * Equivalent to `@skillos/sdk`'s `builderCodeToDataSuffix` and to
+ * `@skillos/contracts`'s `builderCodeToDataSuffix` (X10b) — kept inline
+ * here to avoid a public-API → workspace dep. Update all three together
+ * if the encoding ever changes (it won't — ASCII hex is canonical ERC-8021).
  */
 export function builderCodeToDataSuffix(code: string): `0x${string}` {
   const hex = Array.from(code)

@@ -68,9 +68,10 @@ jobs:
         run: npm ci
       - name: Run TS tests (node:test via tsx)
         # Direct invocation matches the local developer pattern — no
-        # turbo `test` task defined. 11 test files: 7 in duel-backend,
+        # turbo `test` task defined. 12 test files: 7 in duel-backend,
         # 2 in sp-engine, 1 in ui (pure-helper test, no RTL setup),
-        # 1 in apps/api (X10 server-side dataSuffix attribution).
+        # 1 in apps/api (X10 server-side dataSuffix attribution),
+        # 1 in packages/contracts (X10b canonical Builder Code surface).
         # No user-controlled input is interpolated below — only fixed
         # repo-relative paths.
         run: |
@@ -86,6 +87,7 @@ jobs:
             packages/ui/test/duel-result-branch.test.ts \
             packages/sp-engine/src/engine.test.ts \
             packages/sp-engine/src/anchor.test.ts \
+            packages/contracts/test/builder-codes.test.ts \
             apps/api/test/games.test.ts
 
   # Status check name: test-foundry

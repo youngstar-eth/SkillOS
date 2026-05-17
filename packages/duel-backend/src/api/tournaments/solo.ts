@@ -72,6 +72,8 @@ import {
   parseEventLogs,
 } from "viem";
 import {
+  type BuilderCodeGame,
+  dataSuffixForGame,
   MATCH_COUNT_CAP,
   RETRY_FEE,
   TOURNAMENT_POOL_ABI,
@@ -471,6 +473,12 @@ export function createTournamentSoloHandler(
     // ─── fire-and-forget on-chain submitSoloScore ───────────────────────
     // writeContract returns after RPC broadcast (hash assigned) — does NOT
     // wait for block inclusion. Reconcile cron picks up failed broadcasts.
+    //
+    // dataSuffix: ERC-8021 ASCII-hex Builder Code tail (X10b). Mirrors the
+    // X10 agent path. Contract ignores the tail bytes; off-chain indexers
+    // (Blockscout, Base App store) parse it for per-game attribution. The
+    // game slug is captured from the factory closure (config.game), so the
+    // suffix is deterministic per route.
     let txHash: Hex | null = null;
     try {
       const walletClient = getWalletClient();
@@ -487,6 +495,7 @@ export function createTournamentSoloHandler(
           nonce,
           signature,
         ],
+        dataSuffix: dataSuffixForGame(config.game as BuilderCodeGame),
         account: walletClient.account ?? null,
         chain: walletClient.chain,
       });
