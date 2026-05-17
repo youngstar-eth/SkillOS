@@ -1,8 +1,12 @@
 // /v1/agents/matches/* — Sprint X20 spectator demo + X15 paid retries.
 //
-// X20 shipped one route: POST /v1/agents/matches/start-solo. Public (no
-// auth) for the testnet demo era; X21 adds SIWA + matchmaker queue
-// routes.
+// X20 shipped POST /v1/agents/matches/start-solo as the spectator MVP.
+// Hotfix C1 closes the anonymous-call hole that shipped with X20: every
+// route here now requires SIWA receipt + ERC-8128 per-request signature
+// (mirrors /v1/agents/scores). The server's agent wallet
+// (AGENT_PRIVATE_KEY) still pays for x402 + chargeRetryFee — C1 gates
+// who can *trigger* a spend, not whose wallet pays. Binding SIWA-agent
+// identity to the billing wallet is X21 scope.
 //
 // X15.6 inverts the previously-synchronous flow: the handler reserves a
 // duel_runs row, inserts a pending x15_payment_attempts row, returns
@@ -32,6 +36,7 @@ import {
   settleX402Payment,
   type SettleX402PaymentResult,
 } from '../lib/x402-client.js';
+import { requireSiwaAuth } from '../middleware/agent-auth.js';
 import { ApiError } from '../middleware/errorEnvelope.js';
 
 export const agentMatchesRoutes = new OpenAPIHono();
@@ -44,8 +49,9 @@ const startSoloRoute = createRoute({
   path: '/v1/agents/matches/start-solo',
   summary: 'Start a solo agent match (X20 spectator MVP + X15 paid retries)',
   description:
-    'Reserves a duel_runs row, inserts a pending x15_payment_attempts row, and returns 202 + runId. The handler does NOT block on x402 settlement or chargeRetryFee — those run in a background worker (waitUntil) along with the actual game loop. Spectator UI subscribes to two Realtime channels on the returned runId: duel_moves for move-by-move state, x15_payment_attempts for settlement progress (pending → x402_settled → anchored/skipped).',
+    'Agent-authenticated via SIWA receipt + ERC-8128 per-request signature (Hotfix C1). Reserves a duel_runs row, inserts a pending x15_payment_attempts row, and returns 202 + runId. The handler does NOT block on x402 settlement or chargeRetryFee — those run in a background worker (waitUntil) along with the actual game loop. Spectator UI subscribes to two Realtime channels on the returned runId: duel_moves for move-by-move state, x15_payment_attempts for settlement progress (pending → x402_settled → anchored/skipped). The signing wallet that pays for x402 + chargeRetryFee remains the server agent (AGENT_PRIVATE_KEY); SIWA only gates who may trigger a spend.',
   tags: ['agents'],
+  security: [{ siwaReceipt: [] }],
   request: {
     body: {
       content: { 'application/json': { schema: SoloMatchStartRequestSchema } },
@@ -57,8 +63,13 @@ const startSoloRoute = createRoute({
         'Match reserved; runId returned; x402 + chargeRetryFee + run loop kicked off asynchronously.',
       content: { 'application/json': { schema: SoloMatchStartResponseSchema } },
     },
+    401: {
+      description:
+        'SIWA receipt missing/invalid, or ERC-8128 per-request signature missing/invalid.',
+      content: { 'application/json': { schema: ErrorEnvelopeSchema } },
+    },
     429: {
-      description: 'Rate-limit exceeded (per-IP soft cap; X20 testnet demo)',
+      description: 'Rate-limit exceeded (60/min per authenticated agent)',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
     502: {
@@ -68,18 +79,20 @@ const startSoloRoute = createRoute({
   },
 });
 
+// Hotfix C1: every /v1/agents/matches/* route requires SIWA + ERC-8128.
+// Wildcard so X21 matchmaker queue routes inherit auth by default.
+agentMatchesRoutes.use('/v1/agents/matches/*', requireSiwaAuth());
+
 agentMatchesRoutes.openapi(startSoloRoute, async (c) => {
-  const ip =
-    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
-    c.req.header('x-real-ip') ??
-    'local';
-  const limited = rateLimit(`agent-matches-start-solo:${ip}`);
+  const agent = c.get('agent');
+  const agentKey = agent.address.toLowerCase();
+  const limited = rateLimit(`agent-matches-start-solo:${agentKey}`);
   if (!limited.allowed) {
     c.header('X-RateLimit-Reset', String(Math.floor(limited.resetAt / 1000)));
     throw new ApiError(
       429,
       'RATE_LIMITED',
-      'Per-IP rate limit exceeded — wait before triggering another match.',
+      'Per-agent rate limit exceeded — wait before triggering another match.',
     );
   }
 
