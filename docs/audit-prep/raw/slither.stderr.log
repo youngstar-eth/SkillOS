@@ -1,0 +1,1047 @@
+'forge clean' running (wd: /Users/inancayvaz/MAS/contracts)
+'forge config --json' running
+'forge build --build-info' running (wd: /Users/inancayvaz/MAS/contracts)
+
+Detector: arbitrary-send-erc20
+TournamentPool.chargeEntryFee(bytes32,address) (src/TournamentPool.sol#524-542) uses arbitrary from in transferFrom: USDC.safeTransferFrom(player,address(this),ENTRY_FEE) (src/TournamentPool.sol#532)
+DevAttributionNFTTest.test_transferFrom_revert() (test/DevAttributionNFT.t.sol#112-119) uses arbitrary from in transferFrom: nft.transferFrom(dev,outsider,uint256(uint160(dev))) (test/DevAttributionNFT.t.sol#118)
+DevAttributionNFTTest.test_mintedToken_remainsWithDev_afterRevertedTransferAttempt() (test/DevAttributionNFT.t.sol#171-184) uses arbitrary from in transferFrom: nft.transferFrom(dev,outsider,tokenId) (test/DevAttributionNFT.t.sol#178)
+SponsorReceiptSBTTest.test_transferFrom_reverts() (test/SponsorReceiptSBT.t.sol#74-81) uses arbitrary from in transferFrom: receipt.transferFrom(alice,bob,1) (test/SponsorReceiptSBT.t.sol#80)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#arbitrary-from-in-transferfrom
+
+Detector: divide-before-multiply
+TournamentPoolTest.test_settle_tenParticipants_distribution() (test/TournamentPool.t.sol#362-401) performs a multiplication on the result of a division:
+	- p45 = (PRIZE_POOL * 500) / 10000 (test/TournamentPool.t.sol#382)
+	- distributed = p1 + p2 + p3 + 2 * p45 (test/TournamentPool.t.sol#394)
+TournamentPoolTest.test_settle_twentyParticipants_tierCoverage() (test/TournamentPool.t.sol#446-473) performs a multiplication on the result of a division:
+	- p45 = (PRIZE_POOL * 500) / 10000 (test/TournamentPool.t.sol#460)
+	- distributed = p1 + p2 + p3 + 7 * p45 (test/TournamentPool.t.sol#471)
+TournamentPoolTest.test_integration_multiTournament_multiDev_flow() (test/TournamentPool.t.sol#1957-2035) performs a multiplication on the result of a division:
+	- perTournamentDev = (ENTRY_FEE * DEV_BPS) / TOTAL_BPS (test/TournamentPool.t.sol#2002)
+	- assertEq(usdc.balanceOf(devA),2 * perTournamentDev,devA = sum of t1+t2 dev shares) (test/TournamentPool.t.sol#2010)
+TournamentPoolTest.test_integration_multiTournament_multiDev_flow() (test/TournamentPool.t.sol#1957-2035) performs a multiplication on the result of a division:
+	- perTournamentPlatform = (ENTRY_FEE * PLATFORM_BPS) / TOTAL_BPS (test/TournamentPool.t.sol#2003)
+	- assertEq(usdc.balanceOf(address(this)) - ownerPre,3 * perTournamentPlatform,platform = sum of 3 platform shares) (test/TournamentPool.t.sol#2027-2029)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#divide-before-multiply
+
+Detector: uninitialized-local
+TournamentPool.getRanking(bytes32).idx (src/TournamentPool.sol#676) is a local variable never initialized
+TournamentPool.getRanking(bytes32).count (src/TournamentPool.sol#670) is a local variable never initialized
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#uninitialized-local-variables
+
+Detector: unused-return
+BackfillV2Tournament.run() (script/BackfillV2Tournament.s.sol#58-125) ignores return value by usdc.approve(poolAddr,type()(uint256).max) (script/BackfillV2Tournament.s.sol#91)
+BackfillV2TournamentsBatch.run() (script/BackfillV2TournamentsBatch.s.sol#66-122) ignores return value by usdc.approve(poolAddr,type()(uint256).max) (script/BackfillV2TournamentsBatch.s.sol#98)
+ArcadePoolTest.setUp() (test/ArcadePool.t.sol#51-63) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/ArcadePool.t.sol#60)
+ArcadePoolTest.setUp() (test/ArcadePool.t.sol#51-63) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/ArcadePool.t.sol#61)
+ArcadePoolTest.setUp() (test/ArcadePool.t.sol#51-63) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/ArcadePool.t.sol#62)
+ArcadePoolTest.test_CreateTournament_RevertsOnZeroFee() (test/ArcadePool.t.sol#125-128) ignores return value by pool.createTournament(bytes32(2048),0,DURATION) (test/ArcadePool.t.sol#127)
+ArcadePoolTest.test_CreateTournament_RevertsOnOutOfRangeDuration() (test/ArcadePool.t.sol#130-135) ignores return value by pool.createTournament(bytes32(2048),ENTRY_FEE,30) (test/ArcadePool.t.sol#132)
+ArcadePoolTest.test_CreateTournament_RevertsOnOutOfRangeDuration() (test/ArcadePool.t.sol#130-135) ignores return value by pool.createTournament(bytes32(2048),ENTRY_FEE,691200) (test/ArcadePool.t.sol#134)
+ChallengeEscrowTest.setUp() (test/ChallengeEscrow.t.sol#45-62) ignores return value by usdc.approve(address(escrow),type()(uint256).max) (test/ChallengeEscrow.t.sol#57)
+ChallengeEscrowTest.setUp() (test/ChallengeEscrow.t.sol#45-62) ignores return value by usdc.approve(address(escrow),type()(uint256).max) (test/ChallengeEscrow.t.sol#59)
+ChallengeEscrowTest.setUp() (test/ChallengeEscrow.t.sol#45-62) ignores return value by usdc.approve(address(escrow),type()(uint256).max) (test/ChallengeEscrow.t.sol#61)
+DevAttributionNFTTest.test_locked_revert_onNonexistentToken() (test/DevAttributionNFT.t.sol#103-108) ignores return value by nft.locked(12345) (test/DevAttributionNFT.t.sol#107)
+SponsorReceiptSBTTest.test_mint_revert_notMinter() (test/SponsorReceiptSBT.t.sol#38-42) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#41)
+SponsorReceiptSBTTest.test_mint_revert_zeroRecipient() (test/SponsorReceiptSBT.t.sol#44-48) ignores return value by receipt.mint(address(0),TID,1_000_000) (test/SponsorReceiptSBT.t.sol#47)
+SponsorReceiptSBTTest.test_mint_emitsLockedEvent() (test/SponsorReceiptSBT.t.sol#50-56) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#55)
+SponsorReceiptSBTTest.test_transferFrom_reverts() (test/SponsorReceiptSBT.t.sol#74-81) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#76)
+SponsorReceiptSBTTest.test_safeTransferFrom_reverts() (test/SponsorReceiptSBT.t.sol#83-90) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#85)
+SponsorReceiptSBTTest.test_safeTransferFromWithData_reverts() (test/SponsorReceiptSBT.t.sol#92-99) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#94)
+SponsorReceiptSBTTest.test_approve_reverts() (test/SponsorReceiptSBT.t.sol#101-108) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#103)
+SponsorReceiptSBTTest.test_setApprovalForAll_reverts() (test/SponsorReceiptSBT.t.sol#110-117) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#112)
+SponsorReceiptSBTTest.test_locked_returnsTrue() (test/SponsorReceiptSBT.t.sol#121-125) ignores return value by receipt.mint(alice,TID,1_000_000) (test/SponsorReceiptSBT.t.sol#123)
+SponsorReceiptSBTTest.test_locked_revertsForNonexistent() (test/SponsorReceiptSBT.t.sol#127-130) ignores return value by receipt.locked(999) (test/SponsorReceiptSBT.t.sol#129)
+SponsorReceiptSBTTest.test_tokenURI_returnsBase64DataURI() (test/SponsorReceiptSBT.t.sol#141-162) ignores return value by receipt.mint(alice,TID,5_000_000) (test/SponsorReceiptSBT.t.sol#143)
+SponsorReceiptSBTTest.test_tokenURI_revertsForNonexistent() (test/SponsorReceiptSBT.t.sol#164-167) ignores return value by receipt.tokenURI(999) (test/SponsorReceiptSBT.t.sol#166)
+SponsorshipModuleTest.setUp() (test/SponsorshipModule.t.sol#50-81) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/SponsorshipModule.t.sol#77)
+SponsorshipModuleTest._fundAndApprove(address,uint256) (test/SponsorshipModule.t.sol#100-104) ignores return value by usdc.approve(address(module),amount) (test/SponsorshipModule.t.sol#103)
+SponsorshipModuleTest.test_sponsorPool_emitsEvent() (test/SponsorshipModule.t.sol#145-155) ignores return value by module.sponsorPool(id,3_000_000) (test/SponsorshipModule.t.sol#154)
+SponsorshipModuleTest.test_sponsorPool_revert_zeroAmount() (test/SponsorshipModule.t.sol#159-165) ignores return value by module.sponsorPool(id,0) (test/SponsorshipModule.t.sol#164)
+SponsorshipModuleTest.test_sponsorPool_revert_sanctioned() (test/SponsorshipModule.t.sol#167-176) ignores return value by module.sponsorPool(id,1_000_000) (test/SponsorshipModule.t.sol#175)
+SponsorshipModuleTest.test_sponsorPool_revert_settledTournament() (test/SponsorshipModule.t.sol#178-194) ignores return value by module.sponsorPool(id,1_000_000) (test/SponsorshipModule.t.sol#193)
+SponsorshipModuleTest.test_sponsorPool_revert_nonexistentTournament() (test/SponsorshipModule.t.sol#196-201) ignores return value by module.sponsorPool(_tournamentId(99),1_000_000) (test/SponsorshipModule.t.sol#200)
+SponsorshipModuleTest.test_sponsorPool_revert_insufficientApproval() (test/SponsorshipModule.t.sol#203-213) ignores return value by module.sponsorPool(id,1_000_000) (test/SponsorshipModule.t.sol#212)
+SponsorshipModuleTest.test_multipleSponsors_accumulatePool() (test/SponsorshipModule.t.sol#217-238) ignores return value by module.sponsorPool(id,4_000_000) (test/SponsorshipModule.t.sol#225)
+SponsorshipModuleTest.test_multipleSponsors_accumulatePool() (test/SponsorshipModule.t.sol#217-238) ignores return value by module.sponsorPool(id,6_000_000) (test/SponsorshipModule.t.sol#227)
+SponsorshipModuleTest.test_sameSponsor_twiceCountsOnce() (test/SponsorshipModule.t.sol#240-255) ignores return value by module.sponsorPool(id,2_000_000) (test/SponsorshipModule.t.sol#246)
+SponsorshipModuleTest.test_sameSponsor_twiceCountsOnce() (test/SponsorshipModule.t.sol#240-255) ignores return value by module.sponsorPool(id,3_000_000) (test/SponsorshipModule.t.sol#248)
+TournamentPoolTest.setUp() (test/TournamentPool.t.sol#55-82) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/TournamentPool.t.sol#73)
+TournamentPoolTest._fundAndApprove(address,uint256) (test/TournamentPool.t.sol#750-754) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/TournamentPool.t.sol#753)
+TournamentPoolTest._fundFunder(address,uint256) (test/TournamentPool.t.sol#1472-1476) ignores return value by usdc.approve(address(pool),amount) (test/TournamentPool.t.sol#1475)
+TournamentPoolTest.test_createTournament_cacheFlippedBefore_externalMint() (test/TournamentPool.t.sol#1771-1804) ignores return value by usdc.approve(address(observerPool),type()(uint256).max) (test/TournamentPool.t.sol#1783)
+TournamentPoolTest.test_createTournament_observerMock_notCalledOnCacheHit() (test/TournamentPool.t.sol#1810-1836) ignores return value by usdc.approve(address(observerPool),type()(uint256).max) (test/TournamentPool.t.sol#1819)
+TournamentPoolTest.test_createTournament_receiverHook_reentrancyCoverage() (test/TournamentPool.t.sol#1845-1882) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/TournamentPool.t.sol#1852)
+TournamentPoolTest.test_integration_settle_insufficientPool_smallPrize() (test/TournamentPool.t.sol#2041-2071) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/TournamentPool.t.sol#2047)
+X15PaidRetryTest.setUp() (test/X15-paid-retry.t.sol#47-64) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/X15-paid-retry.t.sol#60)
+X15PaidRetryTest._fundAndApprove(address,uint256) (test/X15-paid-retry.t.sol#79-83) ignores return value by usdc.approve(address(pool),type()(uint256).max) (test/X15-paid-retry.t.sol#82)
+X15PaidRetryTest.test_chargeRetryFee_requires_usdc_allowance() (test/X15-paid-retry.t.sol#139-161) ignores return value by usdc.approve(address(pool),ENTRY_FEE) (test/X15-paid-retry.t.sol#157)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unused-return
+
+Detector: shadowing-local
+SkillbaseAnchor.constructor(address)._owner (src/SkillbaseAnchor.sol#70) shadows:
+	- Ownable._owner (lib/openzeppelin-contracts/contracts/access/Ownable.sol#21) (state variable)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#local-variable-shadowing
+
+Detector: events-maths
+ArcadePool.setProtocolFee(uint256) (src/ArcadePool.sol#146-149) should emit an event for: 
+	- protocolFeeBps = _bps (src/ArcadePool.sol#148) 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic
+
+Detector: missing-zero-check
+ArcadePool.constructor(address,address,address)._scoreSigner (src/ArcadePool.sol#48) lacks a zero-check on :
+		- scoreSigner = _scoreSigner (src/ArcadePool.sol#53)
+ArcadePool.constructor(address,address,address)._feeRecipient (src/ArcadePool.sol#48) lacks a zero-check on :
+		- feeRecipient = _feeRecipient (src/ArcadePool.sol#54)
+ArcadePool.setScoreSigner(address)._signer (src/ArcadePool.sol#144) lacks a zero-check on :
+		- scoreSigner = _signer (src/ArcadePool.sol#144)
+ArcadePool.setFeeRecipient(address)._recipient (src/ArcadePool.sol#145) lacks a zero-check on :
+		- feeRecipient = _recipient (src/ArcadePool.sol#145)
+MaliciousMockDevNFT.constructor(address)._tournamentPool (test/mocks/MaliciousMockDevNFT.sol#41) lacks a zero-check on :
+		- tournamentPool = _tournamentPool (test/mocks/MaliciousMockDevNFT.sol#42)
+MaliciousMockDevNFT.mint(address).dev (test/mocks/MaliciousMockDevNFT.sol#51) lacks a zero-check on :
+		- observedDev = dev (test/mocks/MaliciousMockDevNFT.sol#54)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
+
+Detector: calls-loop
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_flagScore_revert_afterSettle()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_flagScore_revert_afterSettle()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_tenParticipants_distribution()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_tenParticipants_distribution()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest.test_settle_tenParticipants_distribution() (test/TournamentPool.t.sol#362-401) has external calls inside a loop: before_[i] = usdc.balanceOf(players[i]) (test/TournamentPool.t.sol#372)
+TournamentPoolTest.test_settle_tenParticipants_distribution() (test/TournamentPool.t.sol#362-401) has external calls inside a loop: assertEq(usdc.balanceOf(players[i_scope_0]) - before_[i_scope_0],0,places 6-10 nothing) (test/TournamentPool.t.sol#390)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_degenerate_threePlayers_winnerTakesAll()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_degenerate_threePlayers_winnerTakesAll()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_twentyParticipants_tierCoverage()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_twentyParticipants_tierCoverage()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest.test_settle_twentyParticipants_tierCoverage() (test/TournamentPool.t.sol#446-473) has external calls inside a loop: assertEq(usdc.balanceOf(players[i]),p45,places 4-10) (test/TournamentPool.t.sol#466)
+TournamentPoolTest.test_settle_twentyParticipants_tierCoverage() (test/TournamentPool.t.sol#446-473) has external calls inside a loop: assertEq(usdc.balanceOf(players[i_scope_0]),0,places 11-20 nothing) (test/TournamentPool.t.sol#469)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_largeN_tier5Split()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_largeN_tier5Split()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest.test_settle_largeN_tier5Split() (test/TournamentPool.t.sol#476-498) has external calls inside a loop: assertEq(usdc.balanceOf(players[i_scope_0]),expectedTier5Each,tier5 share) (test/TournamentPool.t.sol#493)
+TournamentPoolTest.test_settle_largeN_tier5Split() (test/TournamentPool.t.sol#476-498) has external calls inside a loop: assertEq(usdc.balanceOf(players[i_scope_1]),0,outside topN) (test/TournamentPool.t.sol#496)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_beforeEnd()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_beforeEnd()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_alreadySettled()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_alreadySettled()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_wrongLength()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_wrongLength()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_wrongOrder()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_wrongOrder()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_nonParticipantIncluded()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_nonParticipantIncluded()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_excludedIncluded()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_excludedIncluded()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_duplicateInRanking()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_settle_revert_duplicateInRanking()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest.test_submitSolo_nthSubmissionRequiresNMinus1Fees() (test/TournamentPool.t.sol#807-838) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#817)
+TournamentPoolTest.test_submitSolo_nthSubmissionRequiresNMinus1Fees() (test/TournamentPool.t.sol#807-838) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#818)
+TournamentPoolTest.test_chargeEntryFee_accumulates() (test/TournamentPool.t.sol#954-969) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#960)
+TournamentPoolTest.test_chargeEntryFee_accumulates() (test/TournamentPool.t.sol#954-969) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#961)
+TournamentPoolTest.test_invariant_feeBuckets_survive_full_lifecycle() (test/TournamentPool.t.sol#1138-1211) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#1150)
+TournamentPoolTest.test_invariant_feeBuckets_survive_full_lifecycle() (test/TournamentPool.t.sol#1138-1211) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#1151)
+TournamentPoolTest.test_invariant_feeCollectedDev_isolated_from_prizePool() (test/TournamentPool.t.sol#1238-1274) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#1252)
+TournamentPoolTest.test_invariant_feeCollectedDev_isolated_from_prizePool() (test/TournamentPool.t.sol#1238-1274) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#1253)
+TournamentPoolTest.test_invariant_feeCollectedPlatform_isolated_from_prizePool() (test/TournamentPool.t.sol#1276-1308) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#1286)
+TournamentPoolTest.test_invariant_feeCollectedPlatform_isolated_from_prizePool() (test/TournamentPool.t.sol#1276-1308) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#1287)
+TournamentPoolTest.test_effectiveScore_matchCountCap_caps_at_ten() (test/TournamentPool.t.sol#1383-1402) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#1391)
+TournamentPoolTest.test_effectiveScore_matchCountCap_caps_at_ten() (test/TournamentPool.t.sol#1383-1402) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#1392)
+TournamentPoolTest.test_effectiveScore_belowCap_unchanged() (test/TournamentPool.t.sol#1404-1418) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#1411)
+TournamentPoolTest.test_effectiveScore_belowCap_unchanged() (test/TournamentPool.t.sol#1404-1418) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#1412)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_fundPrizePool_revert_afterSettle()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_fundPrizePool_revert_afterSettle()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_fundPrizePool_settle_distributesAugmentedPool()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_fundPrizePool_settle_distributesAugmentedPool()
+		TournamentPoolTest._seedDescendingScores(bytes32,uint256)
+TournamentPoolTest._fundAndApprove(address,uint256) (test/TournamentPool.t.sol#750-754) has external calls inside a loop: usdc.mint(player,amount) (test/TournamentPool.t.sol#751)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_integration_singleTournament_fullLifecycle()
+TournamentPoolTest._fundAndApprove(address,uint256) (test/TournamentPool.t.sol#750-754) has external calls inside a loop: vm.prank(player) (test/TournamentPool.t.sol#752)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_integration_singleTournament_fullLifecycle()
+TournamentPoolTest._fundAndApprove(address,uint256) (test/TournamentPool.t.sol#750-754) has external calls inside a loop: usdc.approve(address(pool),type()(uint256).max) (test/TournamentPool.t.sol#753)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_integration_singleTournament_fullLifecycle()
+TournamentPoolTest._signSoloSubmit(bytes32,address,uint256,bytes32,uint256,bytes32) (test/TournamentPool.t.sol#725-739) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#737)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_integration_singleTournament_fullLifecycle()
+		TournamentPoolTest._submitSolo(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submitSolo(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#741-748) has external calls inside a loop: pool.submitSoloScore(id,player,score,runId,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#747)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_integration_singleTournament_fullLifecycle()
+TournamentPoolTest.test_integration_singleTournament_fullLifecycle() (test/TournamentPool.t.sol#1897-1950) has external calls inside a loop: vm.prank(p) (test/TournamentPool.t.sol#1916)
+TournamentPoolTest.test_integration_singleTournament_fullLifecycle() (test/TournamentPool.t.sol#1897-1950) has external calls inside a loop: pool.chargeEntryFee(id,p) (test/TournamentPool.t.sol#1917)
+TournamentPoolTest._signSubmit(bytes32,address,uint256,uint256,bytes32) (test/TournamentPool.t.sol#101-110) has external calls inside a loop: (v,r,s) = vm.sign(signerPk,ethDigest) (test/TournamentPool.t.sol#108)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_integration_settle_insufficientPool_smallPrize()
+		TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256)
+TournamentPoolTest._submit(bytes32,address,uint256,uint256,uint256) (test/TournamentPool.t.sol#112-116) has external calls inside a loop: pool.submitScore(id,player,score,matchCountDelta,nonce,sig) (test/TournamentPool.t.sol#115)
+	Calls stack containing the loop:
+		TournamentPoolTest.test_integration_settle_insufficientPool_smallPrize()
+TournamentPoolTest.test_integration_dev_canWithdraw_beforeSettle() (test/TournamentPool.t.sol#2078-2112) has external calls inside a loop: vm.prank(players[0]) (test/TournamentPool.t.sol#2087)
+TournamentPoolTest.test_integration_dev_canWithdraw_beforeSettle() (test/TournamentPool.t.sol#2078-2112) has external calls inside a loop: pool.chargeEntryFee(id,players[0]) (test/TournamentPool.t.sol#2088)
+X15PaidRetryTest.test_chargeRetryFee_n_times_then_n_submissions() (test/X15-paid-retry.t.sol#190-209) has external calls inside a loop: vm.prank(alice) (test/X15-paid-retry.t.sol#200)
+X15PaidRetryTest.test_chargeRetryFee_n_times_then_n_submissions() (test/X15-paid-retry.t.sol#190-209) has external calls inside a loop: pool.chargeEntryFee(id,alice) (test/X15-paid-retry.t.sol#201)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation/#calls-inside-a-loop
+
+Detector: reentrancy-benign
+Reentrancy in MaliciousReentrantDev.onERC721Received(address,address,uint256,bytes) (test/mocks/MaliciousReentrantDev.sol#57-110):
+	External calls:
+	- pool.createTournament(keccak256(bytes)(malicious-attempt),address(this),keccak256(bytes)(game),TournamentPool.CycleType.Daily,uint64(block.timestamp),uint64(block.timestamp + 86400),1_000_000,50) (test/mocks/MaliciousReentrantDev.sol#59-73)
+	State variables written after the call(s):
+	- createTournament_revertData = data (test/mocks/MaliciousReentrantDev.sol#72)
+	- createTournament_reverted = false (test/mocks/MaliciousReentrantDev.sol#69)
+	- createTournament_reverted = true (test/mocks/MaliciousReentrantDev.sol#71)
+Reentrancy in MaliciousReentrantDev.onERC721Received(address,address,uint256,bytes) (test/mocks/MaliciousReentrantDev.sol#57-110):
+	External calls:
+	- pool.createTournament(keccak256(bytes)(malicious-attempt),address(this),keccak256(bytes)(game),TournamentPool.CycleType.Daily,uint64(block.timestamp),uint64(block.timestamp + 86400),1_000_000,50) (test/mocks/MaliciousReentrantDev.sol#59-73)
+	- pool.chargeEntryFee(expectedTournamentId,address(this)) (test/mocks/MaliciousReentrantDev.sol#76-81)
+	State variables written after the call(s):
+	- chargeEntryFee_revertData = data_scope_0 (test/mocks/MaliciousReentrantDev.sol#80)
+	- chargeEntryFee_reverted = false (test/mocks/MaliciousReentrantDev.sol#77)
+	- chargeEntryFee_reverted = true (test/mocks/MaliciousReentrantDev.sol#79)
+Reentrancy in MaliciousReentrantDev.onERC721Received(address,address,uint256,bytes) (test/mocks/MaliciousReentrantDev.sol#57-110):
+	External calls:
+	- pool.createTournament(keccak256(bytes)(malicious-attempt),address(this),keccak256(bytes)(game),TournamentPool.CycleType.Daily,uint64(block.timestamp),uint64(block.timestamp + 86400),1_000_000,50) (test/mocks/MaliciousReentrantDev.sol#59-73)
+	- pool.chargeEntryFee(expectedTournamentId,address(this)) (test/mocks/MaliciousReentrantDev.sol#76-81)
+	- pool.settle(expectedTournamentId,empty) (test/mocks/MaliciousReentrantDev.sol#86-91)
+	State variables written after the call(s):
+	- settle_revertData = data_scope_1 (test/mocks/MaliciousReentrantDev.sol#90)
+	- settle_reverted = false (test/mocks/MaliciousReentrantDev.sol#87)
+	- settle_reverted = true (test/mocks/MaliciousReentrantDev.sol#89)
+Reentrancy in MaliciousReentrantDev.onERC721Received(address,address,uint256,bytes) (test/mocks/MaliciousReentrantDev.sol#57-110):
+	External calls:
+	- pool.createTournament(keccak256(bytes)(malicious-attempt),address(this),keccak256(bytes)(game),TournamentPool.CycleType.Daily,uint64(block.timestamp),uint64(block.timestamp + 86400),1_000_000,50) (test/mocks/MaliciousReentrantDev.sol#59-73)
+	- pool.chargeEntryFee(expectedTournamentId,address(this)) (test/mocks/MaliciousReentrantDev.sol#76-81)
+	- pool.settle(expectedTournamentId,empty) (test/mocks/MaliciousReentrantDev.sol#86-91)
+	- pool.withdrawFeesToDev(expectedTournamentId) (test/mocks/MaliciousReentrantDev.sol#94-99)
+	State variables written after the call(s):
+	- withdrawFeesToDev_revertData = data_scope_2 (test/mocks/MaliciousReentrantDev.sol#98)
+	- withdrawFeesToDev_reverted = false (test/mocks/MaliciousReentrantDev.sol#95)
+	- withdrawFeesToDev_reverted = true (test/mocks/MaliciousReentrantDev.sol#97)
+Reentrancy in MaliciousReentrantDev.onERC721Received(address,address,uint256,bytes) (test/mocks/MaliciousReentrantDev.sol#57-110):
+	External calls:
+	- pool.createTournament(keccak256(bytes)(malicious-attempt),address(this),keccak256(bytes)(game),TournamentPool.CycleType.Daily,uint64(block.timestamp),uint64(block.timestamp + 86400),1_000_000,50) (test/mocks/MaliciousReentrantDev.sol#59-73)
+	- pool.chargeEntryFee(expectedTournamentId,address(this)) (test/mocks/MaliciousReentrantDev.sol#76-81)
+	- pool.settle(expectedTournamentId,empty) (test/mocks/MaliciousReentrantDev.sol#86-91)
+	- pool.withdrawFeesToDev(expectedTournamentId) (test/mocks/MaliciousReentrantDev.sol#94-99)
+	- pool.fundPrizePool(expectedTournamentId,1_000_000) (test/mocks/MaliciousReentrantDev.sol#102-107)
+	State variables written after the call(s):
+	- fundPrizePool_revertData = data_scope_3 (test/mocks/MaliciousReentrantDev.sol#106)
+	- fundPrizePool_reverted = false (test/mocks/MaliciousReentrantDev.sol#103)
+	- fundPrizePool_reverted = true (test/mocks/MaliciousReentrantDev.sol#105)
+Reentrancy in SkillbaseAnchorTest.setUp() (test/SkillbaseAnchor.t.sol#27-32):
+	External calls:
+	- vm.prank(owner) (test/SkillbaseAnchor.t.sol#28)
+	State variables written after the call(s):
+	- anchor = new SkillbaseAnchor(owner) (test/SkillbaseAnchor.t.sol#29)
+Reentrancy in SponsorshipModuleTest.setUp() (test/SponsorshipModule.t.sol#50-81):
+	External calls:
+	- usdc.mint(originalSponsor,1_000_000_000) (test/SponsorshipModule.t.sol#75)
+	- vm.prank(originalSponsor) (test/SponsorshipModule.t.sol#76)
+	- usdc.approve(address(pool),type()(uint256).max) (test/SponsorshipModule.t.sol#77)
+	State variables written after the call(s):
+	- ENDS_AT = uint64(block.timestamp + 86400) (test/SponsorshipModule.t.sol#80)
+	- STARTS_AT = uint64(block.timestamp) (test/SponsorshipModule.t.sol#79)
+Reentrancy in TournamentPoolTest.setUp() (test/TournamentPool.t.sol#55-82):
+	External calls:
+	- usdc.mint(sponsor,1_000_000_000) (test/TournamentPool.t.sol#71)
+	- vm.prank(sponsor) (test/TournamentPool.t.sol#72)
+	- usdc.approve(address(pool),type()(uint256).max) (test/TournamentPool.t.sol#73)
+	State variables written after the call(s):
+	- ENDS_AT = uint64(block.timestamp + 86400) (test/TournamentPool.t.sol#81)
+	- STARTS_AT = uint64(block.timestamp) (test/TournamentPool.t.sol#80)
+	- players.push(address(uint160(0x1000 + i))) (test/TournamentPool.t.sol#77)
+Reentrancy in X15PaidRetryTest.setUp() (test/X15-paid-retry.t.sol#47-64):
+	External calls:
+	- usdc.mint(sponsor,1_000_000_000) (test/X15-paid-retry.t.sol#58)
+	- vm.prank(sponsor) (test/X15-paid-retry.t.sol#59)
+	- usdc.approve(address(pool),type()(uint256).max) (test/X15-paid-retry.t.sol#60)
+	State variables written after the call(s):
+	- ENDS_AT = uint64(block.timestamp + 86400) (test/X15-paid-retry.t.sol#63)
+	- STARTS_AT = uint64(block.timestamp) (test/X15-paid-retry.t.sol#62)
+Reentrancy in SponsorshipModule.sponsorPool(bytes32,uint256) (src/SponsorshipModule.sol#122-146):
+	External calls:
+	- POOL.fundPrizePool(tournamentId,amount) (src/SponsorshipModule.sol#131)
+	State variables written after the call(s):
+	- _hasSponsored[tournamentId][msg.sender] = true (src/SponsorshipModule.sol#137)
+	- sponsorContributions[tournamentId][msg.sender] += amount (src/SponsorshipModule.sol#135)
+	- totalSponsorsByTournament[tournamentId] += 1 (src/SponsorshipModule.sol#139)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3
+
+Detector: reentrancy-events
+Reentrancy in DevAttributionNFT.mint(address) (src/DevAttributionNFT.sol#79-85):
+	External calls:
+	- _safeMint(dev,tokenId) (src/DevAttributionNFT.sol#83)
+		- ERC721Utils.checkOnERC721Received(_msgSender(),address(0),to,tokenId,data) (lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol#289)
+		- retval = IERC721Receiver(to).onERC721Received(operator,from,tokenId,data) (lib/openzeppelin-contracts/contracts/token/ERC721/utils/ERC721Utils.sol#33-47)
+	Event emitted after the call(s):
+	- Locked(tokenId) (src/DevAttributionNFT.sol#84)
+Reentrancy in SponsorReceiptSBT.mint(address,bytes32,uint256) (src/SponsorReceiptSBT.sol#79-96):
+	External calls:
+	- _safeMint(to,tokenId) (src/SponsorReceiptSBT.sol#94)
+		- ERC721Utils.checkOnERC721Received(_msgSender(),address(0),to,tokenId,data) (lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol#289)
+		- retval = IERC721Receiver(to).onERC721Received(operator,from,tokenId,data) (lib/openzeppelin-contracts/contracts/token/ERC721/utils/ERC721Utils.sol#33-47)
+	Event emitted after the call(s):
+	- Locked(tokenId) (src/SponsorReceiptSBT.sol#95)
+Reentrancy in ArcadePoolTest.test_Enter_TransfersEscrowsAndRecordsPlayer() (test/ArcadePool.t.sol#138-156):
+	External calls:
+	- id = _createDefaultTournament() (test/ArcadePool.t.sol#139)
+		- pool.createTournament(bytes32(2048),ENTRY_FEE,DURATION) (test/ArcadePool.t.sol#97)
+	- vm.expectEmit(true,true,false,false) (test/ArcadePool.t.sol#144)
+	Event emitted after the call(s):
+	- PlayerEntered(id,alice) (test/ArcadePool.t.sol#145)
+Reentrancy in ArcadePoolTest.test_Settle_DistributesPrizeMinusProtocolFee() (test/ArcadePool.t.sol#282-309):
+	External calls:
+	- id = _createDefaultTournament() (test/ArcadePool.t.sol#283)
+		- pool.createTournament(bytes32(2048),ENTRY_FEE,DURATION) (test/ArcadePool.t.sol#97)
+	- vm.prank(alice) (test/ArcadePool.t.sol#284)
+	- pool.enter(id) (test/ArcadePool.t.sol#284)
+	- vm.prank(bob) (test/ArcadePool.t.sol#285)
+	- pool.enter(id) (test/ArcadePool.t.sol#285)
+	- vm.prank(carol) (test/ArcadePool.t.sol#286)
+	- pool.enter(id) (test/ArcadePool.t.sol#286)
+	- vm.prank(alice) (test/ArcadePool.t.sol#290)
+	- pool.submitScore(id,2048,n,sig) (test/ArcadePool.t.sol#291)
+	- vm.warp(block.timestamp + DURATION + 1) (test/ArcadePool.t.sol#293)
+	- vm.expectEmit(true,true,false,true) (test/ArcadePool.t.sol#302)
+	Event emitted after the call(s):
+	- TournamentSettled(id,alice,prize) (test/ArcadePool.t.sol#303)
+Reentrancy in ArcadePoolTest.test_SubmitScore_ValidSignatureRecordsAndUpdatesWinner() (test/ArcadePool.t.sol#182-209):
+	External calls:
+	- id = _createDefaultTournament() (test/ArcadePool.t.sol#183)
+		- pool.createTournament(bytes32(2048),ENTRY_FEE,DURATION) (test/ArcadePool.t.sol#97)
+	- vm.prank(alice) (test/ArcadePool.t.sol#184)
+	- pool.enter(id) (test/ArcadePool.t.sol#184)
+	- vm.prank(bob) (test/ArcadePool.t.sol#185)
+	- pool.enter(id) (test/ArcadePool.t.sol#185)
+	- vm.expectEmit(true,true,false,true) (test/ArcadePool.t.sol#190)
+	Event emitted after the call(s):
+	- ScoreSubmitted(id,alice,1024) (test/ArcadePool.t.sol#191)
+Reentrancy in SkillbaseAnchorTest.test_anchorSnapshotEmitsEvent() (test/SkillbaseAnchor.t.sol#43-49):
+	External calls:
+	- vm.prank(backend) (test/SkillbaseAnchor.t.sol#44)
+	- vm.expectEmit(true,true,false,true) (test/SkillbaseAnchor.t.sol#46)
+	Event emitted after the call(s):
+	- SkillbaseAnchor.SnapshotAnchored(TS_1,HASH_A,block.timestamp) (test/SkillbaseAnchor.t.sol#47)
+Reentrancy in TournamentPoolTest.test_fundPrizePool_success_incrementsPrizePool() (test/TournamentPool.t.sol#1478-1497):
+	External calls:
+	- _createTournament(id) (test/TournamentPool.t.sol#1480)
+		- vm.prank(sponsor) (test/TournamentPool.t.sol#95)
+		- pool.createTournament(id,devAddr,GAME,TournamentPool.CycleType.Daily,STARTS_AT,ENDS_AT,PRIZE_POOL,PARTICIPATION_BONUS) (test/TournamentPool.t.sol#96-98)
+	- _fundFunder(funder,5_000_000) (test/TournamentPool.t.sol#1483)
+		- usdc.mint(who,amount) (test/TournamentPool.t.sol#1473)
+		- vm.prank(who) (test/TournamentPool.t.sol#1474)
+		- usdc.approve(address(pool),amount) (test/TournamentPool.t.sol#1475)
+	- vm.expectEmit(true,true,false,true,address(pool)) (test/TournamentPool.t.sol#1487)
+	Event emitted after the call(s):
+	- TournamentPool.PrizePoolFunded(id,funder,5_000_000,PRIZE_POOL + 5_000_000) (test/TournamentPool.t.sol#1488)
+Reentrancy in DevAttributionNFTTest.test_mint_byTournamentPool_succeeds() (test/DevAttributionNFT.t.sol#40-51):
+	External calls:
+	- vm.expectEmit(true,false,false,false,address(nft)) (test/DevAttributionNFT.t.sol#43)
+	Event emitted after the call(s):
+	- Locked(tokenId) (test/DevAttributionNFT.t.sol#44)
+Reentrancy in SponsorReceiptSBTTest.test_mint_emitsLockedEvent() (test/SponsorReceiptSBT.t.sol#50-56):
+	External calls:
+	- vm.expectEmit(false,false,false,true,address(receipt)) (test/SponsorReceiptSBT.t.sol#51)
+	Event emitted after the call(s):
+	- SponsorReceiptSBT.Locked(1) (test/SponsorReceiptSBT.t.sol#52)
+Reentrancy in SponsorshipModuleTest.test_setSanctionsOracle_onlyOwner() (test/SponsorshipModule.t.sol#259-271):
+	External calls:
+	- vm.prank(sponsorA) (test/SponsorshipModule.t.sol#262)
+	- vm.expectRevert() (test/SponsorshipModule.t.sol#263)
+	- module.setSanctionsOracle(ISanctionsOracle(address(newOracle))) (test/SponsorshipModule.t.sol#264)
+	- vm.expectEmit(true,true,false,false,address(module)) (test/SponsorshipModule.t.sol#267)
+	Event emitted after the call(s):
+	- SponsorshipModule.SanctionsOracleUpdated(address(oracle),address(newOracle)) (test/SponsorshipModule.t.sol#268)
+Reentrancy in SponsorshipModuleTest.test_sponsorPool_emitsEvent() (test/SponsorshipModule.t.sol#145-155):
+	External calls:
+	- _createTournament(id) (test/SponsorshipModule.t.sol#147)
+		- vm.prank(originalSponsor) (test/SponsorshipModule.t.sol#94)
+		- pool.createTournament(id,DEFAULT_DEV,GAME,TournamentPool.CycleType.Daily,STARTS_AT,ENDS_AT,PRIZE_POOL,PARTICIPATION_BONUS) (test/SponsorshipModule.t.sol#95-97)
+	- _fundAndApprove(sponsorA,3_000_000) (test/SponsorshipModule.t.sol#148)
+		- usdc.mint(sponsor,amount) (test/SponsorshipModule.t.sol#101)
+		- vm.prank(sponsor) (test/SponsorshipModule.t.sol#102)
+		- usdc.approve(address(module),amount) (test/SponsorshipModule.t.sol#103)
+	- vm.expectEmit(true,true,false,true,address(module)) (test/SponsorshipModule.t.sol#150)
+	Event emitted after the call(s):
+	- SponsorshipModule.PoolSponsored(id,sponsorA,3_000_000,1) (test/SponsorshipModule.t.sol#151)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4
+
+Detector: timestamp
+ArcadePool.enter(uint256) (src/ArcadePool.sol#77-87) uses timestamp for comparisons
+	Dangerous comparisons:
+	- require(bool,string)(t.entryFee > 0,Tournament does not exist) (src/ArcadePool.sol#79)
+	- require(bool,string)(block.timestamp < t.endTime,Tournament ended) (src/ArcadePool.sol#80)
+ArcadePool.submitScore(uint256,uint256,uint256,bytes) (src/ArcadePool.sol#89-109) uses timestamp for comparisons
+	Dangerous comparisons:
+	- require(bool,string)(block.timestamp <= t.endTime,Tournament ended) (src/ArcadePool.sol#92)
+ArcadePool.settle(uint256) (src/ArcadePool.sol#111-122) uses timestamp for comparisons
+	Dangerous comparisons:
+	- require(bool,string)(block.timestamp > t.endTime,Still active) (src/ArcadePool.sol#113)
+	- require(bool,string)(! t.settled,Already settled) (src/ArcadePool.sol#114)
+	- require(bool,string)(t.winner != address(0),No winner) (src/ArcadePool.sol#115)
+ArcadePool.refundIfEmpty(uint256) (src/ArcadePool.sol#124-134) uses timestamp for comparisons
+	Dangerous comparisons:
+	- require(bool,string)(block.timestamp > t.endTime,Still active) (src/ArcadePool.sol#126)
+	- require(bool,string)(! t.settled,Already settled) (src/ArcadePool.sol#127)
+	- require(bool,string)(t.winner == address(0),Has winner) (src/ArcadePool.sol#128)
+ChallengeEscrow.acceptChallenge(bytes32) (src/ChallengeEscrow.sol#155-169) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp >= c.expiresAt (src/ChallengeEscrow.sol#158)
+ChallengeEscrow.expireOpen(bytes32) (src/ChallengeEscrow.sol#213-222) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < c.expiresAt (src/ChallengeEscrow.sol#216)
+ChallengeEscrow.expireAccepted(bytes32) (src/ChallengeEscrow.sol#226-236) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < c.expiresAt (src/ChallengeEscrow.sol#229)
+ChallengeEscrow.walkover(bytes32,address,bytes) (src/ChallengeEscrow.sol#244-266) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < c.expiresAt (src/ChallengeEscrow.sol#247)
+TournamentPool.submitScore(bytes32,address,uint256,uint256,bytes32,bytes) (src/TournamentPool.sol#409-444) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < t.startsAt (src/TournamentPool.sol#420)
+	- block.timestamp >= t.endsAt (src/TournamentPool.sol#421)
+TournamentPool.submitSoloScore(bytes32,address,uint256,bytes32,uint256,bytes32,bytes) (src/TournamentPool.sol#463-506) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < t.startsAt (src/TournamentPool.sol#475)
+	- block.timestamp >= t.endsAt (src/TournamentPool.sol#476)
+TournamentPool.chargeEntryFee(bytes32,address) (src/TournamentPool.sol#524-542) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < t.startsAt (src/TournamentPool.sol#529)
+	- block.timestamp >= t.endsAt (src/TournamentPool.sol#530)
+TournamentPool.settle(bytes32,address[]) (src/TournamentPool.sol#563-587) uses timestamp for comparisons
+	Dangerous comparisons:
+	- block.timestamp < t.endsAt (src/TournamentPool.sol#567)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#block-timestamp
+
+Detector: pragma
+9 different versions of Solidity are used:
+	- Version constraint >=0.8.13<0.9.0 is used by:
+		->=0.8.13<0.9.0 (lib/forge-std/src/Base.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/Script.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdAssertions.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdChains.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdCheats.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdConstants.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdError.sol#3)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdInvariant.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdJson.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdMath.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdStorage.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdStyle.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdToml.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/StdUtils.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/Test.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/Vm.sol#4)
+		->=0.8.13<0.9.0 (lib/forge-std/src/console.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/console2.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/interfaces/IMulticall3.sol#2)
+		->=0.8.13<0.9.0 (lib/forge-std/src/safeconsole.sol#2)
+	- Version constraint ^0.8.20 is used by:
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/access/Ownable.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/token/ERC721/utils/ERC721Utils.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Base64.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Context.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/Panic.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/ShortStrings.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/StorageSlot.sol#5)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/Math.sol#4)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol#5)
+		-^0.8.20 (lib/openzeppelin-contracts/contracts/utils/math/SignedMath.sol#4)
+	- Version constraint >=0.6.2 is used by:
+		->=0.6.2 (lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol#4)
+		->=0.6.2 (lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol#4)
+		->=0.6.2 (lib/openzeppelin-contracts/contracts/token/ERC721/IERC721.sol#4)
+		->=0.6.2 (lib/openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol#4)
+	- Version constraint >=0.4.16 is used by:
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC165.sol#4)
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol#4)
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/interfaces/IERC5267.sol#4)
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol#4)
+		->=0.4.16 (lib/openzeppelin-contracts/contracts/utils/introspection/IERC165.sol#4)
+	- Version constraint >=0.8.4 is used by:
+		->=0.8.4 (lib/openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol#4)
+	- Version constraint ^0.8.24 is used by:
+		-^0.8.24 (lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol#4)
+		-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Bytes.sol#4)
+		-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/Strings.sol#4)
+		-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol#4)
+		-^0.8.24 (lib/openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol#4)
+		-^0.8.24 (script/Deploy.s.sol#2)
+		-^0.8.24 (src/ArcadePool.sol#2)
+		-^0.8.24 (test/ArcadePool.t.sol#2)
+	- Version constraint >=0.5.0 is used by:
+		->=0.5.0 (lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol#4)
+	- Version constraint ^0.8.26 is used by:
+		-^0.8.26 (script/BackfillV2Tournament.s.sol#2)
+		-^0.8.26 (script/BackfillV2TournamentsBatch.s.sol#2)
+		-^0.8.26 (script/DeployChallengeEscrow.s.sol#2)
+		-^0.8.26 (script/DeploySkillbaseAnchor.s.sol#2)
+		-^0.8.26 (script/DeploySponsorStack.s.sol#2)
+		-^0.8.26 (script/DeployTournamentPool.s.sol#2)
+		-^0.8.26 (script/SetTournamentPoolSigner.s.sol#2)
+		-^0.8.26 (src/SkillbaseAnchor.sol#2)
+		-^0.8.26 (test/ChallengeEscrow.t.sol#2)
+		-^0.8.26 (test/DevAttributionNFT.t.sol#2)
+		-^0.8.26 (test/SkillbaseAnchor.t.sol#2)
+		-^0.8.26 (test/SponsorReceiptSBT.t.sol#2)
+		-^0.8.26 (test/SponsorshipModule.t.sol#2)
+		-^0.8.26 (test/TournamentPool.t.sol#2)
+		-^0.8.26 (test/X15-paid-retry.t.sol#2)
+		-^0.8.26 (test/mocks/MaliciousMockDevNFT.sol#2)
+		-^0.8.26 (test/mocks/MaliciousReentrantDev.sol#2)
+	- Version constraint 0.8.26 is used by:
+		-0.8.26 (src/ChallengeEscrow.sol#2)
+		-0.8.26 (src/DevAttributionNFT.sol#2)
+		-0.8.26 (src/ISanctionsOracle.sol#2)
+		-0.8.26 (src/MockSanctionsOracle.sol#2)
+		-0.8.26 (src/SponsorReceiptSBT.sol#2)
+		-0.8.26 (src/SponsorshipModule.sol#2)
+		-0.8.26 (src/TournamentPool.sol#2)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#different-pragma-directives-are-used
+
+Detector: function-init-state
+SkillbaseAnchorTest.owner (test/SkillbaseAnchor.t.sol#17) is set pre-construction with a non-constant function or state variable:
+	- makeAddr(owner)
+SkillbaseAnchorTest.backend (test/SkillbaseAnchor.t.sol#18) is set pre-construction with a non-constant function or state variable:
+	- makeAddr(backend)
+SkillbaseAnchorTest.attacker (test/SkillbaseAnchor.t.sol#19) is set pre-construction with a non-constant function or state variable:
+	- makeAddr(attacker)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#function-initializing-state
+
+Detector: low-level-calls
+Low level call in X15PaidRetryTest.test_chargeRetryFee_dataSuffix_attribution() (test/X15-paid-retry.t.sol#213-243):
+	- (ok,None) = address(pool).call(full) (test/X15-paid-retry.t.sol#239)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
+
+Detector: missing-inheritance
+DevAttributionNFT (src/DevAttributionNFT.sol#53-121) should inherit from IDevAttributionNFT (src/DevAttributionNFT.sol#21-23)
+SponsorReceiptSBT (src/SponsorReceiptSBT.sol#27-172) should inherit from IERC5192 (src/DevAttributionNFT.sol#9-18)
+TournamentPool (src/TournamentPool.sol#66-832) should inherit from ITournamentPool (src/SponsorshipModule.sol#14-16)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-inheritance
+
+Detector: naming-convention
+Parameter ArcadePool.setScoreSigner(address)._signer (src/ArcadePool.sol#144) is not in mixedCase
+Parameter ArcadePool.setFeeRecipient(address)._recipient (src/ArcadePool.sol#145) is not in mixedCase
+Parameter ArcadePool.setProtocolFee(uint256)._bps (src/ArcadePool.sol#146) is not in mixedCase
+Variable ArcadePool.USDC (src/ArcadePool.sol#15) is not in mixedCase
+Variable ChallengeEscrow.USDC (src/ChallengeEscrow.sol#77) is not in mixedCase
+Variable SponsorReceiptSBT.MINTER (src/SponsorReceiptSBT.sol#51) is not in mixedCase
+Variable SponsorshipModule.USDC (src/SponsorshipModule.sol#53) is not in mixedCase
+Variable SponsorshipModule.POOL (src/SponsorshipModule.sol#56) is not in mixedCase
+Variable SponsorshipModule.RECEIPT (src/SponsorshipModule.sol#59) is not in mixedCase
+Variable TournamentPool.USDC (src/TournamentPool.sol#195) is not in mixedCase
+Variable TournamentPool.feeCollected_dev (src/TournamentPool.sol#251) is not in mixedCase
+Variable TournamentPool.feeCollected_platform (src/TournamentPool.sol#258) is not in mixedCase
+Function ArcadePoolTest.test_CreateTournament_AssignsIncrementingIdAndStores() (test/ArcadePool.t.sol#105-123) is not in mixedCase
+Function ArcadePoolTest.test_CreateTournament_RevertsOnZeroFee() (test/ArcadePool.t.sol#125-128) is not in mixedCase
+Function ArcadePoolTest.test_CreateTournament_RevertsOnOutOfRangeDuration() (test/ArcadePool.t.sol#130-135) is not in mixedCase
+Function ArcadePoolTest.test_Enter_TransfersEscrowsAndRecordsPlayer() (test/ArcadePool.t.sol#138-156) is not in mixedCase
+Function ArcadePoolTest.test_Enter_RevertsOnDoubleEntry() (test/ArcadePool.t.sol#159-165) is not in mixedCase
+Function ArcadePoolTest.test_Enter_RevertsOnNonExistentTournament() (test/ArcadePool.t.sol#167-171) is not in mixedCase
+Function ArcadePoolTest.test_Enter_RevertsAfterEndTime() (test/ArcadePool.t.sol#173-179) is not in mixedCase
+Function ArcadePoolTest.test_SubmitScore_ValidSignatureRecordsAndUpdatesWinner() (test/ArcadePool.t.sol#182-209) is not in mixedCase
+Function ArcadePoolTest.test_SubmitScore_LowerDoesNotLowerPlayerBest() (test/ArcadePool.t.sol#212-222) is not in mixedCase
+Function ArcadePoolTest.test_SubmitScore_RevertsOnInvalidSignature() (test/ArcadePool.t.sol#225-235) is not in mixedCase
+Function ArcadePoolTest.test_SubmitScore_RevertsIfNotEntered() (test/ArcadePool.t.sol#237-244) is not in mixedCase
+Function ArcadePoolTest.test_SubmitScore_RevertsOnReusedNonce() (test/ArcadePool.t.sol#247-260) is not in mixedCase
+Function ArcadePoolTest.test_SubmitScore_RevertsAfterEndTime() (test/ArcadePool.t.sol#263-272) is not in mixedCase
+Function ArcadePoolTest.test_Settle_RevertsBeforeEnd() (test/ArcadePool.t.sol#275-279) is not in mixedCase
+Function ArcadePoolTest.test_Settle_DistributesPrizeMinusProtocolFee() (test/ArcadePool.t.sol#282-309) is not in mixedCase
+Function ArcadePoolTest.test_Settle_RevertsIfAlreadySettled() (test/ArcadePool.t.sol#312-322) is not in mixedCase
+Function ArcadePoolTest.test_Settle_RevertsWithNoWinner() (test/ArcadePool.t.sol#324-330) is not in mixedCase
+Function ArcadePoolTest.test_RefundIfEmpty_RefundsAllEntrants() (test/ArcadePool.t.sol#333-347) is not in mixedCase
+Function ArcadePoolTest.test_RefundIfEmpty_RevertsIfHasWinner() (test/ArcadePool.t.sol#349-358) is not in mixedCase
+Function ArcadePoolTest.test_Admin_OnlyOwnerCanSetScoreSigner() (test/ArcadePool.t.sol#361-371) is not in mixedCase
+Function ArcadePoolTest.test_Admin_SetProtocolFeeCappedAt3000Bps() (test/ArcadePool.t.sol#373-379) is not in mixedCase
+Function ArcadePoolTest.test_Admin_OnlyOwnerCanSetFeeRecipient() (test/ArcadePool.t.sol#381-390) is not in mixedCase
+Function ChallengeEscrowTest.test_createChallenge_success() (test/ChallengeEscrow.t.sol#106-118) is not in mixedCase
+Function ChallengeEscrowTest.test_createChallenge_revert_duplicate() (test/ChallengeEscrow.t.sol#120-126) is not in mixedCase
+Function ChallengeEscrowTest.test_createChallenge_revert_zeroStake() (test/ChallengeEscrow.t.sol#128-132) is not in mixedCase
+Function ChallengeEscrowTest.test_createChallenge_revert_zeroDuration() (test/ChallengeEscrow.t.sol#134-138) is not in mixedCase
+Function ChallengeEscrowTest.test_acceptChallenge_success() (test/ChallengeEscrow.t.sol#142-154) is not in mixedCase
+Function ChallengeEscrowTest.test_acceptChallenge_revert_selfChallenge() (test/ChallengeEscrow.t.sol#156-162) is not in mixedCase
+Function ChallengeEscrowTest.test_acceptChallenge_revert_expired() (test/ChallengeEscrow.t.sol#164-171) is not in mixedCase
+Function ChallengeEscrowTest.test_acceptChallenge_revert_alreadyAccepted() (test/ChallengeEscrow.t.sol#173-181) is not in mixedCase
+Function ChallengeEscrowTest.test_settle_aliceWins() (test/ChallengeEscrow.t.sol#185-208) is not in mixedCase
+Function ChallengeEscrowTest.test_settle_bobWins() (test/ChallengeEscrow.t.sol#210-220) is not in mixedCase
+Function ChallengeEscrowTest.test_settle_revert_badSignature() (test/ChallengeEscrow.t.sol#222-236) is not in mixedCase
+Function ChallengeEscrowTest.test_settle_revert_invalidWinner() (test/ChallengeEscrow.t.sol#238-246) is not in mixedCase
+Function ChallengeEscrowTest.test_settle_revert_notAccepted() (test/ChallengeEscrow.t.sol#248-255) is not in mixedCase
+Function ChallengeEscrowTest.test_expireOpen_success() (test/ChallengeEscrow.t.sol#259-269) is not in mixedCase
+Function ChallengeEscrowTest.test_expireOpen_revert_notExpired() (test/ChallengeEscrow.t.sol#271-276) is not in mixedCase
+Function ChallengeEscrowTest.test_expireAccepted_success() (test/ChallengeEscrow.t.sol#280-295) is not in mixedCase
+Function ChallengeEscrowTest.test_expireAccepted_revert_notExpired() (test/ChallengeEscrow.t.sol#297-303) is not in mixedCase
+Function ChallengeEscrowTest.test_walkover_success() (test/ChallengeEscrow.t.sol#307-321) is not in mixedCase
+Function ChallengeEscrowTest.test_walkover_revert_notExpired() (test/ChallengeEscrow.t.sol#323-330) is not in mixedCase
+Function ChallengeEscrowTest.test_walkover_revert_badSignature() (test/ChallengeEscrow.t.sol#332-347) is not in mixedCase
+Function ChallengeEscrowTest.test_setFeeVault() (test/ChallengeEscrow.t.sol#351-355) is not in mixedCase
+Function ChallengeEscrowTest.test_setFeeVault_revert_zeroAddress() (test/ChallengeEscrow.t.sol#357-360) is not in mixedCase
+Function ChallengeEscrowTest.test_setTrustedSigner() (test/ChallengeEscrow.t.sol#362-366) is not in mixedCase
+Function ChallengeEscrowTest.test_emergencyWithdraw() (test/ChallengeEscrow.t.sol#368-376) is not in mixedCase
+Function ChallengeEscrowTest.test_feeMath_invariant() (test/ChallengeEscrow.t.sol#380-398) is not in mixedCase
+Function DevAttributionNFTTest.test_constructor_pinsTournamentPool() (test/DevAttributionNFT.t.sol#24-26) is not in mixedCase
+Function DevAttributionNFTTest.test_constructor_revert_zeroPool() (test/DevAttributionNFT.t.sol#28-31) is not in mixedCase
+Function DevAttributionNFTTest.test_constructor_setsNameAndSymbol() (test/DevAttributionNFT.t.sol#33-36) is not in mixedCase
+Function DevAttributionNFTTest.test_mint_byTournamentPool_succeeds() (test/DevAttributionNFT.t.sol#40-51) is not in mixedCase
+Function DevAttributionNFTTest.test_mint_revert_onNonTournamentPool() (test/DevAttributionNFT.t.sol#53-57) is not in mixedCase
+Function DevAttributionNFTTest.test_mint_revert_onZeroDev() (test/DevAttributionNFT.t.sol#59-63) is not in mixedCase
+Function DevAttributionNFTTest.test_mint_revert_onDoubleMintSameDev() (test/DevAttributionNFT.t.sol#65-77) is not in mixedCase
+Function DevAttributionNFTTest.test_mint_tokenId_isDeterministicFromDevAddr() (test/DevAttributionNFT.t.sol#79-93) is not in mixedCase
+Function DevAttributionNFTTest.test_locked_returnsTrue_forMintedToken() (test/DevAttributionNFT.t.sol#97-101) is not in mixedCase
+Function DevAttributionNFTTest.test_locked_revert_onNonexistentToken() (test/DevAttributionNFT.t.sol#103-108) is not in mixedCase
+Function DevAttributionNFTTest.test_transferFrom_revert() (test/DevAttributionNFT.t.sol#112-119) is not in mixedCase
+Function DevAttributionNFTTest.test_safeTransferFrom_revert() (test/DevAttributionNFT.t.sol#121-128) is not in mixedCase
+Function DevAttributionNFTTest.test_safeTransferFromWithData_revert() (test/DevAttributionNFT.t.sol#130-137) is not in mixedCase
+Function DevAttributionNFTTest.test_approve_revert_explicit() (test/DevAttributionNFT.t.sol#139-143) is not in mixedCase
+Function DevAttributionNFTTest.test_setApprovalForAll_revert_explicit() (test/DevAttributionNFT.t.sol#145-148) is not in mixedCase
+Function DevAttributionNFTTest.test_supportsInterface_includesERC721() (test/DevAttributionNFT.t.sol#152-155) is not in mixedCase
+Function DevAttributionNFTTest.test_supportsInterface_includesERC5192() (test/DevAttributionNFT.t.sol#157-163) is not in mixedCase
+Function DevAttributionNFTTest.test_supportsInterface_excludesUnknown() (test/DevAttributionNFT.t.sol#165-167) is not in mixedCase
+Function DevAttributionNFTTest.test_mintedToken_remainsWithDev_afterRevertedTransferAttempt() (test/DevAttributionNFT.t.sol#171-184) is not in mixedCase
+Function SkillbaseAnchorTest.test_anchorSnapshot() (test/SkillbaseAnchor.t.sol#36-41) is not in mixedCase
+Function SkillbaseAnchorTest.test_anchorSnapshotEmitsEvent() (test/SkillbaseAnchor.t.sol#43-49) is not in mixedCase
+Function SkillbaseAnchorTest.test_getSnapshotHash() (test/SkillbaseAnchor.t.sol#53-57) is not in mixedCase
+Function SkillbaseAnchorTest.test_getSnapshotHashUnanchored() (test/SkillbaseAnchor.t.sol#59-61) is not in mixedCase
+Function SkillbaseAnchorTest.test_verifySnapshotTrue() (test/SkillbaseAnchor.t.sol#65-69) is not in mixedCase
+Function SkillbaseAnchorTest.test_verifySnapshotFalse() (test/SkillbaseAnchor.t.sol#71-75) is not in mixedCase
+Function SkillbaseAnchorTest.test_verifySnapshotUnanchored() (test/SkillbaseAnchor.t.sol#77-79) is not in mixedCase
+Function SkillbaseAnchorTest.test_alreadyAnchoredReverts() (test/SkillbaseAnchor.t.sol#83-90) is not in mixedCase
+Function SkillbaseAnchorTest.test_invalidHashReverts() (test/SkillbaseAnchor.t.sol#92-96) is not in mixedCase
+Function SkillbaseAnchorTest.test_unauthorizedAnchorReverts() (test/SkillbaseAnchor.t.sol#98-102) is not in mixedCase
+Function SkillbaseAnchorTest.test_multipleTimestamps() (test/SkillbaseAnchor.t.sol#106-115) is not in mixedCase
+Function SkillbaseAnchorTest.test_ownerCanAnchor() (test/SkillbaseAnchor.t.sol#119-123) is not in mixedCase
+Function SkillbaseAnchorTest.test_setAuthorizedAnchor() (test/SkillbaseAnchor.t.sol#125-132) is not in mixedCase
+Function SkillbaseAnchorTest.test_revokeAuthorizedAnchor() (test/SkillbaseAnchor.t.sol#134-141) is not in mixedCase
+Function SkillbaseAnchorTest.test_setAuthorizedAnchorOnlyOwner() (test/SkillbaseAnchor.t.sol#143-147) is not in mixedCase
+Function SkillbaseAnchorTest.test_constructorZeroAddress() (test/SkillbaseAnchor.t.sol#149-153) is not in mixedCase
+Function SkillbaseAnchorTest.test_setAuthorizedAnchorZeroAddress() (test/SkillbaseAnchor.t.sol#155-159) is not in mixedCase
+Function SponsorReceiptSBTTest.test_mint_success_byMinter() (test/SponsorReceiptSBT.t.sol#22-36) is not in mixedCase
+Function SponsorReceiptSBTTest.test_mint_revert_notMinter() (test/SponsorReceiptSBT.t.sol#38-42) is not in mixedCase
+Function SponsorReceiptSBTTest.test_mint_revert_zeroRecipient() (test/SponsorReceiptSBT.t.sol#44-48) is not in mixedCase
+Function SponsorReceiptSBTTest.test_mint_emitsLockedEvent() (test/SponsorReceiptSBT.t.sol#50-56) is not in mixedCase
+Function SponsorReceiptSBTTest.test_mint_incrementsTokenId() (test/SponsorReceiptSBT.t.sol#58-70) is not in mixedCase
+Function SponsorReceiptSBTTest.test_transferFrom_reverts() (test/SponsorReceiptSBT.t.sol#74-81) is not in mixedCase
+Function SponsorReceiptSBTTest.test_safeTransferFrom_reverts() (test/SponsorReceiptSBT.t.sol#83-90) is not in mixedCase
+Function SponsorReceiptSBTTest.test_safeTransferFromWithData_reverts() (test/SponsorReceiptSBT.t.sol#92-99) is not in mixedCase
+Function SponsorReceiptSBTTest.test_approve_reverts() (test/SponsorReceiptSBT.t.sol#101-108) is not in mixedCase
+Function SponsorReceiptSBTTest.test_setApprovalForAll_reverts() (test/SponsorReceiptSBT.t.sol#110-117) is not in mixedCase
+Function SponsorReceiptSBTTest.test_locked_returnsTrue() (test/SponsorReceiptSBT.t.sol#121-125) is not in mixedCase
+Function SponsorReceiptSBTTest.test_locked_revertsForNonexistent() (test/SponsorReceiptSBT.t.sol#127-130) is not in mixedCase
+Function SponsorReceiptSBTTest.test_supportsInterface_erc5192() (test/SponsorReceiptSBT.t.sol#132-137) is not in mixedCase
+Function SponsorReceiptSBTTest.test_tokenURI_returnsBase64DataURI() (test/SponsorReceiptSBT.t.sol#141-162) is not in mixedCase
+Function SponsorReceiptSBTTest.test_tokenURI_revertsForNonexistent() (test/SponsorReceiptSBT.t.sol#164-167) is not in mixedCase
+Function SponsorReceiptSBTTest.test_constructor_revert_zeroMinter() (test/SponsorReceiptSBT.t.sol#171-174) is not in mixedCase
+Function SponsorshipModuleTest.test_sponsorPool_success_mintsReceipt_andForwards() (test/SponsorshipModule.t.sol#108-143) is not in mixedCase
+Function SponsorshipModuleTest.test_sponsorPool_emitsEvent() (test/SponsorshipModule.t.sol#145-155) is not in mixedCase
+Function SponsorshipModuleTest.test_sponsorPool_revert_zeroAmount() (test/SponsorshipModule.t.sol#159-165) is not in mixedCase
+Function SponsorshipModuleTest.test_sponsorPool_revert_sanctioned() (test/SponsorshipModule.t.sol#167-176) is not in mixedCase
+Function SponsorshipModuleTest.test_sponsorPool_revert_settledTournament() (test/SponsorshipModule.t.sol#178-194) is not in mixedCase
+Function SponsorshipModuleTest.test_sponsorPool_revert_nonexistentTournament() (test/SponsorshipModule.t.sol#196-201) is not in mixedCase
+Function SponsorshipModuleTest.test_sponsorPool_revert_insufficientApproval() (test/SponsorshipModule.t.sol#203-213) is not in mixedCase
+Function SponsorshipModuleTest.test_multipleSponsors_accumulatePool() (test/SponsorshipModule.t.sol#217-238) is not in mixedCase
+Function SponsorshipModuleTest.test_sameSponsor_twiceCountsOnce() (test/SponsorshipModule.t.sol#240-255) is not in mixedCase
+Function SponsorshipModuleTest.test_setSanctionsOracle_onlyOwner() (test/SponsorshipModule.t.sol#259-271) is not in mixedCase
+Function SponsorshipModuleTest.test_setSanctionsOracle_revert_zeroAddress() (test/SponsorshipModule.t.sol#273-276) is not in mixedCase
+Variable SponsorshipModuleTest.STARTS_AT (test/SponsorshipModule.t.sol#47) is not in mixedCase
+Variable SponsorshipModuleTest.ENDS_AT (test/SponsorshipModule.t.sol#48) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_success() (test/TournamentPool.t.sol#140-158) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_revert_duplicate() (test/TournamentPool.t.sol#160-168) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_revert_invalidWindow() (test/TournamentPool.t.sol#170-183) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_revert_zeroPrize() (test/TournamentPool.t.sol#185-198) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_storesDevAddr() (test/TournamentPool.t.sol#201-209) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_revert_zeroDevAddr() (test/TournamentPool.t.sol#211-218) is not in mixedCase
+Function TournamentPoolTest.test_submitScore_success_newPlayer() (test/TournamentPool.t.sol#222-233) is not in mixedCase
+Function TournamentPoolTest.test_submitScore_keepsBestScore() (test/TournamentPool.t.sol#235-247) is not in mixedCase
+Function TournamentPoolTest.test_submitScore_revert_badSignature() (test/TournamentPool.t.sol#249-263) is not in mixedCase
+Function TournamentPoolTest.test_submitScore_revert_replayNonce() (test/TournamentPool.t.sol#265-275) is not in mixedCase
+Function TournamentPoolTest.test_submitScore_revert_notStarted() (test/TournamentPool.t.sol#277-295) is not in mixedCase
+Function TournamentPoolTest.test_submitScore_revert_afterEnd() (test/TournamentPool.t.sol#297-307) is not in mixedCase
+Function TournamentPoolTest.test_submitScore_revert_notFound() (test/TournamentPool.t.sol#309-315) is not in mixedCase
+Function TournamentPoolTest.test_flagScore_success() (test/TournamentPool.t.sol#319-328) is not in mixedCase
+Function TournamentPoolTest.test_flagScore_revert_notOwner() (test/TournamentPool.t.sol#330-338) is not in mixedCase
+Function TournamentPoolTest.test_flagScore_revert_notParticipant() (test/TournamentPool.t.sol#340-346) is not in mixedCase
+Function TournamentPoolTest.test_flagScore_revert_afterSettle() (test/TournamentPool.t.sol#348-358) is not in mixedCase
+Function TournamentPoolTest.test_settle_tenParticipants_distribution() (test/TournamentPool.t.sol#362-401) is not in mixedCase
+Function TournamentPoolTest.test_settle_degenerate_threePlayers_winnerTakesAll() (test/TournamentPool.t.sol#403-417) is not in mixedCase
+Function TournamentPoolTest.test_settle_degenerate_onePlayer() (test/TournamentPool.t.sol#419-431) is not in mixedCase
+Function TournamentPoolTest.test_settle_noParticipants_fullRefund() (test/TournamentPool.t.sol#433-444) is not in mixedCase
+Function TournamentPoolTest.test_settle_twentyParticipants_tierCoverage() (test/TournamentPool.t.sol#446-473) is not in mixedCase
+Function TournamentPoolTest.test_settle_largeN_tier5Split() (test/TournamentPool.t.sol#476-498) is not in mixedCase
+Function TournamentPoolTest.test_settle_revert_beforeEnd() (test/TournamentPool.t.sol#502-509) is not in mixedCase
+Function TournamentPoolTest.test_settle_revert_alreadySettled() (test/TournamentPool.t.sol#511-520) is not in mixedCase
+Function TournamentPoolTest.test_settle_revert_wrongLength() (test/TournamentPool.t.sol#522-530) is not in mixedCase
+Function TournamentPoolTest.test_settle_revert_wrongOrder() (test/TournamentPool.t.sol#532-544) is not in mixedCase
+Function TournamentPoolTest.test_settle_revert_nonParticipantIncluded() (test/TournamentPool.t.sol#546-557) is not in mixedCase
+Function TournamentPoolTest.test_settle_revert_excludedIncluded() (test/TournamentPool.t.sol#559-578) is not in mixedCase
+Function TournamentPoolTest.test_settle_revert_duplicateInRanking() (test/TournamentPool.t.sol#580-594) is not in mixedCase
+Function TournamentPoolTest.test_settle_excludedPlayerGetsNoPrize() (test/TournamentPool.t.sol#598-621) is not in mixedCase
+Function TournamentPoolTest.test_effectiveScore_formulaMatches() (test/TournamentPool.t.sol#625-631) is not in mixedCase
+Function TournamentPoolTest.test_settle_ties_callerChoosesOrder() (test/TournamentPool.t.sol#633-655) is not in mixedCase
+Function TournamentPoolTest.test_setTrustedSigner_ownerOnly() (test/TournamentPool.t.sol#659-667) is not in mixedCase
+Function TournamentPoolTest.test_emergencyWithdraw_drainsPool() (test/TournamentPool.t.sol#669-679) is not in mixedCase
+Function TournamentPoolTest.test_getRanking_sortsDescending_skipsExcluded() (test/TournamentPool.t.sol#683-698) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_success_firstIsFree() (test/TournamentPool.t.sol#758-775) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_revert_secondWithoutFee() (test/TournamentPool.t.sol#777-786) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_success_paidRetryAfterFee() (test/TournamentPool.t.sol#788-805) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_nthSubmissionRequiresNMinus1Fees() (test/TournamentPool.t.sol#807-838) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_separatePlayers_independentFeeAccounting() (test/TournamentPool.t.sol#840-857) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_revert_badSignature() (test/TournamentPool.t.sol#859-873) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_revert_replayNonce() (test/TournamentPool.t.sol#875-886) is not in mixedCase
+Function TournamentPoolTest.test_submitSolo_nonceSpaceSharedWithSubmitScore() (test/TournamentPool.t.sol#888-901) is not in mixedCase
+Function TournamentPoolTest.test_chargeEntryFee_success() (test/TournamentPool.t.sol#905-923) is not in mixedCase
+Function TournamentPoolTest.test_chargeEntryFee_revert_playerMismatch() (test/TournamentPool.t.sol#925-934) is not in mixedCase
+Function TournamentPoolTest.test_chargeEntryFee_revert_tournamentEnded() (test/TournamentPool.t.sol#936-945) is not in mixedCase
+Function TournamentPoolTest.test_chargeEntryFee_revert_tournamentNotFound() (test/TournamentPool.t.sol#947-952) is not in mixedCase
+Function TournamentPoolTest.test_chargeEntryFee_accumulates() (test/TournamentPool.t.sol#954-969) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToDev_drawsOnlyFromFeeCollectedDev() (test/TournamentPool.t.sol#974-1001) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToPlatform_drawsOnlyFromFeeCollectedPlatform() (test/TournamentPool.t.sol#1003-1030) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToDev_revert_unauthorizedCaller() (test/TournamentPool.t.sol#1032-1053) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToPlatform_revert_unauthorizedCaller() (test/TournamentPool.t.sol#1055-1071) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToDev_noFees_noop() (test/TournamentPool.t.sol#1073-1083) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToPlatform_noFees_noop() (test/TournamentPool.t.sol#1085-1092) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToDev_twiceZeros() (test/TournamentPool.t.sol#1094-1111) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToPlatform_twiceZeros() (test/TournamentPool.t.sol#1113-1126) is not in mixedCase
+Function TournamentPoolTest.test_withdrawFeesToDev_revert_tournamentNotFound() (test/TournamentPool.t.sol#1128-1134) is not in mixedCase
+Function TournamentPoolTest.test_invariant_feeBuckets_survive_full_lifecycle() (test/TournamentPool.t.sol#1138-1211) is not in mixedCase
+Function TournamentPoolTest.test_invariant_settle_does_not_touch_feeCollected_anything() (test/TournamentPool.t.sol#1213-1236) is not in mixedCase
+Function TournamentPoolTest.test_invariant_feeCollectedDev_isolated_from_prizePool() (test/TournamentPool.t.sol#1238-1274) is not in mixedCase
+Function TournamentPoolTest.test_invariant_feeCollectedPlatform_isolated_from_prizePool() (test/TournamentPool.t.sol#1276-1308) is not in mixedCase
+Function TournamentPoolTest.test_chargeEntryFee_atomicSplit_70_30() (test/TournamentPool.t.sol#1312-1328) is not in mixedCase
+Function TournamentPoolTest.test_BPS_constants_match_locked_values() (test/TournamentPool.t.sol#1330-1338) is not in mixedCase
+Function TournamentPoolTest.test_invariant_balanceReconciliation_acrossTwoTournaments() (test/TournamentPool.t.sol#1340-1371) is not in mixedCase
+Function TournamentPoolTest.test_effectiveScore_matchCountCap_caps_at_ten() (test/TournamentPool.t.sol#1383-1402) is not in mixedCase
+Function TournamentPoolTest.test_effectiveScore_belowCap_unchanged() (test/TournamentPool.t.sol#1404-1418) is not in mixedCase
+Function TournamentPoolTest.test_settle_mixedSoloAndDuel_worksAsBefore() (test/TournamentPool.t.sol#1422-1450) is not in mixedCase
+Function TournamentPoolTest.test_submissionHistory_tagsSourceCorrectly() (test/TournamentPool.t.sol#1452-1467) is not in mixedCase
+Function TournamentPoolTest.test_fundPrizePool_success_incrementsPrizePool() (test/TournamentPool.t.sol#1478-1497) is not in mixedCase
+Function TournamentPoolTest.test_fundPrizePool_revert_zeroAmount() (test/TournamentPool.t.sol#1499-1505) is not in mixedCase
+Function TournamentPoolTest.test_fundPrizePool_revert_nonexistent() (test/TournamentPool.t.sol#1507-1511) is not in mixedCase
+Function TournamentPoolTest.test_fundPrizePool_revert_afterSettle() (test/TournamentPool.t.sol#1513-1525) is not in mixedCase
+Function TournamentPoolTest.test_fundPrizePool_multiple_funders_accumulate() (test/TournamentPool.t.sol#1527-1543) is not in mixedCase
+Function TournamentPoolTest.test_fundPrizePool_external_funder_permissionless() (test/TournamentPool.t.sol#1545-1558) is not in mixedCase
+Function TournamentPoolTest.test_fundPrizePool_settle_distributesAugmentedPool() (test/TournamentPool.t.sol#1560-1584) is not in mixedCase
+Function TournamentPoolTest.test_invariant_fundPrizePool_does_not_touch_feeCollected_anything() (test/TournamentPool.t.sol#1590-1662) is not in mixedCase
+Function TournamentPoolTest.testFuzz_chargeEntryFee_noDust_holdsForFutureEntryFees(uint256) (test/TournamentPool.t.sol#1675-1683) is not in mixedCase
+Function TournamentPoolTest.test_chargeEntryFee_noDust_offBy1_introducesDust() (test/TournamentPool.t.sol#1689-1695) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_mintsNFT_onFirstCallPerDev() (test/TournamentPool.t.sol#1699-1714) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_skipsNFTMint_onSecondCallSameDev() (test/TournamentPool.t.sol#1716-1730) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_differentDevs_mintSeparately() (test/TournamentPool.t.sol#1732-1747) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_revert_zeroDevAddr_doesNotTouchNFTState() (test/TournamentPool.t.sol#1749-1760) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_cacheFlippedBefore_externalMint() (test/TournamentPool.t.sol#1771-1804) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_observerMock_notCalledOnCacheHit() (test/TournamentPool.t.sol#1810-1836) is not in mixedCase
+Function TournamentPoolTest.test_createTournament_receiverHook_reentrancyCoverage() (test/TournamentPool.t.sol#1845-1882) is not in mixedCase
+Function TournamentPoolTest.test_integration_singleTournament_fullLifecycle() (test/TournamentPool.t.sol#1897-1950) is not in mixedCase
+Function TournamentPoolTest.test_integration_multiTournament_multiDev_flow() (test/TournamentPool.t.sol#1957-2035) is not in mixedCase
+Function TournamentPoolTest.test_integration_settle_insufficientPool_smallPrize() (test/TournamentPool.t.sol#2041-2071) is not in mixedCase
+Function TournamentPoolTest.test_integration_dev_canWithdraw_beforeSettle() (test/TournamentPool.t.sol#2078-2112) is not in mixedCase
+Function TournamentPoolTest.test_integration_settle_noEntriesReceived() (test/TournamentPool.t.sol#2118-2139) is not in mixedCase
+Variable TournamentPoolTest.STARTS_AT (test/TournamentPool.t.sol#50) is not in mixedCase
+Variable TournamentPoolTest.ENDS_AT (test/TournamentPool.t.sol#51) is not in mixedCase
+Function X15PaidRetryTest.test_chargeRetryFee_only_player_can_call() (test/X15-paid-retry.t.sol#119-135) is not in mixedCase
+Function X15PaidRetryTest.test_chargeRetryFee_requires_usdc_allowance() (test/X15-paid-retry.t.sol#139-161) is not in mixedCase
+Function X15PaidRetryTest.test_chargeRetryFee_then_submitSoloScore_passes() (test/X15-paid-retry.t.sol#165-186) is not in mixedCase
+Function X15PaidRetryTest.test_chargeRetryFee_n_times_then_n_submissions() (test/X15-paid-retry.t.sol#190-209) is not in mixedCase
+Function X15PaidRetryTest.test_chargeRetryFee_dataSuffix_attribution() (test/X15-paid-retry.t.sol#213-243) is not in mixedCase
+Function X15PaidRetryTest.test_submitSolo_revert_secondWithoutFee_invariant() (test/X15-paid-retry.t.sol#247-257) is not in mixedCase
+Variable X15PaidRetryTest.STARTS_AT (test/X15-paid-retry.t.sol#44) is not in mixedCase
+Variable X15PaidRetryTest.ENDS_AT (test/X15-paid-retry.t.sol#45) is not in mixedCase
+Variable MaliciousReentrantDev.createTournament_reverted (test/mocks/MaliciousReentrantDev.sol#25) is not in mixedCase
+Variable MaliciousReentrantDev.createTournament_revertData (test/mocks/MaliciousReentrantDev.sol#26) is not in mixedCase
+Variable MaliciousReentrantDev.chargeEntryFee_reverted (test/mocks/MaliciousReentrantDev.sol#28) is not in mixedCase
+Variable MaliciousReentrantDev.chargeEntryFee_revertData (test/mocks/MaliciousReentrantDev.sol#29) is not in mixedCase
+Variable MaliciousReentrantDev.settle_reverted (test/mocks/MaliciousReentrantDev.sol#31) is not in mixedCase
+Variable MaliciousReentrantDev.settle_revertData (test/mocks/MaliciousReentrantDev.sol#32) is not in mixedCase
+Variable MaliciousReentrantDev.withdrawFeesToDev_reverted (test/mocks/MaliciousReentrantDev.sol#34) is not in mixedCase
+Variable MaliciousReentrantDev.withdrawFeesToDev_revertData (test/mocks/MaliciousReentrantDev.sol#35) is not in mixedCase
+Variable MaliciousReentrantDev.fundPrizePool_reverted (test/mocks/MaliciousReentrantDev.sol#37) is not in mixedCase
+Variable MaliciousReentrantDev.fundPrizePool_revertData (test/mocks/MaliciousReentrantDev.sol#38) is not in mixedCase
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions
+
+Detector: too-many-digits
+ArcadePoolTest.test_SubmitScore_RevertsOnInvalidSignature() (test/ArcadePool.t.sol#225-235) uses literals with too many digits:
+	- wrongPk = 0xBAD0000000000000000000000000000000000000000000000000000000000001 (test/ArcadePool.t.sol#229-230)
+ArcadePoolTest.slitherConstructorConstantVariables() (test/ArcadePool.t.sol#20-391) uses literals with too many digits:
+	- SIGNER_PK = 0xA11CE00000000000000000000000000000000000000000000000000000000001 (test/ArcadePool.t.sol#25-26)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#too-many-digits
+
+Detector: unused-state
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in BackfillV2Tournament (script/BackfillV2Tournament.s.sol#46-126)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in BackfillV2TournamentsBatch (script/BackfillV2TournamentsBatch.s.sol#35-146)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in Deploy (script/Deploy.s.sol#7-22)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in Deploy (script/Deploy.s.sol#7-22)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in DeployChallengeEscrow (script/DeployChallengeEscrow.s.sol#22-66)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in DeploySkillbaseAnchor (script/DeploySkillbaseAnchor.s.sol#26-69)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in DeploySponsorStack (script/DeploySponsorStack.s.sol#36-104)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in DeployTournamentPool (script/DeployTournamentPool.s.sol#27-81)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+ScriptBase.vmSafe (lib/forge-std/src/Base.sol#47) is never used in SetTournamentPoolSigner (script/SetTournamentPoolSigner.s.sol#22-47)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+ArcadePoolTest.owner (test/ArcadePool.t.sol#29) is never used in ArcadePoolTest (test/ArcadePool.t.sol#20-391)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in ChallengeEscrowTest (test/ChallengeEscrow.t.sol#25-399)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in DevAttributionNFTTest (test/DevAttributionNFT.t.sol#10-185)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in SkillbaseAnchorTest (test/SkillbaseAnchor.t.sol#14-160)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in SponsorReceiptSBTTest (test/SponsorReceiptSBT.t.sol#8-175)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in SponsorshipModuleTest (test/SponsorshipModule.t.sol#27-277)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in TournamentPoolTest (test/TournamentPool.t.sol#30-2140)
+CommonBase.CONSOLE (lib/forge-std/src/Base.sol#14) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+CommonBase.CREATE2_FACTORY (lib/forge-std/src/Base.sol#18) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+CommonBase.DEFAULT_SENDER (lib/forge-std/src/Base.sol#22) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+CommonBase.DEFAULT_TEST_CONTRACT (lib/forge-std/src/Base.sol#27) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+CommonBase.MULTICALL3_ADDRESS (lib/forge-std/src/Base.sol#31) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+CommonBase.SECP256K1_ORDER (lib/forge-std/src/Base.sol#34-35) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+CommonBase.UINT256_MAX (lib/forge-std/src/Base.sol#37-38) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+CommonBase.stdstore (lib/forge-std/src/Base.sol#41) is never used in X15PaidRetryTest (test/X15-paid-retry.t.sol#25-258)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unused-state-variable
+
+Detector: constable-states
+ArcadePoolTest.alice (test/ArcadePool.t.sol#32) should be constant 
+ArcadePoolTest.bob (test/ArcadePool.t.sol#33) should be constant 
+ArcadePoolTest.carol (test/ArcadePool.t.sol#34) should be constant 
+ArcadePoolTest.feeRecipient (test/ArcadePool.t.sol#30) should be constant 
+ChallengeEscrowTest.alice (test/ChallengeEscrow.t.sol#30) should be constant 
+ChallengeEscrowTest.bob (test/ChallengeEscrow.t.sol#31) should be constant 
+ChallengeEscrowTest.carol (test/ChallengeEscrow.t.sol#32) should be constant 
+ChallengeEscrowTest.feeVault (test/ChallengeEscrow.t.sol#29) should be constant 
+ChallengeEscrowTest.signerPk (test/ChallengeEscrow.t.sol#27) should be constant 
+DevAttributionNFTTest.dev (test/DevAttributionNFT.t.sol#14) should be constant 
+DevAttributionNFTTest.outsider (test/DevAttributionNFT.t.sol#13) should be constant 
+DevAttributionNFTTest.pool (test/DevAttributionNFT.t.sol#12) should be constant 
+SponsorReceiptSBTTest.alice (test/SponsorReceiptSBT.t.sol#11) should be constant 
+SponsorReceiptSBTTest.bob (test/SponsorReceiptSBT.t.sol#12) should be constant 
+SponsorReceiptSBTTest.minter (test/SponsorReceiptSBT.t.sol#10) should be constant 
+SponsorshipModuleTest.originalSponsor (test/SponsorshipModule.t.sol#29) should be constant 
+SponsorshipModuleTest.sanctionedAddr (test/SponsorshipModule.t.sol#33) should be constant 
+SponsorshipModuleTest.sponsorA (test/SponsorshipModule.t.sol#31) should be constant 
+SponsorshipModuleTest.sponsorB (test/SponsorshipModule.t.sol#32) should be constant 
+SponsorshipModuleTest.trustedSigner (test/SponsorshipModule.t.sol#30) should be constant 
+TournamentPoolTest.outsider (test/TournamentPool.t.sol#35) should be constant 
+TournamentPoolTest.signerPk (test/TournamentPool.t.sol#32) should be constant 
+TournamentPoolTest.sponsor (test/TournamentPool.t.sol#34) should be constant 
+X15PaidRetryTest.alice (test/X15-paid-retry.t.sol#30) should be constant 
+X15PaidRetryTest.bob (test/X15-paid-retry.t.sol#31) should be constant 
+X15PaidRetryTest.signerPk (test/X15-paid-retry.t.sol#27) should be constant 
+X15PaidRetryTest.sponsor (test/X15-paid-retry.t.sol#29) should be constant 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-constant
+
+Detector: immutable-states
+ArcadePoolTest.owner (test/ArcadePool.t.sol#29) should be immutable 
+SkillbaseAnchorTest.attacker (test/SkillbaseAnchor.t.sol#19) should be immutable 
+SkillbaseAnchorTest.backend (test/SkillbaseAnchor.t.sol#18) should be immutable 
+SkillbaseAnchorTest.owner (test/SkillbaseAnchor.t.sol#17) should be immutable 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-immutable
+. analyzed (90 contracts with 101 detectors), 571 result(s) found
