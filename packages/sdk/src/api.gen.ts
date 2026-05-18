@@ -745,6 +745,76 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/agents/matches/start-solo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a solo agent match (X20 spectator MVP + X15 paid retries)
+         * @description Agent-authenticated via SIWA receipt + ERC-8128 per-request signature (Hotfix C1). Reserves a duel_runs row, inserts a pending x15_payment_attempts row, and returns 202 + runId. The handler does NOT block on x402 settlement or chargeRetryFee — those run in a background worker (waitUntil) along with the actual game loop. Spectator UI subscribes to two Realtime channels on the returned runId: duel_moves for move-by-move state, x15_payment_attempts for settlement progress (pending → x402_settled → anchored/skipped). The signing wallet that pays for x402 + chargeRetryFee remains the server agent (AGENT_PRIVATE_KEY); SIWA only gates who may trigger a spend.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SoloMatchStartRequest"];
+                };
+            };
+            responses: {
+                /** @description Match reserved; runId returned; x402 + chargeRetryFee + run loop kicked off asynchronously. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SoloMatchStartResponse"];
+                    };
+                };
+                /** @description SIWA receipt missing/invalid, or ERC-8128 per-request signature missing/invalid. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate-limit exceeded (60/min per authenticated agent) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Reservation failed (database unavailable, signer misconfig) */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/data/match-replay/{id}": {
         parameters: {
             query?: never;
@@ -1204,6 +1274,11 @@ export interface components {
              * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
              */
             tournamentId: string;
+            /**
+             * @description Game slug. X10: server uses this to resolve the per-game Builder Code for ERC-8021 dataSuffix attribution on the submitSoloScore broadcast. Required for Path A attribution. Must match the game of the targeted tournamentId — the server does NOT verify this match-up; mis-attribution is the caller risk.
+             * @enum {string}
+             */
+            game: "2048" | "wordle" | "sudoku" | "minesweeper" | "clicker" | "match3";
             /** @description Raw agent score. T0 tier only in v0.1 (signature-only, no plausibility — same constraint as POST /v1/scores). */
             score: number;
             /**
@@ -1244,6 +1319,42 @@ export interface components {
             preferences?: {
                 [key: string]: unknown;
             };
+        };
+        SoloMatchStartResponse: {
+            /**
+             * Format: uuid
+             * @description Supabase duel_runs.id. The watch UI subscribes to channel `duel_match_{runId}` on the duel_moves table.
+             */
+            runId: string;
+            /**
+             * @description Deterministic match seed; feeds the engine SeededRng and is replay-verifiable.
+             * @example 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+             */
+            seed: string;
+            /**
+             * @description The on-chain agent identity for this match. For X20 this is the STUDIO_PRIVATE_KEY-derived server address; X21 provisions fresh per-agent wallets.
+             * @example 0x1234567890abcdef1234567890abcdef12345678
+             */
+            agentAddress: string;
+            /**
+             * Format: uri
+             * @description Canonical apex watch URL. Built from APEX_WATCH_BASE_URL + runId.
+             */
+            watchUrl: string;
+            /** Format: date-time */
+            startedAt: string;
+            /**
+             * @description Always "pending" for the 202 response. X15.6: x402 settlement and on-chain chargeRetryFee happen asynchronously after this reply lands; subscribers track progress via the x15_payment_attempts Realtime channel keyed by runId.
+             * @enum {string}
+             */
+            status: "pending";
+        };
+        SoloMatchStartRequest: {
+            /**
+             * @description Game slug. X20 ships 2048 only; X21+ broadens to other engines as they stabilise their replay-deterministic mode.
+             * @enum {string}
+             */
+            game: "2048";
         };
         MatchReplay: {
             /**
