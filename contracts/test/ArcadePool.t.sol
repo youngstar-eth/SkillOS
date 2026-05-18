@@ -329,20 +329,23 @@ contract ArcadePoolTest is Test {
         pool.settle(id);
     }
 
-    // 12. refundIfEmpty → everyone's money back
-    function test_RefundIfEmpty_RefundsAllEntrants() public {
+    // 12. refundIfEmpty → accrues per-player refundable balance (M-1 PullPayment, X11.1 SPEC §B.3)
+    function test_RefundIfEmpty_AccruesRefundableBalance() public {
         uint256 id = _createDefaultTournament();
         vm.prank(alice); pool.enter(id);
         vm.prank(bob);   pool.enter(id);
         uint256 aliceMid = usdc.balanceOf(alice);
         uint256 bobMid = usdc.balanceOf(bob);
+        uint256 poolHeld = usdc.balanceOf(address(pool));
 
         vm.warp(block.timestamp + DURATION + 1);
         pool.refundIfEmpty(id);
 
-        assertEq(usdc.balanceOf(alice) - aliceMid, ENTRY_FEE);
-        assertEq(usdc.balanceOf(bob) - bobMid, ENTRY_FEE);
-        assertEq(usdc.balanceOf(address(pool)), 0);
+        assertEq(pool.refundableBalance(id, alice), ENTRY_FEE);
+        assertEq(pool.refundableBalance(id, bob), ENTRY_FEE);
+        assertEq(usdc.balanceOf(alice), aliceMid, "no auto-push under PullPayment");
+        assertEq(usdc.balanceOf(bob), bobMid, "no auto-push under PullPayment");
+        assertEq(usdc.balanceOf(address(pool)), poolHeld, "pool still custodies until pull");
         assertTrue(pool.getTournament(id).settled);
     }
 
