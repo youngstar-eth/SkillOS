@@ -5,9 +5,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {IDevAttributionNFT} from "./DevAttributionNFT.sol";
+import {ERC6492} from "./lib/ERC6492.sol";
 
 /// @title TournamentPool
 /// @notice Sponsored sweepstakes tournaments — free first entry + paid retries on solo path.
@@ -18,7 +20,7 @@ import {IDevAttributionNFT} from "./DevAttributionNFT.sol";
 ///      and (on the dev's first tournament only) mints a soulbound DevAttributionNFT
 ///      to `devAddr` via the bound DevAttributionNFT contract. The mint is idempotent
 ///      across tournaments — devNFTMinted[devAddr] is the cache.
-///   2a. Duel path (legacy): backend signs EIP-191 attestations; anyone relays submitScore().
+///   2a. Duel path (legacy): backend signs EIP-712 attestations; anyone relays submitScore().
 ///   2b. Solo path (v2): first solo submission is free. For 2+ solo submissions, the
 ///       player must first call chargeEntryFee() (pays ENTRY_FEE USDC). submitSoloScore()
 ///       enforces on-chain: N-th solo submission (N≥2) requires (N-1)·ENTRY_FEE paid.
@@ -63,7 +65,7 @@ import {IDevAttributionNFT} from "./DevAttributionNFT.sol";
 ///   effective(p) = bestScore(p) * 85 + cappedMc * participationBonus * 15
 /// Ties are resolved by caller-supplied order — the contract only verifies
 /// monotonic-descending effective scores, not that the order is canonical.
-contract TournamentPool is Ownable, ReentrancyGuard {
+contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
     using SafeERC20 for IERC20;
 
     // ─── Errors ────────────────────────────────────────────────────────────────
@@ -90,6 +92,9 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     /// @notice Caller is not the developer recorded on the tournament. Returned by
     ///         withdrawFeesToDev when msg.sender != Tournament.devAddr.
     error OnlyDev();
+    /// @notice startBracketRound is a v2.3 (X22.2) function; v2.2 only exposes the
+    ///         locked signature + typehash to forward-bind the bracket extension schema.
+    error ReservedForV23();
 
     // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -180,6 +185,32 @@ contract TournamentPool is Ownable, ReentrancyGuard {
 
     /// @notice Denominator for the dev/platform share split. Must equal DEV_BPS + PLATFORM_BPS.
     uint256 public constant TOTAL_BPS = 10_000;
+
+    // ─── M-2 EIP-712 typehashes (X11.0 SPEC §C.3 + §G.3 locked) ────────────────
+    // Domain: EIP712("SkillOS-TournamentPool", "1"). Once shipped, these
+    // typehashes cannot change without a v2.3 redeploy. X22.2 inherits the
+    // BRACKET_ROUND_START_TYPEHASH unchanged per §C.6 forward-compat lock.
+
+    /// @notice EIP-712 typehash for the duel-path ScoreSubmit attestation.
+    /// @dev    Field set mirrors submitScore's calldata (excluding the trustedSigner
+    ///         binding, which is established by the EIP-712 domain).
+    bytes32 public constant SCORE_SUBMIT_TYPEHASH =
+        keccak256("ScoreSubmit(bytes32 id,address player,uint256 score,uint256 matchCountDelta,bytes32 nonce)");
+
+    /// @notice EIP-712 typehash for the solo-path SoloScoreSubmit attestation.
+    /// @dev    Extends ScoreSubmit with `soloRunId` — distinct typehash so the
+    ///         two paths cannot accidentally cross-validate sigs even though
+    ///         they share the global usedNonces map.
+    bytes32 public constant SOLO_SCORE_SUBMIT_TYPEHASH = keccak256(
+        "SoloScoreSubmit(bytes32 id,address player,uint256 score,bytes32 soloRunId,uint256 matchCountDelta,bytes32 nonce)"
+    );
+
+    /// @notice X22 v2.3 forward-compat lock per §G.3. Typehash is declared in
+    ///         v2.2 so X22.2 cannot fork the bracket-attestation schema. The
+    ///         function body lives in the X22.2 redeploy; `startBracketRound`
+    ///         in v2.2 reverts with `ReservedForV23` on any call.
+    bytes32 public constant BRACKET_ROUND_START_TYPEHASH =
+        keccak256("BracketRoundStart(bytes32 id,uint8 round,address[] pairings,bytes32 nonce)");
 
     // Prize curve in basis points of prizePool.
     uint256 private constant BPS_PLACE_1 = 2500;
@@ -302,7 +333,10 @@ contract TournamentPool is Ownable, ReentrancyGuard {
 
     // ─── Constructor ───────────────────────────────────────────────────────────
 
-    constructor(IERC20 _usdc, address _trustedSigner, address _devNFT) Ownable(msg.sender) {
+    constructor(IERC20 _usdc, address _trustedSigner, address _devNFT)
+        Ownable(msg.sender)
+        EIP712("SkillOS-TournamentPool", "1")
+    {
         if (address(_usdc) == address(0)) revert ZeroAddress();
         if (_trustedSigner == address(0)) revert ZeroAddress();
         if (_devNFT == address(0)) revert ZeroAddress();
@@ -449,9 +483,9 @@ contract TournamentPool is Ownable, ReentrancyGuard {
     ///         priorSolo·ENTRY_FEE). Enforcement is on-chain — even if the backend signer
     ///         is compromised, fees cannot be skipped without a prior chargeEntryFee tx.
     ///
-    ///         Digest: keccak256(abi.encode(id, player, score, soloRunId, matchCountDelta,
-    ///                                      nonce, address(this), block.chainid))
-    ///         Uses the global usedNonces map shared with submitScore — digest layouts
+    ///         Digest: EIP-712 _hashTypedDataV4 over SOLO_SCORE_SUBMIT_TYPEHASH with
+    ///         fields (id, player, score, soloRunId, matchCountDelta, nonce).
+    ///         Uses the global usedNonces map shared with submitScore — typehashes
     ///         differ (Solo has extra soloRunId field) so signatures cannot collide.
     /// @param  id               Tournament identifier.
     /// @param  player           Player whose solo score is being recorded.
@@ -639,6 +673,26 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         USDC.safeTransfer(to, balance);
     }
 
+    // ─── X22 v2.3 forward-compat stub ──────────────────────────────────────────
+
+    /// @notice Reserved for X22.2 v2.3 bracket-tournament redeploy.
+    /// @dev    Function signature locked here per X11.0 SPEC §G.2 + §K Q8(a).
+    ///         v2.2 reverts on any call — bracket tournaments are not supported
+    ///         until v2.3 redeploys with the implementation body. The
+    ///         BRACKET_ROUND_START_TYPEHASH constant above is the schema lock;
+    ///         this stub is the calldata-shape lock. Together they make a v2.3
+    ///         fork of either surface a compile-time error in any consumer
+    ///         bound to v2.2's ABI.
+    function startBracketRound(
+        bytes32, /* id */
+        uint8, /* round */
+        address[] calldata, /* pairings */
+        bytes32, /* nonce */
+        bytes calldata /* signature */
+    ) external pure {
+        revert ReservedForV23();
+    }
+
     // ─── Views ─────────────────────────────────────────────────────────────────
 
     function getTournament(bytes32 id) external view returns (Tournament memory) {
@@ -724,10 +778,10 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         bytes32 nonce,
         bytes calldata signature
     ) internal view {
-        bytes32 digest = keccak256(abi.encode(id, player, score, matchCountDelta, nonce, address(this), block.chainid));
-        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-        address signer = ECDSA.recover(ethDigest, signature);
-        if (signer != trustedSigner) revert BadSignature();
+        bytes32 structHash =
+            keccak256(abi.encode(SCORE_SUBMIT_TYPEHASH, id, player, score, matchCountDelta, nonce));
+        bytes32 digest = _hashTypedDataV4(structHash);
+        if (!_verifyTrustedSignerSignature(digest, signature)) revert BadSignature();
     }
 
     function _verifySoloSubmitSignature(
@@ -739,12 +793,31 @@ contract TournamentPool is Ownable, ReentrancyGuard {
         bytes32 nonce,
         bytes calldata signature
     ) internal view {
-        bytes32 digest = keccak256(
-            abi.encode(id, player, score, soloRunId, matchCountDelta, nonce, address(this), block.chainid)
+        bytes32 structHash = keccak256(
+            abi.encode(SOLO_SCORE_SUBMIT_TYPEHASH, id, player, score, soloRunId, matchCountDelta, nonce)
         );
-        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-        address signer = ECDSA.recover(ethDigest, signature);
-        if (signer != trustedSigner) revert BadSignature();
+        bytes32 digest = _hashTypedDataV4(structHash);
+        if (!_verifyTrustedSignerSignature(digest, signature)) revert BadSignature();
+    }
+
+    /// @dev EIP-712 + ERC-1271 + ERC-6492 unified trustedSigner signature check.
+    ///      Per X11.0 SPEC §C.3 / §C.4: ERC-6492 wrapper (smart-wallet pre-deploy
+    ///      signature) is stripped, then the inner signature delegates to
+    ///      OZ SignatureChecker, which dispatches on `trustedSigner.code.length`
+    ///      — EOA → ECDSA.tryRecover, contract → ERC-1271 isValidSignature.
+    ///      Off-chain callers handle pre-deploy simulation via eth_call before
+    ///      submitting; this on-chain path validates against the wallet as it
+    ///      exists at call time.
+    function _verifyTrustedSignerSignature(bytes32 digest, bytes calldata signature)
+        internal
+        view
+        returns (bool)
+    {
+        if (ERC6492.isWrapped(signature)) {
+            (,, bytes memory innerSig) = ERC6492.unwrap(signature);
+            return SignatureChecker.isValidSignatureNow(trustedSigner, digest, innerSig);
+        }
+        return SignatureChecker.isValidSignatureNowCalldata(trustedSigner, digest, signature);
     }
 
     function _countNonExcluded(bytes32 id, Tournament storage t) internal view returns (uint256 c) {
