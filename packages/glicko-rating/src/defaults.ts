@@ -1,7 +1,7 @@
 // X23.1 — SkillOS constants for the Glicko-2 wrapper.
 // Per docs/sprints/x23-glicko-2/SPEC.md §B.2 + §J.1.
 
-import type { RatingState } from "./types.js";
+import type { RatingState } from "./types";
 
 /**
  * Default starting state for a new (wallet, game, class) row.
