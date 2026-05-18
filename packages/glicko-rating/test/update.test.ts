@@ -31,7 +31,7 @@ import {
   DEFAULT_RATING,
   DEFAULT_TAU,
   type MatchOutcome,
-} from "../src/index.js";
+} from "../src/index";
 
 describe("DEFAULT_RATING constants", () => {
   it("matches SkillOS lock (1000 / 350 / 0.06)", () => {

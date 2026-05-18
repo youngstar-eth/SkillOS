@@ -14,6 +14,7 @@
     "@skillos/ai-coach": "*",
     "@skillos/contracts": "*",
     "@skillos/game-types": "*",
+    "@skillos/glicko-rating": "*",
     "@skillos/lib-shared": "*",
     "@skillos/sp-engine": "*",
     "@vercel/functions": "^1.5.0"

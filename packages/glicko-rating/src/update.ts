@@ -2,8 +2,8 @@
 // Per docs/sprints/x23-glicko-2/SPEC.md §B.2.
 
 import rate from "glicko2-lite";
-import { DEFAULT_TAU, SKILLOS_ANCHOR_RATING } from "./defaults.js";
-import type { MatchOutcome, RatingState } from "./types.js";
+import { DEFAULT_TAU, SKILLOS_ANCHOR_RATING } from "./defaults";
+import type { MatchOutcome, RatingState } from "./types";
 
 /**
  * Apply one rating period of match outcomes to a player.
