@@ -18,6 +18,12 @@ type Props = {
   onGameOver: (score: number) => void;
   /** Called on every score change, for live leaderboard display. */
   onScoreChange?: (score: number) => void;
+  /**
+   * X20.0a — emits the running successful-swipe count to the solo page so it
+   * can forward it to the API for AntiCheat F0 (X20.0b). Counts only swipes
+   * where tiles actually moved (wall-bounces don't bump).
+   */
+  onMovesChange?: (moves: number) => void;
   /** External kill switch — when true, game stops accepting input. */
   frozen?: boolean;
 };
@@ -25,6 +31,8 @@ type Props = {
 type State = {
   board: Board;
   score: number;
+  /** X20.0a — successful swipes (advanced board state). */
+  moves: number;
   rng: SeededRng;
   over: boolean;
 };
@@ -36,7 +44,7 @@ type Action =
 function reduce(state: State, action: Action): State {
   if (action.type === "reset") {
     const { board, rng } = createInitialBoard(action.seed);
-    return { board, score: 0, rng, over: false };
+    return { board, score: 0, moves: 0, rng, over: false };
   }
   if (state.over) return state;
   const { board, gained, moved } = move(state.board, action.dir);
@@ -46,6 +54,9 @@ function reduce(state: State, action: Action): State {
   return {
     board: spawned,
     score: state.score + gained,
+    // X20.0a — only bumped on the `moved === true` branch, so wall-bounces
+    // (which return state unchanged above) don't inflate the count.
+    moves: state.moves + 1,
     rng: state.rng,
     over,
   };
@@ -53,7 +64,7 @@ function reduce(state: State, action: Action): State {
 
 function init(seed: string): State {
   const { board, rng } = createInitialBoard(seed);
-  return { board, score: 0, rng, over: false };
+  return { board, score: 0, moves: 0, rng, over: false };
 }
 
 /**
@@ -80,6 +91,7 @@ export function Game2048({
   seed,
   onGameOver,
   onScoreChange,
+  onMovesChange,
   frozen,
 }: Props) {
   const [state, dispatch] = useReducer(reduce, seed, init);
@@ -112,6 +124,11 @@ export function Game2048({
   useEffect(() => {
     onScoreChange?.(state.score);
   }, [state.score, onScoreChange]);
+
+  // X20.0a — emit successful-swipe count.
+  useEffect(() => {
+    onMovesChange?.(state.moves);
+  }, [state.moves, onMovesChange]);
 
   // Fire onGameOver once
   useEffect(() => {

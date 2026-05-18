@@ -27,6 +27,12 @@ type Props = {
   seed: string;
   onGameOver: (score: number) => void;
   onScoreChange?: (score: number) => void;
+  /**
+   * X20.0a — emits tap count for AntiCheat F0 (X20.0b). In clicker each
+   * tap is both a +1 score and a +1 move; the two signals coincide,
+   * which is itself a useful invariant for the formula to check.
+   */
+  onMovesChange?: (moves: number) => void;
   frozen?: boolean;
 };
 
@@ -34,6 +40,7 @@ export function GameClicker({
   seed,
   onGameOver: _onGameOver,
   onScoreChange,
+  onMovesChange,
   frozen,
 }: Props) {
   const [score, setScore] = useState(0);
@@ -51,6 +58,11 @@ export function GameClicker({
   useEffect(() => {
     onScoreChange?.(score);
   }, [score, onScoreChange]);
+
+  // X20.0a — moves IS score for clicker (one tap, one point, one move).
+  useEffect(() => {
+    onMovesChange?.(score);
+  }, [score, onMovesChange]);
 
   const handleTap = useCallback(() => {
     if (frozen) return;

@@ -34,6 +34,12 @@ type Props = {
   seed: string;
   onGameOver: (score: number) => void;
   onScoreChange?: (score: number) => void;
+  /**
+   * X20.0a — emits total click count (reveals + flag toggles) for
+   * AntiCheat F0 (X20.0b). Both left and right click contribute; only
+   * clicks blocked by guards (frozen, ended game) are skipped.
+   */
+  onMovesChange?: (moves: number) => void;
   frozen?: boolean;
 };
 
@@ -57,17 +63,21 @@ export function GameMinesweeper({
   seed,
   onGameOver,
   onScoreChange,
+  onMovesChange,
   frozen,
 }: Props) {
   const [state, dispatch] = useReducer(reduce, seed, createInitialState);
   const [flagMode, setFlagMode] = useState(false);
   const overFired = useRef(false);
+  // X20.0a — click count (reveals + flag toggles).
+  const movesRef = useRef(0);
 
   // Reset on seed change
   useEffect(() => {
     dispatch({ type: "reset", seed });
     overFired.current = false;
     setFlagMode(false);
+    movesRef.current = 0;
   }, [seed]);
 
   // Live score emission
@@ -90,8 +100,11 @@ export function GameMinesweeper({
       } else {
         dispatch({ type: "reveal", row, col });
       }
+      // X20.0a — bump after guards: any accepted click counts.
+      movesRef.current += 1;
+      onMovesChange?.(movesRef.current);
     },
-    [frozen, state.status, flagMode],
+    [frozen, state.status, flagMode, onMovesChange],
   );
 
   // Also accept right-click as flag (classic desktop UX) regardless of mode
@@ -100,8 +113,11 @@ export function GameMinesweeper({
       e.preventDefault();
       if (frozen || state.status !== "playing") return;
       dispatch({ type: "flag", row, col });
+      // X20.0a — right-click also counts.
+      movesRef.current += 1;
+      onMovesChange?.(movesRef.current);
     },
-    [frozen, state.status],
+    [frozen, state.status, onMovesChange],
   );
 
   const minesLeft = MINE_COUNT - state.flagCount;

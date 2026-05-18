@@ -38,6 +38,12 @@ type Props = {
   seed: string;
   onGameOver: (score: number) => void;
   onScoreChange?: (score: number) => void;
+  /**
+   * X20.0a — emits guess count (1..MAX_GUESSES) so the solo page can
+   * forward it to the API for AntiCheat F0 (X20.0b). Wordle is the rare
+   * case where guesses.length IS the move count; no extra state needed.
+   */
+  onMovesChange?: (moves: number) => void;
   frozen?: boolean;
 };
 
@@ -105,6 +111,7 @@ export function GameWordle({
   seed,
   onGameOver,
   onScoreChange,
+  onMovesChange,
   frozen,
 }: Props) {
   const [state, dispatch] = useReducer(reduce, seed, initialFor);
@@ -124,6 +131,11 @@ export function GameWordle({
   useEffect(() => {
     onScoreChange?.(0);
   }, [onScoreChange]);
+
+  // X20.0a — emit guess count as the moves signal.
+  useEffect(() => {
+    onMovesChange?.(state.guesses.length);
+  }, [state.guesses.length, onMovesChange]);
 
   // Fire onGameOver once
   useEffect(() => {

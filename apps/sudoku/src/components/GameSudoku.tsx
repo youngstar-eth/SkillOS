@@ -35,6 +35,12 @@ type Props = {
   seed: string;
   onGameOver: (score: number) => void;
   onScoreChange?: (score: number) => void;
+  /**
+   * X20.0a — emits cell-placement count (includes overwrites + clears)
+   * for AntiCheat F0 (X20.0b). Selection / arrow navigation doesn't
+   * count — only successful dispatches of `set`.
+   */
+  onMovesChange?: (moves: number) => void;
   frozen?: boolean;
 };
 
@@ -58,15 +64,21 @@ export function GameSudoku({
   seed,
   onGameOver,
   onScoreChange,
+  onMovesChange,
   frozen,
 }: Props) {
   const [state, dispatch] = useReducer(reduce, seed, createInitialState);
   const overFired = useRef(false);
+  // X20.0a — placement count. Ref (not state) because the value's only
+  // consumer is onMovesChange + game-over, neither of which renders the
+  // board on a moves bump.
+  const movesRef = useRef(0);
 
   // Reset on seed change
   useEffect(() => {
     dispatch({ type: "reset", seed });
     overFired.current = false;
+    movesRef.current = 0;
   }, [seed]);
 
   // Live score emission — countCorrect on every state change.
@@ -90,8 +102,11 @@ export function GameSudoku({
       const [r, c] = state.selectedCell;
       if (state.grid[r][c].isGiven) return;
       dispatch({ type: "set", row: r, col: c, value });
+      // X20.0a — bump after guards pass so we count actual placements.
+      movesRef.current += 1;
+      onMovesChange?.(movesRef.current);
     },
-    [frozen, state.status, state.selectedCell, state.grid],
+    [frozen, state.status, state.selectedCell, state.grid, onMovesChange],
   );
 
   // Arrow-key navigation
