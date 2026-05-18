@@ -5,7 +5,10 @@ import type { ErrorEnvelope } from '../schemas/common.js';
 
 export class ApiError extends Error {
   constructor(
-    public readonly status: 400 | 404 | 409 | 422 | 429 | 502,
+    // X14.0: 403 added for class_mismatch (off-chain class enforcement per
+    // supplement v1.5 §3.16); 500 added for DB lookup failures on the T1+
+    // path which now reads the tournament row before submit.
+    public readonly status: 400 | 403 | 404 | 409 | 422 | 429 | 500 | 502,
     public readonly code: string,
     message: string,
     public readonly details?: unknown,

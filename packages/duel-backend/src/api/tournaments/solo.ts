@@ -111,6 +111,7 @@ interface TournamentRow {
   ends_at: string;
   participation_bonus: number;
   settled_at: string | null;
+  tournament_class: "human-only" | "agent-only" | "mixed-declared";
 }
 
 /** Row shape for v2_tournament_entries — v2 columns only. */
@@ -388,7 +389,7 @@ export function createTournamentSoloHandler(
     const { data: tournamentRow, error: tReadErr } = await supabase
       .from("v2_tournaments")
       .select(
-        "id,on_chain_id,game,cycle_type,starts_at,ends_at,participation_bonus,settled_at",
+        "id,on_chain_id,game,cycle_type,starts_at,ends_at,participation_bonus,settled_at,tournament_class",
       )
       .eq("id", tournamentId)
       .maybeSingle();
@@ -407,6 +408,16 @@ export function createTournamentSoloHandler(
         "game_mismatch",
         `tournament is for '${tournament.game}', endpoint serves '${config.game}'`,
         400,
+      );
+    }
+    // X14.0: class enforcement. Per-game routes are the human-only path —
+    // no SIWA wiring here. Reject if the tournament is declared agent-only.
+    // Off-chain enforcement only (supplement v1.5 §3.16).
+    if (tournament.tournament_class === "agent-only") {
+      return jsonError(
+        "class_mismatch",
+        "Tournament is agent-only; human submission rejected.",
+        403,
       );
     }
     if (tournament.settled_at) {
@@ -501,6 +512,9 @@ export function createTournamentSoloHandler(
         // X20.0a plumbing — null when client doesn't send (legacy rolling
         // deploy window). F0 formula in X20.0b skips NULL rows.
         moves,
+        // X14.0: per-game routes are the human path (no SIWA wiring here).
+        is_agent: false,
+        class_tag: "human",
       })
       .select("id")
       .single();
@@ -597,6 +611,9 @@ export function createTournamentSoloHandler(
       // Preserve existing source_duel_ids (duel history stays; new solo runs
       // don't contribute to that column).
       source_duel_ids: existing?.source_duel_ids ?? [],
+      // X14.0: human per-game path.
+      is_agent: false,
+      class_tag: "human" as const,
     };
 
     const { error: upsertErr } = await supabase

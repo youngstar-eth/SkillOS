@@ -135,6 +135,11 @@ export function createQueueHandler(_config: DuelHandlerConfig) {
           seed,
           stake_amount_usdc: Number(STAKE_AMOUNT),
           create_tx_hash: createTxHash,
+          // X14.0: duel queue is the human-only path today (no SIWA wiring).
+          // Phase-2 duel reactivation will derive each player's class from
+          // auth context; defaults persist 'human' until then.
+          player1_class: "human",
+          player2_class: "human",
         })
         .select("*")
         .maybeSingle();

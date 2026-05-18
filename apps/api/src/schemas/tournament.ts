@@ -30,6 +30,14 @@ export const TournamentSchema = z
     participationBonus: Uint256StringSchema,
     settled: z.boolean(),
     participantsCount: z.number().int().min(0),
+    tournamentClass: z
+      .enum(['human-only', 'agent-only', 'mixed-declared'])
+      .default('mixed-declared')
+      .openapi({
+        description:
+          'X14.0: off-chain class declaration per supplement v1.5 §3.16. Determines whether the tournament accepts human (SIWB), agent (SIWA), or both submission paths. Contract layer is class-agnostic; enforcement lives at submit-handler level.',
+        example: 'mixed-declared',
+      }),
   })
   .openapi('Tournament');
 
