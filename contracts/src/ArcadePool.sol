@@ -36,14 +36,24 @@ contract ArcadePool is Ownable, ReentrancyGuard, EIP712 {
     mapping(uint256 => address[]) public playerList;
     mapping(uint256 => bool) public usedNonces;
 
+    // M-1 (X11.1 SPEC §B.3): per-(tournament, player) refund credit. Set by
+    // refundIfEmpty, drained by withdrawRefund. Replaces the push-style loop
+    // whose single-receiver revert / blacklist / gas-griefing could DoS the
+    // whole batch (v1.4 §3.11 Track A audit M-1).
+    mapping(uint256 => mapping(address => uint256)) public refundableBalance;
+
     bytes32 private constant SCORE_TYPEHASH = keccak256(
         "Score(uint256 tournamentId,address player,uint256 score,uint256 nonce)"
     );
+
+    error NoRefundAvailable();
 
     event TournamentCreated(uint256 indexed id, bytes32 gameId, uint256 entryFee, uint256 endTime);
     event PlayerEntered(uint256 indexed id, address indexed player);
     event ScoreSubmitted(uint256 indexed id, address indexed player, uint256 score);
     event TournamentSettled(uint256 indexed id, address indexed winner, uint256 prize);
+    event RefundsAccrued(uint256 indexed tournamentId, uint256 playerCount, uint256 entryFee);
+    event RefundWithdrawn(uint256 indexed tournamentId, address indexed player, uint256 amount);
 
     constructor(address _usdc, address _scoreSigner, address _feeRecipient)
         Ownable(msg.sender)
@@ -128,9 +138,19 @@ contract ArcadePool is Ownable, ReentrancyGuard, EIP712 {
         require(t.winner == address(0), "Has winner");
         t.settled = true;
         address[] memory players = playerList[tournamentId];
+        uint256 fee = t.entryFee;
         for (uint256 i = 0; i < players.length; i++) {
-            USDC.safeTransfer(players[i], t.entryFee);
+            refundableBalance[tournamentId][players[i]] = fee;
         }
+        emit RefundsAccrued(tournamentId, players.length, fee);
+    }
+
+    function withdrawRefund(uint256 tournamentId) external nonReentrant {
+        uint256 amount = refundableBalance[tournamentId][msg.sender];
+        if (amount == 0) revert NoRefundAvailable();
+        refundableBalance[tournamentId][msg.sender] = 0;
+        USDC.safeTransfer(msg.sender, amount);
+        emit RefundWithdrawn(tournamentId, msg.sender, amount);
     }
 
     function getPlayerCount(uint256 tournamentId) external view returns (uint256) {
