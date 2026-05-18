@@ -96,6 +96,34 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
     ///         locked signature + typehash to forward-bind the bracket extension schema.
     error ReservedForV23();
 
+    // M-3 emergency-withdraw error surface (X11.0 SPEC §D).
+    /// @notice proposeEmergencyWithdraw rejected — amount must be > 0.
+    error ZeroAmount();
+    /// @notice proposeEmergencyWithdraw / executeEmergencyWithdraw rejected — the
+    ///         requested amount exceeds the per-bucket balance at the time of check.
+    ///         For DustOnly, "bucket balance" means
+    ///         USDC.balanceOf(address(this)) - _sumAllTrackedBuckets().
+    error ExceedsBucketBalance();
+    /// @notice executeEmergencyWithdraw rejected — block.timestamp < executeAfter.
+    error TimelockNotExpired();
+    /// @notice cancelEmergencyWithdraw / executeEmergencyWithdraw rejected — no
+    ///         proposal exists with the given id (or it has already been executed
+    ///         or cancelled — the flags are part of the not-found check by design).
+    error ProposalNotFound();
+    /// @notice executeEmergencyWithdraw rejected — proposal already executed.
+    error ProposalAlreadyExecuted();
+    /// @notice executeEmergencyWithdraw / cancelEmergencyWithdraw rejected —
+    ///         proposal already cancelled.
+    error ProposalAlreadyCancelled();
+    /// @notice proposeEmergencyWithdraw rejected — PrizePoolOf / FeeCollectedDevOf /
+    ///         FeeCollectedPlatformOf require a non-zero tournamentId; DustOnly
+    ///         requires the zero id.
+    error InvalidTournamentIdForBucket();
+    /// @notice proposeEmergencyWithdraw rejected — PrizePoolOf bucket cannot be
+    ///         drained from a settled tournament (the prizePool snapshot is stale
+    ///         after settle; the actual USDC has already left).
+    error TournamentSettledForPrizeBucket();
+
     // ─── Types ─────────────────────────────────────────────────────────────────
 
     enum CycleType {
@@ -107,6 +135,40 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
     enum SubmissionSource {
         Duel,
         Solo
+    }
+
+    /// @notice M-3 emergency-withdraw bucket selector (X11.0 SPEC §D.3). The four
+    ///         disjoint reachable surfaces an owner-initiated emergency proposal may
+    ///         target. Each `execute` path can mutate at most one bucket — the
+    ///         sweepstakes-safe storage segregation invariant (CLAUDE.md
+    ///         architectural invariant #1) is promoted from a storage-layout
+    ///         property to a function-level invariant.
+    /// @dev    Ordering is part of the audited ABI surface — append only.
+    enum EmergencyBucket {
+        PrizePoolOf,
+        FeeCollectedDevOf,
+        FeeCollectedPlatformOf,
+        DustOnly
+    }
+
+    /// @notice M-3 emergency-withdraw proposal record (X11.0 SPEC §D.3). One slot
+    ///         per `proposalId`. After execute or cancel, the corresponding flag
+    ///         is set true and the record stays on-chain as an audit trail; the
+    ///         proposalId nonce input ensures no two proposals collide.
+    /// @dev    Field packing: bucket (1 byte) + tournamentId (32 bytes) + to
+    ///         (20 bytes) + amount (32 bytes) + executeAfter (8 bytes) + executed
+    ///         (1 byte) + cancelled (1 byte). Two storage slots: slot 1 packs
+    ///         bucket / tournamentId across slots; the struct compiler will lay
+    ///         it out as 4 slots in practice — admin path, gas cost is
+    ///         irrelevant for emergency operations.
+    struct EmergencyProposal {
+        EmergencyBucket bucket;
+        bytes32 tournamentId;
+        address to;
+        uint256 amount;
+        uint64 executeAfter;
+        bool executed;
+        bool cancelled;
     }
 
     struct Tournament {
@@ -212,6 +274,15 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
     bytes32 public constant BRACKET_ROUND_START_TYPEHASH =
         keccak256("BracketRoundStart(bytes32 id,uint8 round,address[] pairings,bytes32 nonce)");
 
+    /// @notice Mandatory delay between proposeEmergencyWithdraw and the earliest
+    ///         executeEmergencyWithdraw block-time (X11.0 SPEC §D.3). 48 hours
+    ///         gives sponsors / players / multi-sig signers (post-X11.5) an
+    ///         on-chain warning window before any owner-initiated drain can
+    ///         clear. Cancellation works for the full window.
+    /// @dev    Stored as uint64 because executeAfter is uint64; the literal `48
+    ///         hours` is `48 * 60 * 60 = 172800` which fits in uint64 trivially.
+    uint64 public constant EMERGENCY_DELAY = 48 hours;
+
     // Prize curve in basis points of prizePool.
     uint256 private constant BPS_PLACE_1 = 2500;
     uint256 private constant BPS_PLACE_2 = 1500;
@@ -288,6 +359,31 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
     /// @dev    v2.2 split of the legacy v2.1 `feeCollected` mapping.
     mapping(bytes32 => uint256) public feeCollected_platform;
 
+    /// @notice M-3 emergency-withdraw proposal records (X11.0 SPEC §D.3), keyed by
+    ///         the deterministic proposalId returned by proposeEmergencyWithdraw.
+    /// @dev    Records stay on-chain after execute / cancel as an audit trail; the
+    ///         executed and cancelled flags discriminate replays. proposalIds are
+    ///         derived from a strictly-increasing _emergencyProposalNonce so no two
+    ///         active proposals can ever share an id.
+    mapping(bytes32 => EmergencyProposal) public emergencyProposals;
+
+    /// @notice Strictly-increasing nonce mixed into proposalId derivation so that
+    ///         (bucket, tournamentId, to, amount) tuples can be proposed multiple
+    ///         times without collision (e.g. a partial-amount cancel-and-repropose
+    ///         flow). Internal — readers must use proposeEmergencyWithdraw's
+    ///         returned id.
+    uint256 private _emergencyProposalNonce;
+
+    /// @notice Running accumulator of all currently-tracked bucket balances
+    ///         (prizePool of non-settled tournaments + feeCollected_dev +
+    ///         feeCollected_platform) (X11.0 SPEC §D.4(ii), §K Q3 recommended).
+    ///         Used by the DustOnly bucket check in O(1):
+    ///             dust = USDC.balanceOf(address(this)) - _trackedTotal
+    /// @dev    Maintained atomically by createTournament, fundPrizePool,
+    ///         chargeEntryFee, settle, withdrawFeesToDev, withdrawFeesToPlatform,
+    ///         and executeEmergencyWithdraw. Exposed via _sumAllTrackedBuckets().
+    uint256 private _trackedTotal;
+
     // ─── Events ────────────────────────────────────────────────────────────────
 
     event TournamentCreated(
@@ -330,6 +426,21 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
     event TournamentSettled(bytes32 indexed id, uint256 totalDistributed, uint256 refunded);
     event PrizePaid(bytes32 indexed id, address indexed player, uint256 place, uint256 amount);
     event TrustedSignerUpdated(address indexed newSigner);
+
+    /// @notice Emitted on a successful proposeEmergencyWithdraw. executeAfter is
+    ///         block.timestamp + EMERGENCY_DELAY at the time of the call.
+    event EmergencyWithdrawProposed(
+        bytes32 indexed proposalId,
+        EmergencyBucket bucket,
+        bytes32 indexed tournamentId,
+        address indexed to,
+        uint256 amount,
+        uint64 executeAfter
+    );
+    /// @notice Emitted on a successful cancelEmergencyWithdraw.
+    event EmergencyWithdrawCancelled(bytes32 indexed proposalId);
+    /// @notice Emitted on a successful executeEmergencyWithdraw.
+    event EmergencyWithdrawExecuted(bytes32 indexed proposalId);
 
     // ─── Constructor ───────────────────────────────────────────────────────────
 
@@ -388,6 +499,10 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         t.prizePool = prizePool;
         t.participationBonus = participationBonus;
 
+        // M-3 dust accounting: this prizePool joins the tracked surface; the
+        // matching debit happens in settle() once all USDC has flowed back out.
+        _trackedTotal += prizePool;
+
         emit TournamentCreated(
             id, msg.sender, game, devAddr, cycleType, startsAt, endsAt, prizePool, participationBonus
         );
@@ -428,6 +543,8 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
 
         USDC.safeTransferFrom(msg.sender, address(this), amount);
         t.prizePool += amount;
+        // M-3 dust accounting: top-up joins the tracked prizePool surface.
+        _trackedTotal += amount;
 
         emit PrizePoolFunded(id, msg.sender, amount, t.prizePool);
     }
@@ -571,6 +688,10 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         feePaidByPlayer[id][player] += ENTRY_FEE;
         feeCollected_dev[id] += devShare;
         feeCollected_platform[id] += platformShare;
+        // M-3 dust accounting: ENTRY_FEE splits exactly into the two buckets
+        // (devShare + platformShare == ENTRY_FEE at locked constants); both are
+        // tracked, debited individually on each respective withdraw path.
+        _trackedTotal += ENTRY_FEE;
 
         emit EntryFeePaid(id, player, ENTRY_FEE);
     }
@@ -616,6 +737,11 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
             refunded = t.prizePool - totalDistributed;
             USDC.safeTransfer(t.sponsor, refunded);
         }
+        // M-3 dust accounting: the entire prizePool has left the contract
+        // (totalDistributed + refunded == t.prizePool by the curve's invariants).
+        // Remove from the tracked surface. feeCollected_dev / _platform stay
+        // tracked because they remain claimable after settle.
+        _trackedTotal -= t.prizePool;
 
         emit TournamentSettled(id, totalDistributed, refunded);
     }
@@ -646,6 +772,8 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         uint256 amount = feeCollected_dev[id];
         if (amount == 0) return;
         feeCollected_dev[id] = 0;
+        // M-3 dust accounting: dev bucket leaves the tracked surface.
+        _trackedTotal -= amount;
         USDC.safeTransfer(dev, amount);
         emit DevFeesWithdrawn(id, dev, amount);
     }
@@ -662,15 +790,191 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         uint256 amount = feeCollected_platform[id];
         if (amount == 0) return;
         feeCollected_platform[id] = 0;
+        // M-3 dust accounting: platform bucket leaves the tracked surface.
+        _trackedTotal -= amount;
         USDC.safeTransfer(msg.sender, amount);
         emit PlatformFeesWithdrawn(id, msg.sender, amount);
     }
 
-    /// @notice Emergency withdrawal of any stuck USDC. Owner-only safety valve.
-    function emergencyWithdraw(address to) external onlyOwner {
+    // ─── M-3 emergency withdrawal (X11.0 SPEC §D) ──────────────────────────────
+    //
+    // BREAKING CHANGE vs v2.1:
+    //   The legacy `emergencyWithdraw(address to)` one-call drain is removed.
+    //   v2.2 replaces it with a three-phase, bucket-scoped, timelocked surface:
+    //
+    //     proposeEmergencyWithdraw(bucket, tournamentId, to, amount)
+    //         → returns proposalId; deadline = now + EMERGENCY_DELAY (48h)
+    //     cancelEmergencyWithdraw(proposalId)
+    //         → owner-only window cancellation; sets cancelled=true
+    //     executeEmergencyWithdraw(proposalId)
+    //         → owner-only after deadline; verifies bucket balance still
+    //           sufficient at execute-time (re-check post-window); transfers
+    //           USDC from the named bucket only; sets executed=true
+    //
+    // Sweepstakes-safe storage invariant promotion:
+    //   v2.1: disjoint keccak slots only (storage-layout invariant).
+    //   v2.2: disjoint keccak slots AND each execute call mutates at most one
+    //         bucket. The function-level dispatch in _debitBucket is what makes
+    //         "the owner cannot drain a prize pool into the dev-fee accumulator
+    //         in a single emergency action" a verifiable per-call property
+    //         (not just a layout property).
+    //
+    // Post-X11.5 multi-sig:
+    //   Ownership cuts over to a Safe; the three functions still gate on
+    //   `onlyOwner`. Threshold semantics (single canceler vs N-signer execute)
+    //   are configured at the Safe layer per X11.0 §K Q6 + §D.6.
+
+    /// @notice Initiates a timelocked, bucket-scoped emergency withdrawal.
+    /// @param  bucket         Which bucket to draw from (PrizePoolOf,
+    ///                        FeeCollectedDevOf, FeeCollectedPlatformOf,
+    ///                        DustOnly). Selects which storage slot the eventual
+    ///                        execute may decrement.
+    /// @param  tournamentId   Per-tournament key for PrizePoolOf /
+    ///                        FeeCollectedDevOf / FeeCollectedPlatformOf. MUST be
+    ///                        bytes32(0) for DustOnly.
+    /// @param  to             USDC recipient.
+    /// @param  amount         USDC atoms requested (6 decimals).
+    /// @return proposalId     Deterministic id derived from the inputs and an
+    ///                        internal nonce; pass it back into execute or cancel.
+    function proposeEmergencyWithdraw(EmergencyBucket bucket, bytes32 tournamentId, address to, uint256 amount)
+        external
+        onlyOwner
+        returns (bytes32 proposalId)
+    {
         if (to == address(0)) revert ZeroAddress();
-        uint256 balance = USDC.balanceOf(address(this));
-        USDC.safeTransfer(to, balance);
+        if (amount == 0) revert ZeroAmount();
+        _requireValidBucketTournamentId(bucket, tournamentId);
+
+        // Up-front bucket balance check — catches "obviously infeasible" proposals
+        // before the 48h clock starts. The execute path re-checks because state
+        // can mutate during the window (settle / withdraw / chargeEntryFee).
+        if (amount > _getBucketBalance(bucket, tournamentId)) revert ExceedsBucketBalance();
+
+        uint256 nonceSnapshot = _emergencyProposalNonce;
+        unchecked {
+            _emergencyProposalNonce = nonceSnapshot + 1;
+        }
+        proposalId = keccak256(abi.encode(bucket, tournamentId, to, amount, nonceSnapshot));
+
+        uint64 executeAfter = uint64(block.timestamp) + EMERGENCY_DELAY;
+        emergencyProposals[proposalId] = EmergencyProposal({
+            bucket: bucket,
+            tournamentId: tournamentId,
+            to: to,
+            amount: amount,
+            executeAfter: executeAfter,
+            executed: false,
+            cancelled: false
+        });
+
+        emit EmergencyWithdrawProposed(proposalId, bucket, tournamentId, to, amount, executeAfter);
+    }
+
+    /// @notice Cancels a pending emergency-withdrawal proposal before execute.
+    /// @dev    Cancellation is allowed any time before execute, regardless of
+    ///         whether the timelock has elapsed. Once cancelled the proposalId
+    ///         is permanently dead — cannot be re-armed.
+    function cancelEmergencyWithdraw(bytes32 proposalId) external onlyOwner {
+        EmergencyProposal storage p = emergencyProposals[proposalId];
+        // executeAfter == 0 distinguishes "never-existed" from cancelled /
+        // executed (both of which retain a non-zero executeAfter).
+        if (p.executeAfter == 0) revert ProposalNotFound();
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.cancelled) revert ProposalAlreadyCancelled();
+
+        p.cancelled = true;
+        emit EmergencyWithdrawCancelled(proposalId);
+    }
+
+    /// @notice Executes a pending emergency-withdrawal proposal after the delay.
+    /// @dev    CEI ordering: state mutated (debit + executed flag) before the
+    ///         USDC.safeTransfer call. nonReentrant guards against the slim
+    ///         re-entry surface a malicious USDC implementation could open.
+    ///         The execute-time bucket balance re-check ensures the proposal
+    ///         remains feasible after the 48h window — e.g. the bucket may have
+    ///         been partially drained by settle / withdrawFeesToDev /
+    ///         withdrawFeesToPlatform during the wait.
+    function executeEmergencyWithdraw(bytes32 proposalId) external onlyOwner nonReentrant {
+        EmergencyProposal storage p = emergencyProposals[proposalId];
+        if (p.executeAfter == 0) revert ProposalNotFound();
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.cancelled) revert ProposalAlreadyCancelled();
+        if (block.timestamp < p.executeAfter) revert TimelockNotExpired();
+        if (p.amount > _getBucketBalance(p.bucket, p.tournamentId)) revert ExceedsBucketBalance();
+
+        p.executed = true;
+        _debitBucket(p.bucket, p.tournamentId, p.amount);
+
+        USDC.safeTransfer(p.to, p.amount);
+        emit EmergencyWithdrawExecuted(proposalId);
+    }
+
+    /// @notice Snapshot of the running tracked-bucket accumulator.
+    /// @dev    Equal to sum of:
+    ///         - _tournaments[id].prizePool for every non-settled id
+    ///         - feeCollected_dev[id] for every id
+    ///         - feeCollected_platform[id] for every id
+    ///         Used by the DustOnly bucket check as
+    ///             USDC.balanceOf(this) - _sumAllTrackedBuckets()
+    ///         Public so audit firms can spot-check the invariant against
+    ///         off-chain enumeration of tournaments. See X11.0 SPEC §D.4 + §K Q3.
+    function _sumAllTrackedBuckets() public view returns (uint256) {
+        return _trackedTotal;
+    }
+
+    function _requireValidBucketTournamentId(EmergencyBucket bucket, bytes32 tournamentId) internal pure {
+        if (bucket == EmergencyBucket.DustOnly) {
+            if (tournamentId != bytes32(0)) revert InvalidTournamentIdForBucket();
+        } else {
+            if (tournamentId == bytes32(0)) revert InvalidTournamentIdForBucket();
+        }
+    }
+
+    function _getBucketBalance(EmergencyBucket bucket, bytes32 tournamentId) internal view returns (uint256) {
+        if (bucket == EmergencyBucket.PrizePoolOf) {
+            Tournament storage t = _tournaments[tournamentId];
+            if (t.sponsor == address(0)) revert TournamentNotFound();
+            // Settled tournaments cannot be drained from PrizePoolOf — the
+            // pool's USDC has already left the contract on settle. The storage
+            // field retains its snapshot value but is no longer reachable.
+            if (t.settled) revert TournamentSettledForPrizeBucket();
+            return t.prizePool;
+        }
+        if (bucket == EmergencyBucket.FeeCollectedDevOf) {
+            return feeCollected_dev[tournamentId];
+        }
+        if (bucket == EmergencyBucket.FeeCollectedPlatformOf) {
+            return feeCollected_platform[tournamentId];
+        }
+        // DustOnly — surplus USDC not attributable to any tracked bucket
+        // (operational top-ups, accidental transfers, dust from rounding).
+        uint256 bal = USDC.balanceOf(address(this));
+        // Defensive: if _trackedTotal somehow drifted higher than the real
+        // balance (would be a critical accounting bug), return 0 rather than
+        // underflowing — fails the executeEmergencyWithdraw check on amount > 0.
+        if (bal <= _trackedTotal) return 0;
+        return bal - _trackedTotal;
+    }
+
+    function _debitBucket(EmergencyBucket bucket, bytes32 tournamentId, uint256 amount) internal {
+        if (bucket == EmergencyBucket.PrizePoolOf) {
+            _tournaments[tournamentId].prizePool -= amount;
+            _trackedTotal -= amount;
+            return;
+        }
+        if (bucket == EmergencyBucket.FeeCollectedDevOf) {
+            feeCollected_dev[tournamentId] -= amount;
+            _trackedTotal -= amount;
+            return;
+        }
+        if (bucket == EmergencyBucket.FeeCollectedPlatformOf) {
+            feeCollected_platform[tournamentId] -= amount;
+            _trackedTotal -= amount;
+            return;
+        }
+        // DustOnly — by construction not part of _trackedTotal, so the
+        // accumulator does not change. The USDC.safeTransfer in the caller
+        // removes the dust from the contract balance directly.
     }
 
     // ─── X22 v2.3 forward-compat stub ──────────────────────────────────────────
