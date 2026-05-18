@@ -145,6 +145,42 @@ function isBytes32Hex(value: unknown): value is Hex {
   return typeof value === "string" && isHex(value) && value.length === 66;
 }
 
+/**
+ * X20.0a — parse the optional `moves` field from a solo submit body.
+ *
+ * Pure, exported for unit tests. Returns:
+ *   - { ok: true, value: number } when a valid integer was supplied
+ *   - { ok: true, value: null }   when absent (legacy clients during rollout)
+ *   - { ok: false, code, message } on type / range violations
+ *
+ * Upper bound (1_000_000) is a sanity ceiling — same shape as the
+ * durationSeconds 86_400 ceiling. Fraud-detection thresholds belong to
+ * the F0 formula in X20.0b, not to this validator.
+ */
+export function parseMovesField(
+  value: unknown,
+):
+  | { ok: true; value: number | null }
+  | { ok: false; code: string; message: string } {
+  if (value === undefined || value === null) {
+    return { ok: true, value: null };
+  }
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    !Number.isInteger(value) ||
+    value < 0 ||
+    value > 1_000_000
+  ) {
+    return {
+      ok: false,
+      code: "invalid_moves",
+      message: "moves must be a non-negative integer ≤ 1000000",
+    };
+  }
+  return { ok: true, value };
+}
+
 // ─── anti-cheat fire-and-forget hook ──────────────────────────────────────
 
 const PLAUSIBILITY_TIMEOUT_MS = 10_000;
@@ -338,6 +374,15 @@ export function createTournamentSoloHandler(
       durationSeconds = durationSecondsRaw;
     }
 
+    // X20.0a — moves instrumentation (AntiCheat F0 prerequisite). Plumbing
+    // only: stored on the solo_runs row, NOT enforced at submit. F0 formula
+    // in X20.0b is the first reader. Absent / null = legacy client → NULL.
+    const movesParsed = parseMovesField(payload.moves);
+    if (!movesParsed.ok) {
+      return jsonError(movesParsed.code, movesParsed.message, 400);
+    }
+    const moves = movesParsed.value;
+
     // ─── tournament lookup + gating ─────────────────────────────────────
     const supabase = getSupabaseService();
     const { data: tournamentRow, error: tReadErr } = await supabase
@@ -453,6 +498,9 @@ export function createTournamentSoloHandler(
         fee_paid_usdc: isPaidRetry ? 1 : 0,
         fee_tx_hash: feeTxHash,
         game_state_hash: gameStateHash,
+        // X20.0a plumbing — null when client doesn't send (legacy rolling
+        // deploy window). F0 formula in X20.0b skips NULL rows.
+        moves,
       })
       .select("id")
       .single();

@@ -42,6 +42,12 @@ type Props = {
   seed: string;
   onGameOver: (score: number) => void;
   onScoreChange?: (score: number) => void;
+  /**
+   * X20.0a — emits successful swap count (one per dispatched `swap`
+   * action) for AntiCheat F0 (X20.0b). Invalid swaps that get shaken-
+   * rejected don't count; selection clicks don't count.
+   */
+  onMovesChange?: (moves: number) => void;
   frozen?: boolean;
 };
 
@@ -73,15 +79,19 @@ export function GameMatch3({
   seed,
   onGameOver: _onGameOver,
   onScoreChange,
+  onMovesChange,
   frozen,
 }: Props) {
   const [state, dispatch] = useReducer(reduce, seed, createInitialState);
   const [invalidFlash, setInvalidFlash] = useState<string | null>(null);
+  // X20.0a — successful swap count.
+  const movesRef = useRef(0);
 
   // Reset on seed change
   useEffect(() => {
     dispatch({ type: "reset", seed });
     setInvalidFlash(null);
+    movesRef.current = 0;
   }, [seed]);
 
   // Emit live score
@@ -137,8 +147,12 @@ export function GameMatch3({
         return;
       }
       dispatch({ type: "swap", a: sel, b: [row, col] });
+      // X20.0a — count only successful swaps. Invalid swaps return above
+      // and don't increment.
+      movesRef.current += 1;
+      onMovesChange?.(movesRef.current);
     },
-    [frozen, state, flashInvalid],
+    [frozen, state, flashInvalid, onMovesChange],
   );
 
   const resolving = state.status === "resolving";

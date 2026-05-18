@@ -14,7 +14,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type Hex } from "viem";
 import { useAccount } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -139,12 +139,17 @@ export default function SoloPage() {
   // New play deadline each time the game (re)starts. Reset seed too so the
   // game component remounts with fresh internal state.
   const [playDeadline, setPlayDeadline] = useState<string | null>(null);
+  // X20.0a — bridges onMovesChange (each game emits its current count) to
+  // handleGameOver. Reset per play session so an earlier game's count
+  // doesn't leak into the next submit.
+  const lastMovesRef = useRef(0);
   useEffect(() => {
     if (canPlay) {
       setPlayDeadline(
         new Date(Date.now() + PLAY_WINDOW_MS).toISOString(),
       );
       setSeed(randomSeed());
+      lastMovesRef.current = 0;
     }
   }, [canPlay]);
 
@@ -216,7 +221,7 @@ export default function SoloPage() {
         {canPlay && playDeadline ? (
           <Timer
             deadline={playDeadline}
-            onExpire={() => handleGameOver(liveScore)}
+            onExpire={() => handleGameOver(liveScore, undefined, lastMovesRef.current)}
           />
         ) : (
           <div className="w-[52px]" />
@@ -237,8 +242,13 @@ export default function SoloPage() {
       {canPlay && (
         <GameMinesweeper
           seed={seed}
-          onGameOver={handleGameOver}
+          onGameOver={(score) =>
+            handleGameOver(score, undefined, lastMovesRef.current)
+          }
           onScoreChange={setLiveScore}
+          onMovesChange={(n) => {
+            lastMovesRef.current = n;
+          }}
           frozen={false}
         />
       )}

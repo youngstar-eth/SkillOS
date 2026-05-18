@@ -166,7 +166,16 @@ export interface UseSoloRetryReturn {
   /** Wallet/network operation in flight — disable buttons. */
   walletBusy: boolean;
   handlePlayClick: () => void;
-  handleGameOver: (score: number, durationSeconds?: number) => void;
+  /**
+   * X20.0a — `moves` is the per-game move count (2048 swipes, wordle
+   * guesses, sudoku placements, …). Forwarded to the API for AntiCheat
+   * F0 in X20.0b; absent in legacy callers is OK (server stores NULL).
+   */
+  handleGameOver: (
+    score: number,
+    durationSeconds?: number,
+    moves?: number,
+  ) => void;
   setLiveScore: (score: number) => void;
   reset: () => void;
 }
@@ -177,6 +186,13 @@ interface PendingSubmit {
   feeTxHash: Hex | null;
   score: number;
   durationSeconds: number;
+  /**
+   * X20.0a — captured at game-over from each game's local counter
+   * (2048 swipes, wordle guesses, …). null when the buffered run pre-dates
+   * X20.0a instrumentation OR when the game component doesn't pass moves.
+   * Replayed verbatim on re-submit; absent in body = server stores NULL.
+   */
+  moves: number | null;
   timestamp: number;
   gameSlug: string;
 }
@@ -247,6 +263,8 @@ async function postSolo(params: {
     playerAddress: string;
     score: number;
     durationSeconds: number;
+    /** X20.0a — optional moves count for AntiCheat F0 (X20.0b). */
+    moves?: number;
     feeTxHash?: string;
   };
 }): Promise<PostSoloResult> {
@@ -408,6 +426,8 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
         feeTxHash: chargeHash,
         score: 0,
         durationSeconds: 0,
+        // X20.0a — moves not yet captured at pay-time; filled in at game-over.
+        moves: null,
         timestamp: Date.now(),
         gameSlug,
       });
@@ -422,6 +442,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
       score: number,
       durationSeconds: number,
       feeTxHashArg: Hex | null,
+      moves: number | null,
     ) => {
       if (!address || !tournamentId) return;
       setStatus("submitting");
@@ -432,6 +453,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
           playerAddress: address,
           score,
           durationSeconds,
+          ...(moves != null ? { moves } : {}),
           ...(feeTxHashArg ? { feeTxHash: feeTxHashArg } : {}),
         },
       });
@@ -460,6 +482,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
             feeTxHash: feeTxHashArg,
             score,
             durationSeconds,
+            moves,
             timestamp: Date.now(),
             gameSlug,
           });
@@ -496,7 +519,17 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
     // result.bestScore on rehydrate (which can be a different number
     // when this run was below the player's tournament best).
     setFinalScore(pending.score);
-    void submit(pending.score, pending.durationSeconds, pending.feeTxHash);
+    // X20.0a — pending.moves carries through; older buffered runs
+    // (pre-X20.0a) where the field was absent JSON-parse as undefined →
+    // treated as null below.
+    const pendingMoves =
+      typeof pending.moves === "number" ? pending.moves : null;
+    void submit(
+      pending.score,
+      pending.durationSeconds,
+      pending.feeTxHash,
+      pendingMoves,
+    );
   }, [address, tournamentId, tournamentEndsAt, gameSlug, status, submit]);
 
   // ─── entry points ────────────────────────────────────────────────────
@@ -584,7 +617,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
   ]);
 
   const handleGameOver = useCallback(
-    (score: number, durationSeconds?: number) => {
+    (score: number, durationSeconds?: number, moves?: number) => {
       // Guard against double-fire: timer expiry + natural game-over can race.
       if (status !== "playing") return;
       if (finalScore != null) return;
@@ -595,6 +628,10 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
               0,
               Math.floor((Date.now() - matchStartTimeRef.current) / 1000),
             );
+      // X20.0a — coerce undefined to null so localStorage round-trips a
+      // distinguishable absence. Negative / non-integer values are caught
+      // server-side by parseMovesField; we don't double-validate here.
+      const movesValue = typeof moves === "number" ? moves : null;
       setFinalScore(score);
       // Buffer first so a network failure on submit isn't catastrophic.
       if (tournamentId) {
@@ -602,11 +639,12 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
           feeTxHash,
           score,
           durationSeconds: computed,
+          moves: movesValue,
           timestamp: Date.now(),
           gameSlug,
         });
       }
-      void submit(score, computed, feeTxHash);
+      void submit(score, computed, feeTxHash, movesValue);
     },
     [status, finalScore, tournamentId, feeTxHash, gameSlug, submit],
   );
