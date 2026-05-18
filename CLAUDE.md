@@ -44,7 +44,7 @@ apps/
 packages/
   ai-coach       — Claude Sonnet 4.6 (Coach) + Haiku 4.5 (Recap, Anti-Cheat)
   contracts      — ABIs + addresses + game-slug helpers (re-exports from /contracts/out)
-  duel-backend   — solo + duel API handlers, settle, settle-guard, cron
+  duel-backend   — solo handlers + bracket round advancement (X22), settle, settle-guard, cron
   game-types     — shared TS types (Duel state, status enums)
   lib-shared     — shared utilities
   sp-engine      — Skill Points calculation engine
@@ -82,7 +82,7 @@ Two systems coexist intentionally:
 
 | Frame | Where it lives | Phase 02 means | Phase 03 means |
 |---|---|---|---|
-| **Engineering-internal** | this repo's `README.md`, internal pitch | "in-progress" (solo polish, duel reactivation, SDK alpha) | "Q2 2026 mainnet (post-legal-review)" |
+| **Engineering-internal** | this repo's `README.md`, internal pitch | "in-progress" (solo polish, bracket tournament structure (X22), SDK alpha) | "Q2 2026 mainnet (post-legal-review)" |
 | **Marketing-public** | apex `lib/apex.ts`, `https://skillos.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
 
 Don't reconcile — the two audiences have different granularity needs. When writing **public-facing copy**, use the marketing-public system; when writing **internal docs / commit messages / GitHub issues**, use the engineering-internal system. README.md and apex are intentionally on different cadences.
