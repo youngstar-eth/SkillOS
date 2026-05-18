@@ -44,6 +44,9 @@ contract X15PaidRetryTest is Test {
     uint64 internal STARTS_AT;
     uint64 internal ENDS_AT;
 
+    // ── Cached EIP-712 typehash (see TournamentPool.t.sol for rationale).
+    bytes32 internal soloScoreSubmitTypehash;
+
     function setUp() public {
         trustedSigner = vm.addr(signerPk);
 
@@ -61,6 +64,8 @@ contract X15PaidRetryTest is Test {
 
         STARTS_AT = uint64(block.timestamp);
         ENDS_AT = uint64(block.timestamp + 1 days);
+
+        soloScoreSubmitTypehash = pool.SOLO_SCORE_SUBMIT_TYPEHASH();
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -90,10 +95,24 @@ contract X15PaidRetryTest is Test {
         uint256 matchCountDelta,
         bytes32 nonce
     ) internal view returns (bytes memory) {
-        bytes32 digest =
-            keccak256(abi.encode(id, player, score, soloRunId, matchCountDelta, nonce, address(pool), block.chainid));
-        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, ethDigest);
+        // EIP-712 SoloScoreSubmit attestation, M-2 (X11.2): typehash + domain
+        // separator replace the legacy EIP-191 personal-sign digest. Typehash
+        // is cached in setUp() to avoid a staticcall that vm.expectRevert
+        // would misattribute to.
+        bytes32 structHash = keccak256(
+            abi.encode(soloScoreSubmitTypehash, id, player, score, soloRunId, matchCountDelta, nonce)
+        );
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("SkillOS-TournamentPool")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(pool)
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
         return abi.encodePacked(r, s, v);
     }
 

@@ -50,6 +50,11 @@ contract TournamentPoolTest is Test {
     uint64 internal STARTS_AT;
     uint64 internal ENDS_AT;
 
+    // ── EIP-712 typehashes (cached in setUp; reading via pool getter from a sig
+    //    helper would consume vm.expectRevert against the wrong call site).
+    bytes32 internal scoreSubmitTypehash;
+    bytes32 internal soloScoreSubmitTypehash;
+
     // ─── Setup ─────────────────────────────────────────────────────────────────
 
     function setUp() public {
@@ -66,6 +71,12 @@ contract TournamentPoolTest is Test {
         devNFT = new DevAttributionNFT(predictedPool);
         pool = new TournamentPool(IERC20(address(usdc)), trustedSigner, address(devNFT));
         require(address(pool) == predictedPool, "test setup: pool address mismatch");
+
+        // Cache EIP-712 typehashes so signing helpers don't make an external
+        // staticcall to the pool — that staticcall would otherwise be matched
+        // by any vm.expectRevert set up immediately before _submitSolo() etc.
+        scoreSubmitTypehash = pool.SCORE_SUBMIT_TYPEHASH();
+        soloScoreSubmitTypehash = pool.SOLO_SCORE_SUBMIT_TYPEHASH();
 
         // Fund & approve sponsor.
         usdc.mint(sponsor, 1_000_000_000); // 1000 USDC
@@ -98,14 +109,35 @@ contract TournamentPoolTest is Test {
         );
     }
 
+    /// @dev EIP-712 domain separator for the deployed `pool` instance. Mirrors
+    ///      OZ EIP712's _domainSeparatorV4 using the locked name/version pair
+    ///      from X11.0 SPEC §C.3 ("SkillOS-TournamentPool" / "1").
+    function _domainSeparator() internal view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("SkillOS-TournamentPool")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(pool)
+            )
+        );
+    }
+
+    /// @dev EIP-712 final digest: keccak256("\x19\x01" ‖ domainSeparator ‖ structHash).
+    function _eip712Digest(bytes32 structHash) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", _domainSeparator(), structHash));
+    }
+
     function _signSubmit(bytes32 id, address player, uint256 score, uint256 matchCountDelta, bytes32 nonce)
         internal
         view
         returns (bytes memory)
     {
-        bytes32 digest = keccak256(abi.encode(id, player, score, matchCountDelta, nonce, address(pool), block.chainid));
-        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, ethDigest);
+        bytes32 structHash =
+            keccak256(abi.encode(scoreSubmitTypehash, id, player, score, matchCountDelta, nonce));
+        bytes32 digest = _eip712Digest(structHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
         return abi.encodePacked(r, s, v);
     }
 
@@ -251,11 +283,12 @@ contract TournamentPoolTest is Test {
         _createTournament(id);
 
         bytes32 nonce = keccak256("n");
-        // Sign with wrong key.
-        bytes32 digest =
-            keccak256(abi.encode(id, players[0], uint256(100), uint256(1), nonce, address(pool), block.chainid));
-        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD00D, ethDigest);
+        // Sign with wrong key under the correct EIP-712 schema.
+        bytes32 structHash = keccak256(
+            abi.encode(scoreSubmitTypehash, id, players[0], uint256(100), uint256(1), nonce)
+        );
+        bytes32 digest = _eip712Digest(structHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD00D, digest);
         bytes memory wrongSig = abi.encodePacked(r, s, v);
 
         vm.expectRevert(TournamentPool.BadSignature.selector);
@@ -730,11 +763,11 @@ contract TournamentPoolTest is Test {
         uint256 matchCountDelta,
         bytes32 nonce
     ) internal view returns (bytes memory) {
-        bytes32 digest = keccak256(
-            abi.encode(id, player, score, soloRunId, matchCountDelta, nonce, address(pool), block.chainid)
+        bytes32 structHash = keccak256(
+            abi.encode(soloScoreSubmitTypehash, id, player, score, soloRunId, matchCountDelta, nonce)
         );
-        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, ethDigest);
+        bytes32 digest = _eip712Digest(structHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
         return abi.encodePacked(r, s, v);
     }
 
@@ -862,10 +895,13 @@ contract TournamentPoolTest is Test {
 
         bytes32 nonce = keccak256("n");
         bytes32 runId = keccak256("r");
-        bytes32 digest =
-            keccak256(abi.encode(id, players[0], uint256(100), runId, uint256(1), nonce, address(pool), block.chainid));
-        bytes32 ethDigest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD00D, ethDigest);
+        bytes32 structHash = keccak256(
+            abi.encode(
+                soloScoreSubmitTypehash, id, players[0], uint256(100), runId, uint256(1), nonce
+            )
+        );
+        bytes32 digest = _eip712Digest(structHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD00D, digest);
         bytes memory wrongSig = abi.encodePacked(r, s, v);
 
         vm.expectRevert(TournamentPool.BadSignature.selector);
