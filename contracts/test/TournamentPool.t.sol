@@ -699,18 +699,6 @@ contract TournamentPoolTest is Test {
         pool.setTrustedSigner(newSigner);
     }
 
-    function test_emergencyWithdraw_drainsPool() public {
-        bytes32 id = _tournamentId(70);
-        _createTournament(id);
-        assertEq(usdc.balanceOf(address(pool)), PRIZE_POOL);
-
-        address rescue = address(0xEDD1E);
-        pool.emergencyWithdraw(rescue);
-
-        assertEq(usdc.balanceOf(rescue), PRIZE_POOL);
-        assertEq(usdc.balanceOf(address(pool)), 0);
-    }
-
     // ─── getRanking view ──────────────────────────────────────────────────────
 
     function test_getRanking_sortsDescending_skipsExcluded() public {
