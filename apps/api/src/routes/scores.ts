@@ -26,6 +26,7 @@ import {
 } from '../lib/pagination.js';
 import { scanContractEvents } from '../lib/scan.js';
 import { getPublicClient } from '../lib/viem.js';
+import { getSupabaseClient } from '../lib/supabase.js';
 import { ApiError } from '../middleware/errorEnvelope.js';
 import { requireBearer } from '../middleware/bearer.js';
 import { check as rateLimit } from '../lib/rate-limit.js';
@@ -137,9 +138,9 @@ scoreRoutes.openapi(route, async (c) => {
 const submitRoute = createRoute({
   method: 'post',
   path: '/v1/scores',
-  summary: 'Submit a score (T0 tier — signature-only, no plausibility)',
+  summary: 'Submit a score (T0 signature-only or T1+ class-enforced agent submit)',
   description:
-    'Bearer-authenticated. Server signs a submitSoloScore attestation with STUDIO_PRIVATE_KEY and broadcasts on-chain (fire-and-forget; tx hash returned before block inclusion). Sprint X2 ships T0-only; T1+ submissions return 501 until plausibility pipeline is integrated (Phase 2 mainnet blocker). Game-app frontends should continue using their own per-game /api/tournaments/[id]/solo backends, which run AI plausibility checks.',
+    'Bearer-authenticated. Server signs a submitSoloScore attestation with STUDIO_PRIVATE_KEY and broadcasts on-chain (fire-and-forget; tx hash returned before block inclusion). T0 is signature-only (no plausibility, no DB persistence). T1+ (X14.0) lifts the prior 501 mainnet-blocker by enforcing tournament-class declaration off-chain (supplement v1.5 §3.16) and persisting the run to v2_tournament_solo_runs with class_tag=agent. Game-app frontends continue using their own per-game /api/tournaments/[id]/solo backends for human submissions with AI plausibility checks.',
   tags: ['scores'],
   security: [{ bearerAuth: [] }],
   request: {
@@ -152,20 +153,29 @@ const submitRoute = createRoute({
       description: 'Submission broadcast on-chain',
       content: { 'application/json': { schema: ScoreSubmitResponseSchema } },
       headers: z.object({
-        'X-SkillOS-Tier': z.literal('T0'),
-        'X-SkillOS-Verification': z.literal('signature-only'),
+        'X-SkillOS-Tier': z.enum(['T0', 'T1', 'T2', 'T3']),
+        'X-SkillOS-Verification': z.enum(['signature-only', 'class-enforced']),
       }),
     },
     400: {
       description: 'Bearer or input invalid',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
-    429: {
-      description: 'Rate limit exceeded (60/min per wallet)',
+    403: {
+      description:
+        'Class mismatch — tournament is declared human-only and rejects agent submissions (X14.0 off-chain enforcement).',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
-    501: {
-      description: 'Tier not implemented',
+    404: {
+      description: 'Tournament not found by on_chain_id (T1+ only — T0 path does not read DB).',
+      content: { 'application/json': { schema: ErrorEnvelopeSchema } },
+    },
+    409: {
+      description: 'Tournament settled (T1+) or on-chain submitSoloScore reverted.',
+      content: { 'application/json': { schema: ErrorEnvelopeSchema } },
+    },
+    429: {
+      description: 'Rate limit exceeded (60/min per wallet)',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
   },
@@ -186,12 +196,46 @@ scoreRoutes.openapi(submitRoute, async (c) => {
   }
 
   const body = c.req.valid('json');
+
+  // X14.0 T1+ lift — closes memory project_phase2_mainnet_blocker_plausibility.
+  // T0 stays signature-only (no DB read, no class enforcement). T1+ reads
+  // the tournament row by on_chain_id and enforces off-chain class declaration
+  // per supplement v1.5 §3.16. The contract layer remains class-agnostic.
+  let tournamentDbId: string | null = null;
   if (body.tier !== 'T0') {
-    throw new ApiError(
-      400,
-      'TIER_NOT_IMPLEMENTED',
-      `Tier ${body.tier} requires plausibility validation pipeline (Phase 2 mainnet blocker). Sprint X2 supports T0 only.`,
-    );
+    const supabase = getSupabaseClient();
+    const { data: tRow, error: tErr } = await supabase
+      .from('v2_tournaments')
+      .select('id, tournament_class, settled_at')
+      .eq('on_chain_id', body.tournamentId)
+      .maybeSingle();
+    if (tErr) {
+      throw new ApiError(500, 'DB_ERROR', tErr.message);
+    }
+    if (!tRow) {
+      throw new ApiError(
+        404,
+        'TOURNAMENT_NOT_FOUND',
+        `No tournament with on_chain_id=${body.tournamentId}`,
+      );
+    }
+    if (tRow.settled_at) {
+      throw new ApiError(
+        409,
+        'TOURNAMENT_SETTLED',
+        'Tournament already settled; submissions are closed.',
+      );
+    }
+    // /v1/scores T1+ caller is treated as agent-class (per spec — SDK + MCP
+    // consumers operate at the higher tier). Reject only on human-only pools.
+    if (tRow.tournament_class === 'human-only') {
+      throw new ApiError(
+        403,
+        'class_mismatch',
+        'Tournament is human-only; agent submission rejected.',
+      );
+    }
+    tournamentDbId = tRow.id as string;
   }
 
   const soloRunId: Hex = (body.soloRunId as Hex | undefined) ??
@@ -244,14 +288,46 @@ scoreRoutes.openapi(submitRoute, async (c) => {
     throw err;
   }
 
-  c.header('X-SkillOS-Tier', 'T0');
-  c.header('X-SkillOS-Verification', 'signature-only');
+  // X14.0: T1+ persists to v2_tournament_solo_runs with agent class.
+  // Best-effort post-broadcast — DB failure does NOT roll back the chain
+  // submit (reconcile cron will pick up the row later from chain events).
+  if (body.tier !== 'T0' && tournamentDbId) {
+    try {
+      const supabase = getSupabaseClient();
+      const { error: insertErr } = await supabase
+        .from('v2_tournament_solo_runs')
+        .insert({
+          tournament_id: tournamentDbId,
+          player_address: wallet,
+          score: body.score,
+          is_paid_retry: false,
+          fee_paid_usdc: 0,
+          fee_tx_hash: null,
+          is_agent: true,
+          class_tag: 'agent',
+        });
+      if (insertErr) {
+        console.error('[/v1/scores T1+] solo_runs persist failed', insertErr);
+      }
+    } catch (persistErr) {
+      console.error('[/v1/scores T1+] solo_runs persist threw', persistErr);
+    }
+  }
+
+  c.header('X-SkillOS-Tier', body.tier);
+  c.header(
+    'X-SkillOS-Verification',
+    body.tier === 'T0' ? 'signature-only' : 'class-enforced',
+  );
   return c.json(
     {
       txHash,
       soloRunId,
       submittedAt: new Date().toISOString(),
-      tier: 'T0' as const,
+      tier: body.tier,
+      ...(body.tier !== 'T0'
+        ? { isAgent: true, classTag: 'agent' as const }
+        : {}),
     },
     200,
   );

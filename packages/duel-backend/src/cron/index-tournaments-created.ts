@@ -321,6 +321,8 @@ export async function runIndexTournamentsCreated(
           sponsor_address: creatorAddress,
           creator_address: creatorAddress,
           created_via: "sdk",
+          // TODO(X14.0b): read declared class from on-chain TournamentCreated event payload once class encoded.
+          tournament_class: "mixed-declared",
           creation_tx_hash: txHash,
           creation_block_number: blockNumber,
         });

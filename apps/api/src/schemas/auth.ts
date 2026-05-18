@@ -152,7 +152,7 @@ export const ScoreSubmitRequestSchema = z
       .default('T0')
       .openapi({
         description:
-          'Quality tier per spec. Sprint X2 only validates T0 (signature-only). T1+ rejected with 501.',
+          'Quality tier per spec. T0 is signature-only (no plausibility, no DB persistence). T1+ lifts class declaration into off-chain enforcement (X14.0) and persists to v2_tournament_solo_runs as agent-class.',
       }),
   })
   .openapi('ScoreSubmitRequest');
@@ -164,8 +164,16 @@ export const ScoreSubmitResponseSchema = z
     }),
     soloRunId: Bytes32HexSchema,
     submittedAt: z.string().datetime(),
-    tier: z.literal('T0').openapi({
+    tier: z.enum(['T0', 'T1', 'T2', 'T3']).openapi({
       description: 'Confirms the trust tier server applied. Echoed in X-SkillOS-Tier header.',
+    }),
+    isAgent: z.boolean().optional().openapi({
+      description:
+        'X14.0: present on T1+ responses. True when the submission was persisted with class_tag=agent. Omitted on T0 (no DB persistence).',
+    }),
+    classTag: z.enum(['human', 'agent']).optional().openapi({
+      description:
+        'X14.0: present on T1+ responses. Mirrors v2_tournament_solo_runs.class_tag for the persisted row.',
     }),
   })
   .openapi('ScoreSubmitResponse');

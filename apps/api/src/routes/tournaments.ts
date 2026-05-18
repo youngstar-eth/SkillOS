@@ -100,7 +100,7 @@ tournamentRoutes.openapi(listRoute, async (c) => {
   const { data, error } = await supabase
     .from('v2_tournaments')
     .select(
-      'on_chain_id, game, cycle_type, starts_at, ends_at, prize_pool_usdc, participation_bonus, sponsor_address, settled_at',
+      'on_chain_id, game, cycle_type, starts_at, ends_at, prize_pool_usdc, participation_bonus, sponsor_address, settled_at, tournament_class',
     )
     .order('starts_at', { ascending: false })
     .range(start, start + limit); // request limit+1 rows
@@ -127,6 +127,11 @@ tournamentRoutes.openapi(listRoute, async (c) => {
     // Indexer table doesn't track live participant count. Single-tournament
     // GET returns the canonical on-chain count via readContract.
     participantsCount: 0,
+    // X14.0: surface class declaration from DB. Default lives in the column;
+    // pre-X14.0 rows backfilled to 'mixed-declared' by the migration default.
+    tournamentClass:
+      (r.tournament_class as 'human-only' | 'agent-only' | 'mixed-declared' | null) ??
+      'mixed-declared',
   }));
 
   const next = hasMore ? encodeIndexCursor(start + limit) : undefined;
@@ -181,6 +186,19 @@ tournamentRoutes.openapi(getRoute, async (c) => {
     throw new ApiError(404, 'NOT_FOUND', `Tournament ${id} does not exist`);
   }
 
+  // X14.0: class declaration is off-chain (supplement v1.5 §3.16). Look it
+  // up by on_chain_id. Orphan rows (chain has the tournament, DB doesn't yet)
+  // default to 'mixed-declared' — the cron indexer backfills shortly.
+  const supabase = getSupabaseClient();
+  const { data: cRow } = await supabase
+    .from('v2_tournaments')
+    .select('tournament_class')
+    .eq('on_chain_id', id)
+    .maybeSingle();
+  const tournamentClass =
+    (cRow?.tournament_class as 'human-only' | 'agent-only' | 'mixed-declared' | null) ??
+    'mixed-declared';
+
   return c.json(
     {
       id,
@@ -193,6 +211,7 @@ tournamentRoutes.openapi(getRoute, async (c) => {
       participationBonus: t.participationBonus.toString(),
       settled: t.settled,
       participantsCount: t.participants.length,
+      tournamentClass,
     },
     200,
   );

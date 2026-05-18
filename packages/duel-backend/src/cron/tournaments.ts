@@ -541,6 +541,7 @@ export async function runCreateTournaments(): Promise<CreateTournamentsResult> {
           creator_address:
             creationTxHash === null ? null : sponsor.toLowerCase(),
           created_via: "orchestrator",
+          tournament_class: "mixed-declared",
           creation_tx_hash: creationTxHash,
           creation_block_number:
             creationBlockNumber === null ? null : Number(creationBlockNumber),
