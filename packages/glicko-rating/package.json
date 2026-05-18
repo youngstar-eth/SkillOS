@@ -1,0 +1,20 @@
+{
+  "name": "@skillos/glicko-rating",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/update.test.ts"
+  },
+  "dependencies": {
+    "glicko2-lite": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
