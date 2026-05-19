@@ -50,6 +50,8 @@ interface SupabaseMockOptions {
     on_chain_id: string;
     game: string;
     participation_bonus: number;
+    // X14.0b — optional declared class; absent means tests are agnostic.
+    tournament_class?: string;
   }>;
   /** Entries per tournament_id — keyed by tournament UUID. */
   entriesByTournament?: Map<
@@ -62,6 +64,9 @@ interface SupabaseMockOptions {
       effective_rank_score: string;
       excluded: boolean;
       source_duel_ids: string[];
+      // X14.0b — per-entry class persistence (migration v4_20260518_x14_class).
+      // Optional so existing fixtures still type-check without modification.
+      class_tag?: string;
     }>
   >;
   /** Plausibility verdicts per source duel id. */
@@ -475,6 +480,10 @@ function makeTournamentRow(
     game: string;
     participation_bonus: number;
     prize_pool_usdc: number;
+    // X14.0b — declared class for class-mismatch settle exclusion test.
+    // Default 'mixed-declared' matches the migration's NOT NULL default
+    // (existing tests are agnostic to declared class).
+    tournament_class: string;
   }> = {},
 ) {
   return {
@@ -486,6 +495,7 @@ function makeTournamentRow(
     // (no separate readPrizePool call). 10 USDC matches the existing
     // prizePoolByTournamentId fixture default.
     prize_pool_usdc: 10,
+    tournament_class: "mixed-declared",
     ...overrides,
   };
 }
@@ -497,6 +507,7 @@ function makeEntry(
     id: string;
     excluded: boolean;
     source_duel_ids: string[];
+    class_tag: string;
   }> = {},
 ) {
   return {
@@ -507,6 +518,9 @@ function makeEntry(
     effective_rank_score: rankScore,
     excluded: false,
     source_duel_ids: [`duel-${player.slice(2, 10)}`],
+    // X14.0b — default 'human' matches migration default for legacy rows
+    // and existing tests that pre-date class persistence.
+    class_tag: "human",
     ...overrides,
   };
 }
@@ -1091,4 +1105,141 @@ test("advisory lock held by other run → early exit with lockSkipped", async ()
   );
   assert.equal(cronRunsWrites.length, 1);
   assert.equal(cronRunsWrites[0].op, "insert");
+});
+
+// ─── Test 10 — X14.0b class-mismatch settle exclusion ──────────────────────
+//
+// Defense-in-depth: the submit path (X14.0) already 403s when a class_tag
+// would land in a tournament with an incompatible class declaration. This
+// test simulates the bypass scenario — an agent-class entry that somehow
+// reached v2_tournament_entries inside a human-only tournament — and
+// asserts the cron settle path excludes it the same way it excludes
+// anticheat_implausible entries. Per supplement v1.5 §3.16: contracts
+// class-agnostic, enforcement off-chain.
+
+test("X14.0b: class-mismatch entry flagged + excluded + structured audit", async () => {
+  // Tournament declares human-only. P1 (agent) is the bypass attempt;
+  // P2 (human) is legitimate. Settle should flag P1 and rank only P2.
+  const supabase = makeSupabaseMock({
+    pending: [makeTournamentRow({ tournament_class: "human-only" })],
+    entriesByTournament: new Map([
+      [
+        TOURNAMENT_DB_ID,
+        [
+          // Explicit ids — the default `entry-${player.slice(2,10)}` collides
+          // because all P# fixture addresses share their 4th-byte run of 0s.
+          makeEntry(P1, "5000", { id: "entry-p1", class_tag: "agent" }),
+          makeEntry(P2, "3000", { id: "entry-p2", class_tag: "human" }),
+        ],
+      ],
+    ]),
+    prizePoolByTournamentId: new Map([[TOURNAMENT_DB_ID, 10]]),
+  });
+  const wallet = makeWalletClient();
+  const publicClient = makePublicClient();
+  const awardSP = makeAwardSP();
+
+  // Capture structured warn output. The cron emits a JSON-string payload
+  // for each excluded row keyed by reason='class_mismatch_settle_exclusion'.
+  const warnCalls: Array<{ tag: string; payload: string }> = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    const [tag, payload] = args;
+    if (
+      typeof tag === "string" &&
+      tag.includes("class_mismatch_settle_exclusion") &&
+      typeof payload === "string"
+    ) {
+      warnCalls.push({ tag, payload });
+    }
+  };
+
+  let result;
+  try {
+    result = await runSettleTournaments(
+      buildDeps({ supabase, wallet, publicClient, awardSP }),
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.settled.length, 1);
+  assert.equal(
+    result.settled[0].classMismatchExcluded,
+    1,
+    "P1 (agent in human-only) must count toward classMismatchExcluded",
+  );
+  assert.equal(
+    result.settled[0].excluded,
+    1,
+    "P1 must show up in the total excluded count too",
+  );
+  assert.equal(
+    result.settled[0].participantsSettled,
+    1,
+    "ranking on-chain must contain only the human (P2)",
+  );
+
+  // Chain calls: exactly one flagScore (P1) + one settle ([P2]).
+  const flagCalls = wallet.writeContractCalls.filter(
+    (c) => c.functionName === "flagScore",
+  );
+  assert.equal(flagCalls.length, 1, "flagScore must fire once for P1");
+  assert.equal(flagCalls[0].args[1], P1, "flagScore target must be P1");
+
+  const settleCalls = wallet.writeContractCalls.filter(
+    (c) => c.functionName === "settle",
+  );
+  assert.equal(settleCalls.length, 1);
+  assert.deepEqual(
+    settleCalls[0].args[1],
+    [P2],
+    "ranking must exclude class-mismatched P1",
+  );
+
+  // DB write: P1's entry update carries the class_mismatch reason (NOT the
+  // anticheat_implausible reason — the precedence rule routes structural
+  // mismatches to the structural reason field).
+  const excludeUpdates = supabase.writes.filter(
+    (w) =>
+      w.table === "v2_tournament_entries" &&
+      w.op === "update" &&
+      typeof w.payload === "object" &&
+      w.payload !== null &&
+      "excluded_reason" in (w.payload as Record<string, unknown>),
+  );
+  assert.equal(excludeUpdates.length, 1, "exactly one entry exclusion update");
+  const updatePayload = excludeUpdates[0].payload as {
+    excluded: boolean;
+    excluded_reason: string;
+  };
+  assert.equal(updatePayload.excluded, true);
+  assert.equal(
+    updatePayload.excluded_reason,
+    "class_mismatch_settle_exclusion",
+    "structural mismatch must take precedence in excluded_reason",
+  );
+
+  // Structured audit: one console.warn line, JSON-parseable, contains the
+  // canonical reason key + the tournament/entry context for forensic search.
+  assert.equal(
+    warnCalls.length,
+    1,
+    "exactly one class_mismatch_settle_exclusion audit entry",
+  );
+  const audit = JSON.parse(warnCalls[0].payload) as {
+    tournament_id: string;
+    entry_id: string;
+    player_address: string;
+    tournament_class: string;
+    entry_class_tag: string;
+    reason: string;
+  };
+  assert.equal(audit.tournament_id, TOURNAMENT_DB_ID);
+  assert.equal(audit.entry_id, "entry-p1");
+  assert.equal(audit.player_address, P1);
+  assert.equal(audit.tournament_class, "human-only");
+  assert.equal(audit.entry_class_tag, "agent");
+  assert.equal(audit.reason, "class_mismatch_settle_exclusion");
 });

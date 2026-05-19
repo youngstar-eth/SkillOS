@@ -594,6 +594,9 @@ interface EntryForSettle {
   effective_rank_score: string;
   excluded: boolean;
   source_duel_ids: string[];
+  // X14.0b — class persistence. Default 'human' for legacy rows (per migration
+  // v4_20260518_x14_class.sql). Settle-cron filters against tournament_class.
+  class_tag?: string;
 }
 
 export interface SettleTournamentsResult {
@@ -603,6 +606,14 @@ export interface SettleTournamentsResult {
     settleTxHash: Hex;
     participantsSettled: number;
     excluded: number;
+    /**
+     * X14.0b — count of entries excluded specifically due to class mismatch
+     * vs the tournament's declared class. Subset of `excluded` (which also
+     * includes anticheat_implausible flags). Surfaced separately so the
+     * post-settle audit can distinguish defense-in-depth catches from
+     * plausibility catches.
+     */
+    classMismatchExcluded: number;
     prizePaidUsdc: string;
   }>;
   skipped: Array<{ dbId: string; reason: string }>;
@@ -724,6 +735,13 @@ export async function runSettleTournaments(
         skipped: result.skipped.length,
         errors: result.errors.length,
         deferred: result.deferred,
+        // X14.0b — surface the defense-in-depth catch count in v2_cron_runs
+        // so a single SQL on result_summary->'classMismatchExcludedTotal'
+        // tells operators whether the off-chain class gate is firing.
+        classMismatchExcludedTotal: result.settled.reduce(
+          (acc, s) => acc + (s.classMismatchExcluded ?? 0),
+          0,
+        ),
       },
     });
   }
@@ -769,6 +787,9 @@ async function settleSweep(args: {
     game: string;
     participation_bonus: number;
     prize_pool_usdc: string | number | null;
+    // X14.0b — declared class gate. NOT NULL default 'mixed-declared' per
+    // migration v4_20260518_x14_class.sql; older rows backfilled at apply.
+    tournament_class?: string;
   };
   const pending = (pendingRaw ?? []) as TournamentRow[];
 
@@ -822,6 +843,7 @@ async function settleOneTournament(args: {
     game: string;
     participation_bonus: number;
     prize_pool_usdc: string | number | null;
+    tournament_class?: string;
   };
   guard: CronSettleGuardResult | undefined;
   result: SettleTournamentsResult;
@@ -906,13 +928,51 @@ async function settleOneTournament(args: {
       }
     }
 
-    // Flag on-chain + DB for entries tied to any implausible duel.
+    // X14.0b — class-mismatch defense-in-depth. Entries that submitted under
+    // a class_tag inconsistent with the tournament's declared class get the
+    // same flag-then-exclude treatment as anticheat_implausible. The submit
+    // path (X14.0) already returns 403 for the equivalent mismatch; this
+    // catches anything that bypassed that gate (legacy rows, schema drift,
+    // or paths added without the gate). Per supplement v1.5 §3.16: contracts
+    // class-agnostic, enforcement off-chain.
+    const declaredClass = t.tournament_class ?? "mixed-declared";
+    const classMismatched = new Set<string>();
+    if (declaredClass === "human-only" || declaredClass === "agent-only") {
+      const required = declaredClass === "human-only" ? "human" : "agent";
+      for (const e of entries) {
+        if (e.excluded) continue;
+        const tag = e.class_tag ?? "human";
+        if (tag !== required) {
+          classMismatched.add(e.id);
+          // Structured audit — emitted before flag so the audit trail is
+          // intact even if the flag tx later reverts. Reason field is the
+          // grep key for cron run-log review.
+          console.warn(
+            "[cron settle-tournaments] class_mismatch_settle_exclusion",
+            JSON.stringify({
+              tournament_id: t.id,
+              on_chain_id: onChainId,
+              entry_id: e.id,
+              player_address: e.player_address,
+              tournament_class: declaredClass,
+              entry_class_tag: tag,
+              reason: "class_mismatch_settle_exclusion",
+              ts: new Date().toISOString(),
+            }),
+          );
+        }
+      }
+    }
+
+    // Flag on-chain + DB for entries tied to any implausible duel OR
+    // class-mismatched per X14.0b. Single pass — each entry flagged at most
+    // once; reason field disambiguates downstream forensic queries.
     const toFlag: EntryForSettle[] = [];
     for (const e of entries) {
       if (e.excluded) continue;
-      if (e.source_duel_ids.some((d) => implausibleDuels.has(d))) {
-        toFlag.push(e);
-      }
+      const implausible = e.source_duel_ids.some((d) => implausibleDuels.has(d));
+      const mismatched = classMismatched.has(e.id);
+      if (implausible || mismatched) toFlag.push(e);
     }
     for (const e of toFlag) {
       const player = getAddress(e.player_address);
@@ -937,9 +997,15 @@ async function settleOneTournament(args: {
         const msg = err instanceof Error ? err.message : "unknown";
         throw new Error(`flagScore(${player}) failed: ${msg}`);
       }
+      // class_mismatch takes precedence in the reason field when both apply
+      // — class declaration is the structural invariant; implausibility is
+      // score-shape evidence. Forensic readers want the structural reason.
+      const reason = classMismatched.has(e.id)
+        ? "class_mismatch_settle_exclusion"
+        : "anticheat_implausible";
       await supabase
         .from("v2_tournament_entries")
-        .update({ excluded: true, excluded_reason: "anticheat_implausible" })
+        .update({ excluded: true, excluded_reason: reason })
         .eq("id", e.id);
       e.excluded = true; // in-memory mirror for sort below
     }
@@ -1055,6 +1121,7 @@ async function settleOneTournament(args: {
       settleTxHash: settleHash,
       participantsSettled: n,
       excluded: toFlag.length,
+      classMismatchExcluded: classMismatched.size,
       prizePaidUsdc: (Number(distributed) / 1_000_000).toFixed(6),
     });
   } catch (err) {
