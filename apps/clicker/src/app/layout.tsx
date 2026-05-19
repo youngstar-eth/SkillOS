@@ -4,18 +4,18 @@ import { SkillOSProvider } from "@skillos/sdk/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SkillOS Clicker — On-chain tap duels on Base",
+  title: "SkillOS Clicker — Skill tournaments on Base",
   description:
-    "Stake 1 USDC, match a player, tap as fast as you can for 2 minutes. Most taps wins the pool.",
+    "Skill-based tournaments with verifiable on-chain scoring on Base.",
   openGraph: {
-    title: "Clicker · SkillOS",
+    title: "SkillOS Clicker — Skill tournaments on Base",
     description: "Precision wins. Speed earns. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
     site: "@SkillOS",
     creator: "@web3simpl",
-    title: "Clicker · SkillOS",
+    title: "SkillOS Clicker — Skill tournaments on Base",
     description: "Precision wins. Speed earns. Earn SP.",
   },
   other: {
