@@ -1,0 +1,44 @@
+# SkillOS MAS — CODEOWNERS (X19 lock policy §1)
+#
+# GitHub auto-requests review from listed owners on every PR touching
+# the matched paths. Combined with branch protection on `main`
+# (PR #38 enforced 2026-05-10), this gives founder-pinned review for
+# the high-blast-radius paths.
+#
+# Order matters: later matches override earlier ones. The wildcard at
+# top sets the default owner; explicit paths below escalate critical
+# surfaces.
+#
+# Reference: docs/audit-prep/x19-schema-drift-analysis.md §1 (Lock policy).
+
+# Default reviewer for the repository.
+* @youngstar-eth
+
+# ─── Schema migrations (X19 Class A2 driver) ──────────────────────────────
+# Drift root cause: pre-rebrand migrations applied via dashboard SQL editor
+# bypassed git. Founder-pinned review prevents the next one — every change
+# under supabase/migrations/ goes through founder for sign-off.
+supabase/migrations/ @youngstar-eth
+
+# ─── Smart contracts ──────────────────────────────────────────────────────
+# Audit lineage matters: Foundry dual-profile (see memory
+# project_foundry_dual_profile_phase1_legacy) means contract changes can
+# silently switch compilation profile. Founder-pinned review.
+contracts/                 @youngstar-eth
+contracts/deployments/     @youngstar-eth
+contracts/foundry.toml     @youngstar-eth
+
+# ─── CI / hooks / lock policy itself ──────────────────────────────────────
+# Changes to the policy that catches drift must themselves be reviewed by
+# the founder. Prevents the policy from being weakened by another contributor.
+.github/workflows/         @youngstar-eth
+.husky/                    @youngstar-eth
+CODEOWNERS                 @youngstar-eth
+
+# ─── Wallet / secret-adjacent files ───────────────────────────────────────
+# Per memory reference_secret_handling_split: wallet keys are founder-only.
+# Any change that could affect key handling lands through founder review.
+.env.example                          @youngstar-eth
+**/sponsor-wallet*                    @youngstar-eth
+**/agent-wallet*                      @youngstar-eth
+contracts/script/                     @youngstar-eth

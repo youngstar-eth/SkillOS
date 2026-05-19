@@ -89,6 +89,7 @@ jobs:
             packages/duel-backend/test/tournaments.test.ts \
             packages/duel-backend/test/cron-ratings.test.ts \
             packages/duel-backend/test/x20-1-f0-submit-gate.test.ts \
+            packages/duel-backend/test/x19-schema-integrity.test.ts \
             packages/ui/test/duel-result-branch.test.ts \
             packages/sp-engine/src/engine.test.ts \
             packages/sp-engine/src/anchor.test.ts \

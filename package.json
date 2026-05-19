@@ -13,7 +13,9 @@
     "typecheck": "turbo run typecheck",
     "dev:2048": "npm run dev --workspace @skillos/app-2048",
     "build:2048": "npm run build --workspace @skillos/app-2048",
-    "backfill:sp": "tsx scripts/backfill-sp.ts"
+    "backfill:sp": "tsx scripts/backfill-sp.ts",
+    "check:schema-drift": "tsx scripts/x19-schema-drift-check.ts",
+    "prepare": "git config core.hooksPath .husky 2>/dev/null || true"
   },
   "devDependencies": {
     "@buildersgarden/siwa": "0.0.24",
