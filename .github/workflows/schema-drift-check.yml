@@ -7,12 +7,14 @@
 # the symmetric diff is non-empty.
 #
 # Provenance: PR #110 (investigate/x19-schema-drift), docs/audit-prep/
-# x19-schema-drift-analysis.md §2.
+# x19-schema-drift-analysis.md §2. Auth path swapped to the Supabase
+# Management API in X19a (PR #150 close-out) — PostgREST cannot reach the
+# internal `supabase_migrations` schema with a service_role JWT.
 #
 # ─── Scope (founder decision: Recommendation A — prod only) ──────────────
 # Single Supabase project (clizuqvtkekzxiflbsyr); no staging mirror per
 # memory project_skillos_no_staging_supabase. Until preview branches land,
-# this workflow audits prod directly using a read-only service role token.
+# this workflow audits prod directly using a read-only PAT bearer.
 #
 # ─── Grandfather window ──────────────────────────────────────────────────
 # Workflow scoped to paths: [supabase/migrations/**] so it does NOT fire on
@@ -20,10 +22,13 @@
 # PRs that ADD/MODIFY a migration file trigger this gate.
 #
 # ─── Required secrets ────────────────────────────────────────────────────
-# - SUPABASE_PROJECT_REF        : clizuqvtkekzxiflbsyr (project ID)
-# - SUPABASE_SERVICE_ROLE_KEY   : read-only sufficient (only SELECT on
-#                                 supabase_migrations.schema_migrations).
-#                                 Founder-provisioned; rotate per X18 cadence.
+# - SUPABASE_PROJECT_REF             : clizuqvtkekzxiflbsyr (project ID)
+# - SUPABASE_PERSONAL_ACCESS_TOKEN   : PAT bearer for the Supabase Management
+#                                      API (https://api.supabase.com).
+#                                      Read-only sufficient for the
+#                                      GET /v1/projects/{ref}/database/migrations
+#                                      endpoint. Founder-provisioned;
+#                                      rotate per X18 cadence.
 #
 # Workflow skips with a soft warning if either secret is missing — lets the
 # repo merge this PR before secret provisioning is complete.
@@ -71,13 +76,13 @@ jobs:
         id: secret-check
         env:
           HAS_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF != '' }}
-          HAS_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+          HAS_PAT: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN != '' }}
         run: |
-          if [ "$HAS_PROJECT_REF" = "true" ] && [ "$HAS_SERVICE_KEY" = "true" ]; then
+          if [ "$HAS_PROJECT_REF" = "true" ] && [ "$HAS_PAT" = "true" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Skipping drift check — SUPABASE_PROJECT_REF and/or SUPABASE_SERVICE_ROLE_KEY GitHub secrets not configured. Founder must provision before this gate becomes active."
+            echo "::warning::Skipping drift check — SUPABASE_PROJECT_REF and/or SUPABASE_PERSONAL_ACCESS_TOKEN GitHub secrets not configured. Founder must provision before this gate becomes active."
           fi
 
       - name: Run X19 drift check
@@ -85,7 +90,7 @@ jobs:
         id: drift
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_PERSONAL_ACCESS_TOKEN: ${{ secrets.SUPABASE_PERSONAL_ACCESS_TOKEN }}
           DRIFT_REPORT_PATH: ${{ runner.temp }}/drift-report.json
         run: |
           npx tsx scripts/x19-schema-drift-check.ts

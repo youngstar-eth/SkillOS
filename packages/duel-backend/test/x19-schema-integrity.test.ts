@@ -119,6 +119,38 @@ describe('CI drift workflow — secret-presence soft-skip', () => {
     );
     assert.match(wf, /paths:\s*\n\s*-\s*'supabase\/migrations\/\*\*'/, 'workflow: missing the path-scoped trigger');
   });
+
+  it('routes auth through the Management API PAT (X19a)', () => {
+    // After X19a, the PostgREST + service_role path is gone — the workflow
+    // must reference SUPABASE_PERSONAL_ACCESS_TOKEN and must NOT inject the
+    // service_role key (which can't read the internal supabase_migrations
+    // schema anyway). Catches regressions to the legacy auth path.
+    const wf = read('.github/workflows/schema-drift-check.yml');
+    assert.match(
+      wf,
+      /SUPABASE_PERSONAL_ACCESS_TOKEN/,
+      'workflow: must reference SUPABASE_PERSONAL_ACCESS_TOKEN (X19a Management API auth)',
+    );
+    assert.doesNotMatch(
+      wf,
+      /SUPABASE_SERVICE_ROLE_KEY/,
+      'workflow: must not pass SUPABASE_SERVICE_ROLE_KEY into the drift-check step (X19a swap)',
+    );
+  });
+
+  it('drift script targets the Management API endpoint (X19a)', () => {
+    const script = read('scripts/x19-schema-drift-check.ts');
+    assert.match(
+      script,
+      /\/v1\/projects\/\$\{PROJECT_REF\}\/database\/migrations/,
+      'script: must call GET /v1/projects/{ref}/database/migrations',
+    );
+    assert.match(
+      script,
+      /SUPABASE_PERSONAL_ACCESS_TOKEN/,
+      'script: must read SUPABASE_PERSONAL_ACCESS_TOKEN from env',
+    );
+  });
 });
 
 describe('X19 drift-check script — basic structure', () => {
