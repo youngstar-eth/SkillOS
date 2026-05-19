@@ -4,18 +4,18 @@ import { SkillOSProvider } from "@skillos/sdk/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SkillOS Sudoku — On-chain Sudoku duels on Base",
+  title: "SkillOS Sudoku — Skill tournaments on Base",
   description:
-    "Stake 1 USDC, match a player, race to solve the same puzzle. Most cells correct in 2 minutes wins the pool.",
+    "Skill-based tournaments with verifiable on-chain scoring on Base.",
   openGraph: {
-    title: "Sudoku · SkillOS",
+    title: "SkillOS Sudoku — Skill tournaments on Base",
     description: "Solve faster. Think deeper. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
     site: "@SkillOS",
     creator: "@web3simpl",
-    title: "Sudoku · SkillOS",
+    title: "SkillOS Sudoku — Skill tournaments on Base",
     description: "Solve faster. Think deeper. Earn SP.",
   },
   other: {

@@ -5,18 +5,18 @@ import { SimplAd } from "@/components/SimplAd";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SkillOS — On-chain skill duels on Base",
+  title: "SkillOS 2048 — Skill tournaments on Base",
   description:
-    "Stake 1 USDC, match a player, play 2048 for 2 minutes. Higher score wins the pool.",
+    "Skill-based tournaments with verifiable on-chain scoring on Base.",
   openGraph: {
-    title: "2048 · SkillOS",
+    title: "SkillOS 2048 — Skill tournaments on Base",
     description: "Merge tiles. Prove skill. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
     site: "@SkillOS",
     creator: "@web3simpl",
-    title: "2048 · SkillOS",
+    title: "SkillOS 2048 — Skill tournaments on Base",
     description: "Merge tiles. Prove skill. Earn SP.",
   },
   other: {

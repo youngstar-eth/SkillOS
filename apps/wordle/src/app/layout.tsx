@@ -4,18 +4,18 @@ import { SkillOSProvider } from "@skillos/sdk/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SkillOS Wordle — On-chain word duels on Base",
+  title: "SkillOS Wordle — Skill tournaments on Base",
   description:
-    "Stake 1 USDC, match a player, guess the same 5-letter target in 6 tries. Best score wins the pool.",
+    "Skill-based tournaments with verifiable on-chain scoring on Base.",
   openGraph: {
-    title: "Wordle · SkillOS",
+    title: "SkillOS Wordle — Skill tournaments on Base",
     description: "Guess smarter. Score higher. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
     site: "@SkillOS",
     creator: "@web3simpl",
-    title: "Wordle · SkillOS",
+    title: "SkillOS Wordle — Skill tournaments on Base",
     description: "Guess smarter. Score higher. Earn SP.",
   },
   other: {

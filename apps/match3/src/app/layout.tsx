@@ -4,18 +4,18 @@ import { SkillOSProvider } from "@skillos/sdk/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SkillOS Match 3 — On-chain gem duels on Base",
+  title: "SkillOS Match 3 — Skill tournaments on Base",
   description:
-    "Stake 1 USDC, match a player, swap gems for 2 minutes. Deepest cascades + highest score wins the pool.",
+    "Skill-based tournaments with verifiable on-chain scoring on Base.",
   openGraph: {
-    title: "Match 3 · SkillOS",
+    title: "SkillOS Match 3 — Skill tournaments on Base",
     description: "Chain combos. Stack points. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
     site: "@SkillOS",
     creator: "@web3simpl",
-    title: "Match 3 · SkillOS",
+    title: "SkillOS Match 3 — Skill tournaments on Base",
     description: "Chain combos. Stack points. Earn SP.",
   },
   other: {

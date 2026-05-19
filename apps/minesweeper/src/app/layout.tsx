@@ -4,18 +4,18 @@ import { SkillOSProvider } from "@skillos/sdk/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SkillOS Minesweeper — On-chain Minesweeper duels on Base",
+  title: "SkillOS Minesweeper — Skill tournaments on Base",
   description:
-    "Stake 1 USDC, match a player, clear the same 9×9 board. Most safe cells revealed in 2 minutes wins the pool.",
+    "Skill-based tournaments with verifiable on-chain scoring on Base.",
   openGraph: {
-    title: "Minesweeper · SkillOS",
+    title: "SkillOS Minesweeper — Skill tournaments on Base",
     description: "Read the board. Beat the clock. Earn SP.",
   },
   twitter: {
     card: "summary_large_image",
     site: "@SkillOS",
     creator: "@web3simpl",
-    title: "Minesweeper · SkillOS",
+    title: "SkillOS Minesweeper — Skill tournaments on Base",
     description: "Read the board. Beat the clock. Earn SP.",
   },
   other: {
