@@ -68,13 +68,15 @@ jobs:
         run: npm ci
       - name: Run TS tests (node:test via tsx)
         # Direct invocation matches the local developer pattern — no
-        # turbo `test` task defined. 18 test files: 9 in duel-backend
-        # (incl. X23.2 cron-ratings + X20.1 F0 submit gate), 2 in sp-engine, 1 in ui
-        # (pure-helper test, no RTL setup), 2 in apps/api (X10
-        # server-side dataSuffix attribution + X23.3 rating endpoints),
-        # 1 in packages/contracts (X10b canonical Builder Code surface),
-        # 1 in packages/glicko-rating (X23.1 wrapper determinism),
-        # 1 in packages/anti-cheat (X20.0b F0 plausibility formula).
+        # turbo `test` task defined. 21 test files: 11 in duel-backend
+        # (incl. X23.2 cron-ratings, X20.1 F0 submit gate, X19 schema
+        # integrity, X14.1 ext profile log), 2 in sp-engine, 2 in ui
+        # (pure-helper tests, no RTL setup — duel-result-branch + X14.1
+        # extension-whitelist), 2 in apps/api (X10 server-side dataSuffix
+        # attribution + X23.3 rating endpoints), 1 in packages/contracts
+        # (X10b canonical Builder Code surface), 1 in packages/glicko-rating
+        # (X23.1 wrapper determinism), 1 in packages/anti-cheat (X20.0b F0
+        # plausibility formula).
         # No user-controlled input is interpolated below — only fixed
         # repo-relative paths.
         run: |
@@ -90,7 +92,9 @@ jobs:
             packages/duel-backend/test/cron-ratings.test.ts \
             packages/duel-backend/test/x20-1-f0-submit-gate.test.ts \
             packages/duel-backend/test/x19-schema-integrity.test.ts \
+            packages/duel-backend/test/x14-1-extension-profile-log.test.ts \
             packages/ui/test/duel-result-branch.test.ts \
+            packages/ui/test/extension-whitelist.test.ts \
             packages/sp-engine/src/engine.test.ts \
             packages/sp-engine/src/anchor.test.ts \
             packages/contracts/test/builder-codes.test.ts \

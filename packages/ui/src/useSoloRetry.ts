@@ -107,6 +107,10 @@ import {
 } from "@skillos/contracts";
 import { useSkillOSDataSuffix } from "@skillos/sdk/react";
 import { parseWalletError } from "./utils";
+import {
+  EXTENSION_PROFILE_HEADER,
+  type ExtensionProfile,
+} from "./extension-whitelist";
 
 // ─── public types ─────────────────────────────────────────────────────────
 
@@ -152,6 +156,14 @@ export interface UseSoloRetryParams {
   tournamentEndsAt: string | null;
   /** Optional callback fired after a successful submit, with the response payload. */
   onSubmitted?: (result: SoloSubmitResponse) => void;
+  /**
+   * X14.1 — extension whitelist profile (from `evaluateExtensionProfile`).
+   * When `enforced && detected !== null`, the submit fetch carries
+   * `X-Extension-Profile: <detected>` so the server can emit the
+   * `x14_1_extension_profile` audit event. Log-only — never affects the
+   * submit outcome.
+   */
+  extensionProfile?: ExtensionProfile;
 }
 
 export interface UseSoloRetryReturn {
@@ -267,12 +279,27 @@ async function postSolo(params: {
     moves?: number;
     feeTxHash?: string;
   };
+  /**
+   * X14.1 — optional connector identifier echoed to the server when the
+   * tournament is human-only AND the client has a connected wallet.
+   * Server reads `X-Extension-Profile` and emits the
+   * `x14_1_extension_profile` audit event; missing header means the
+   * client either didn't detect a connector or didn't deem it relevant
+   * (mixed-declared / agent-only tournament).
+   */
+  extensionHeader?: string;
 }): Promise<PostSoloResult> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (params.extensionHeader) {
+    headers[EXTENSION_PROFILE_HEADER] = params.extensionHeader;
+  }
   let res: Response;
   try {
     res = await fetch(`/api/tournaments/${params.tournamentDbId}/solo`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify(params.body),
     });
   } catch (e) {
@@ -310,6 +337,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
     eligibility,
     tournamentEndsAt,
     onSubmitted,
+    extensionProfile,
   } = params;
 
   const { address } = useAccount();
@@ -447,6 +475,10 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
       if (!address || !tournamentId) return;
       setStatus("submitting");
       setError(null);
+      const extensionHeader =
+        extensionProfile?.enforced && extensionProfile.detected != null
+          ? extensionProfile.detected
+          : undefined;
       const res = await postSolo({
         tournamentDbId: tournamentId,
         body: {
@@ -456,6 +488,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
           ...(moves != null ? { moves } : {}),
           ...(feeTxHashArg ? { feeTxHash: feeTxHashArg } : {}),
         },
+        ...(extensionHeader ? { extensionHeader } : {}),
       });
       if (res.ok) {
         clearPending(tournamentId);
@@ -494,7 +527,7 @@ export function useSoloRetry(params: UseSoloRetryParams): UseSoloRetryReturn {
       setError(`${res.code}: ${res.message}`);
       setStatus("error");
     },
-    [address, tournamentId, gameSlug, onSubmitted],
+    [address, tournamentId, gameSlug, onSubmitted, extensionProfile],
   );
 
   // ─── replay buffered submit on mount ─────────────────────────────────

@@ -91,6 +91,7 @@ import {
   isUuid,
   jsonError,
   jsonOk,
+  logExtensionProfile,
   parseAddress,
   signTournamentSoloSubmitAttestation,
 } from "@skillos/lib-shared";
@@ -486,6 +487,30 @@ export function createTournamentSoloHandler(
         "Tournament is agent-only; human submission rejected.",
         403,
       );
+    }
+
+    // X14.1 — extension whitelist audit log. The client-side hook in
+    // @skillos/ui only emits the header when the tournament is
+    // human-only AND a connector is detected; we log every occurrence
+    // for the advisory channel per scoping doc §4.2 (no enforcement).
+    // Allowed flag is mirrored from the client whitelist (single source
+    // of truth in @skillos/ui — server is log-only in Phase 1).
+    const extensionHeader = req.headers.get("x-extension-profile");
+    if (extensionHeader && tournament.tournament_class === "human-only") {
+      const normalized = extensionHeader.replace(/\s+/g, "").toLowerCase();
+      const ALLOWED_CONNECTORS_SERVER = [
+        "metamask",
+        "coinbasewallet",
+        "baseaccount",
+        "rabby",
+      ];
+      logExtensionProfile({
+        tournament_id: tournament.id,
+        tournament_class: tournament.tournament_class,
+        player_address: player,
+        detected_connector: normalized.length > 0 ? normalized : null,
+        allowed: ALLOWED_CONNECTORS_SERVER.includes(normalized),
+      });
     }
     if (tournament.settled_at) {
       return jsonError(

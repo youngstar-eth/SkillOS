@@ -67,6 +67,13 @@ interface TournamentDTO {
   entryCount: number;
   /** null when caller didn't pass ?address= or address was invalid. */
   eligibility: EligibilityDTO | null;
+  /**
+   * X14.0 — tournament class declaration. Defaults to `mixed-declared`
+   * for legacy rows that pre-date the X14.0 schema (rows without
+   * `tournament_class` populated). Surfaced to the client so X14.1
+   * extension-whitelist evaluation can run on tournament load.
+   */
+  tournamentClass: "human-only" | "agent-only" | "mixed-declared";
 }
 
 interface LeaderboardEntryDTO {
@@ -107,6 +114,12 @@ function toTournamentDTO(
     settleTxHash: (row.settle_tx_hash as string | null) ?? null,
     entryCount,
     eligibility,
+    tournamentClass:
+      (row.tournament_class as
+        | "human-only"
+        | "agent-only"
+        | "mixed-declared"
+        | null) ?? "mixed-declared",
   };
 }
 

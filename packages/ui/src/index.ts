@@ -36,6 +36,18 @@ export { useMiniAppReady } from "./useMiniAppReady";
 export { ReadyMarker } from "./ReadyMarker";
 export { EmbedWalletFallback } from "./EmbedWalletFallback";
 export {
+  ALLOWED_CONNECTORS,
+  EXTENSION_PROFILE_HEADER,
+  evaluateExtensionProfile,
+  type AllowedConnector,
+  type ExtensionProfile,
+  type TournamentClass,
+} from "./extension-whitelist";
+export {
+  ExtensionWarningModal,
+  type ExtensionWarningModalProps,
+} from "./ExtensionWarningModal";
+export {
   COACH_MODEL_DISPLAY,
   RECAP_MODEL_DISPLAY,
   ANTICHEAT_MODEL_DISPLAY,

@@ -11,3 +11,4 @@ export * from "./seed";
 export * from "./attestation";
 export * from "./rpc";
 export * from "./http";
+export * from "./extension-whitelist-log";

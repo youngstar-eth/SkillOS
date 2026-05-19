@@ -21,12 +21,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PLAY_WINDOW_MS } from "@skillos/contracts";
 import {
   EmbedWalletFallback,
+  ExtensionWarningModal,
   PopupHint,
   SoloResultCard,
   Timer,
+  evaluateExtensionProfile,
   useIsEmbedded,
   useSoloRetry,
   type SoloEligibility,
+  type TournamentClass,
 } from "@skillos/ui";
 import { GameWordle } from "@/components/GameWordle";
 import { AICoach } from "@/components/AICoach";
@@ -47,6 +50,7 @@ type Tournament = {
   prizePoolUsdc: string;
   entryCount: number;
   eligibility: SoloEligibility | null;
+  tournamentClass: TournamentClass;
 };
 
 type ActiveResponse = {
@@ -92,7 +96,7 @@ function useCountdown(targetIso: string | undefined): string {
 
 export default function SoloPage() {
   const router = useRouter();
-  const { address } = useAccount();
+  const { address, connector } = useAccount();
   const isEmbedded = useIsEmbedded();
   const queryClient = useQueryClient();
 
@@ -108,6 +112,19 @@ export default function SoloPage() {
   });
   const tournament = activeData?.daily ?? null;
   const countdown = useCountdown(tournament?.endsAt);
+
+  // X14.1 — extension whitelist soft-warning. evaluateExtensionProfile is
+  // pure; useMemo just stabilizes object identity for the useSoloRetry dep
+  // array. enforced=true triggers the modal + adds X-Extension-Profile to
+  // the submit fetch; enforced=false makes both inert.
+  const extensionProfile = useMemo(
+    () =>
+      evaluateExtensionProfile(
+        connector?.id,
+        tournament?.tournamentClass ?? "mixed-declared",
+      ),
+    [connector?.id, tournament?.tournamentClass],
+  );
 
   const [seed, setSeed] = useState(() => randomSeed());
 
@@ -130,6 +147,7 @@ export default function SoloPage() {
     gameSlug: GAME,
     eligibility: tournament?.eligibility ?? null,
     tournamentEndsAt: tournament?.endsAt ?? null,
+    extensionProfile,
     onSubmitted: () => {
       // Refresh eligibility — priorSoloRuns went up; next click is paid retry.
       void queryClient.invalidateQueries({ queryKey: tournamentsKey });
@@ -226,6 +244,11 @@ export default function SoloPage() {
         ) : (
           <div className="w-[52px]" />
         )}
+      </div>
+
+      {/* X14.1 — soft warning when human-only tournament + non-whitelisted connector */}
+      <div className="w-full max-w-md">
+        <ExtensionWarningModal profile={extensionProfile} />
       </div>
 
       {/* Live score */}
