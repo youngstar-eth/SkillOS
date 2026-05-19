@@ -1,0 +1,83 @@
+#!/usr/bin/env sh
+# ─────────────────────────────────────────────────────────────────────────
+# Skillbase MAS — pre-push hook (X19 lock policy §3, Class D defense)
+#
+# Goal: reject `git push` when the local `main` ref is stale enough that
+# diffing against it would produce phantom drift (the Class D illusion that
+# was caught by the X19 investigation — see docs/audit-prep/
+# x19-schema-drift-analysis.md → Class D).
+#
+# Threshold: 5 commits behind origin/main. Below that, the cost of a fetch
+# is low; above it, working without a fetch starts producing wrong PR
+# diffs, wrong "is this on main" answers, and wrong drift checks.
+#
+# v1.6 §3.19 Pattern lock 4 extension — multi-protective merge gate.
+#
+# ─── Bypass ──────────────────────────────────────────────────────────────
+# Standard husky behavior: `git push --no-verify` skips this hook.
+# Use this when the founder genuinely needs to push without network access
+# to refresh origin/main (rare; should be the exception).
+#
+# Set HOOK_DRIFT_CHECK=1 to additionally run the X19 schema-drift check
+# pre-push (requires SUPABASE_PROJECT_REF + SUPABASE_SERVICE_ROLE_KEY in
+# the environment). Off by default — CI is the canonical gate.
+# ─────────────────────────────────────────────────────────────────────────
+
+STALE_THRESHOLD=5
+
+# `git fetch --dry-run` is fast (a few hundred ms typically) and tells us
+# whether origin/main has moved since our last fetch. Skip the dry-run if
+# the user is offline — fall back to whatever local origin/main says.
+if git fetch --dry-run --quiet origin main 2>/dev/null; then
+  : # fetched ok
+fi
+
+LOCAL_MAIN=$(git rev-parse refs/heads/main 2>/dev/null || true)
+REMOTE_MAIN=$(git rev-parse refs/remotes/origin/main 2>/dev/null || true)
+
+# If local main doesn't exist (e.g., fresh clone with only feature branch),
+# skip the stale check — origin/main is the source of truth anyway.
+if [ -z "$LOCAL_MAIN" ] || [ -z "$REMOTE_MAIN" ]; then
+  exit 0
+fi
+
+# Already up-to-date (or local is ahead of remote, which only happens on a
+# main-branch push — that's the founder's call).
+if [ "$LOCAL_MAIN" = "$REMOTE_MAIN" ]; then
+  : # up-to-date, fall through to drift check
+elif git merge-base --is-ancestor "$LOCAL_MAIN" "$REMOTE_MAIN"; then
+  BEHIND=$(git rev-list --count "$LOCAL_MAIN..$REMOTE_MAIN")
+  if [ "$BEHIND" -gt "$STALE_THRESHOLD" ]; then
+    echo ""
+    echo "❌ pre-push: local 'main' is $BEHIND commits behind origin/main."
+    echo "   Threshold: $STALE_THRESHOLD commits."
+    echo ""
+    echo "   This is the Class D drift trap from X19 — diffing against a"
+    echo "   stale local main produces wrong answers. Refresh first:"
+    echo ""
+    echo "     git fetch origin && git checkout main && git pull --ff-only"
+    echo "     git checkout -    # back to your feature branch"
+    echo ""
+    echo "   Then re-push. Bypass with --no-verify only if you understand"
+    echo "   why (rare — usually only when offline)."
+    echo ""
+    exit 1
+  fi
+fi
+
+# ─── Optional X19 schema drift check (opt-in) ────────────────────────────
+if [ "${HOOK_DRIFT_CHECK:-0}" = "1" ]; then
+  if [ -z "${SUPABASE_PROJECT_REF:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+    echo "⚠️  HOOK_DRIFT_CHECK=1 but SUPABASE_PROJECT_REF/SERVICE_ROLE_KEY not set. Skipping drift check."
+  else
+    if ! npx tsx scripts/x19-schema-drift-check.ts; then
+      echo ""
+      echo "❌ pre-push: X19 schema drift detected."
+      echo "   See output above + docs/audit-prep/x19-schema-drift-analysis.md §5."
+      echo "   Bypass with --no-verify only if drift is intentional + tracked in PR."
+      exit 1
+    fi
+  fi
+fi
+
+exit 0

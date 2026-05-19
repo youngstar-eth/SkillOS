@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Skillbase MAS — X19 Schema drift detector (Lock policy §2)
+#
+# Fires on every PR that touches supabase/migrations/ AND on a nightly cron.
+# Compares the Supabase prod `schema_migrations` registry against the set
+# of files in `supabase/migrations/`. Fails the job + posts a PR comment if
+# the symmetric diff is non-empty.
+#
+# Provenance: PR #110 (investigate/x19-schema-drift), docs/audit-prep/
+# x19-schema-drift-analysis.md §2.
+#
+# ─── Scope (founder decision: Recommendation A — prod only) ──────────────
+# Single Supabase project (clizuqvtkekzxiflbsyr); no staging mirror per
+# memory project_skillos_no_staging_supabase. Until preview branches land,
+# this workflow audits prod directly using a read-only service role token.
+#
+# ─── Grandfather window ──────────────────────────────────────────────────
+# Workflow scoped to paths: [supabase/migrations/**] so it does NOT fire on
+# the 30+ existing in-flight worktrees that don't touch migrations. Only
+# PRs that ADD/MODIFY a migration file trigger this gate.
+#
+# ─── Required secrets ────────────────────────────────────────────────────
+# - SUPABASE_PROJECT_REF        : clizuqvtkekzxiflbsyr (project ID)
+# - SUPABASE_SERVICE_ROLE_KEY   : read-only sufficient (only SELECT on
+#                                 supabase_migrations.schema_migrations).
+#                                 Founder-provisioned; rotate per X18 cadence.
+#
+# Workflow skips with a soft warning if either secret is missing — lets the
+# repo merge this PR before secret provisioning is complete.
+#
+# Security note: secrets routed via env, NEVER interpolated into run: blocks.
+# No github.event.* inputs are touched anywhere — closes the standard
+# command-injection vector per the security guide referenced in ci.yml.
+# ─────────────────────────────────────────────────────────────────────────
+
+name: schema-drift-check
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/schema-drift-check.yml'
+      - 'scripts/x19-schema-drift-check.ts'
+  schedule:
+    # Nightly at 04:00 UTC — catches off-track applies that bypass PR.
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: schema-drift-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift-check:
+    name: schema-drift-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for required secrets
+        id: secret-check
+        env:
+          HAS_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF != '' }}
+          HAS_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: |
+          if [ "$HAS_PROJECT_REF" = "true" ] && [ "$HAS_SERVICE_KEY" = "true" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping drift check — SUPABASE_PROJECT_REF and/or SUPABASE_SERVICE_ROLE_KEY GitHub secrets not configured. Founder must provision before this gate becomes active."
+          fi
+
+      - name: Run X19 drift check
+        if: steps.secret-check.outputs.ready == 'true'
+        id: drift
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DRIFT_REPORT_PATH: ${{ runner.temp }}/drift-report.json
+        run: |
+          npx tsx scripts/x19-schema-drift-check.ts
+
+      - name: Post PR comment on drift
+        if: failure() && steps.secret-check.outputs.ready == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          DRIFT_REPORT_PATH: ${{ runner.temp }}/drift-report.json
+        with:
+          script: |
+            const fs = require('fs');
+            const path = process.env.DRIFT_REPORT_PATH;
+            let body = '## X19 Schema drift detected\n\n';
+            if (fs.existsSync(path)) {
+              const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+              body += `**Registry-side missing (file absent on origin/main):** ${report.registry_only.length}\n`;
+              report.registry_only.forEach(v => { body += `- \`${v.version}\` \`${v.name}\`\n`; });
+              body += `\n**Filesystem-side missing (no registry row):** ${report.filesystem_only.length}\n`;
+              report.filesystem_only.forEach(f => { body += `- \`${f}\`\n`; });
+              body += '\n\nSee `docs/audit-prep/x19-schema-drift-analysis.md` for triage flow.';
+            } else {
+              body += 'Drift report file not found at expected path; check job logs.';
+            }
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
