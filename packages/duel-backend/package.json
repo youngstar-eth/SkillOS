@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@skillos/ai-coach": "*",
+    "@skillos/anti-cheat": "*",
     "@skillos/contracts": "*",
     "@skillos/game-types": "*",
     "@skillos/glicko-rating": "*",

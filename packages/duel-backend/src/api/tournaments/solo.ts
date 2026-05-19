@@ -80,6 +80,7 @@ import {
   TOURNAMENT_POOL_V2_ADDRESS,
 } from "@skillos/contracts";
 import { checkPlausibility, type GameType } from "@skillos/ai-coach";
+import { plausibility } from "@skillos/anti-cheat";
 import type { Verdict } from "@skillos/sp-engine";
 import { waitUntil } from "@vercel/functions";
 import { applySPAward } from "../../sp/award";
@@ -180,6 +181,48 @@ export function parseMovesField(
     };
   }
   return { ok: true, value };
+}
+
+/**
+ * X20.1 — F0 plausibility formula gate for solo submit.
+ *
+ * Pure, exported for unit tests. Wraps `@skillos/anti-cheat`.`plausibility`
+ * with the submit-handler contract:
+ *
+ *   - `moves === null`  → bypass (legacy clients from the X20.0a rolling
+ *                          deploy window; the solo_runs row still persists
+ *                          with moves=NULL and any future cron-side reader
+ *                          is the fallback path for those rows).
+ *   - `durationSeconds` → multiplied by 1000 to feed the formula's
+ *                          `durationMs` axis.
+ *
+ * Game slug typing: `TournamentGame` and `@skillos/anti-cheat`'s `GameId`
+ * are independent definitions of the same union — passed by structural
+ * compatibility, no cast required.
+ *
+ * Return shape:
+ *   { ok: true }                       plausible OR bypassed
+ *   { ok: false, reason: string }      implausible — caller maps to 400
+ */
+export function evaluateF0Gate(input: {
+  game: TournamentGame;
+  moves: number | null;
+  durationSeconds: number;
+  score: number;
+}): { ok: true } | { ok: false; reason: string } {
+  if (input.moves === null) {
+    return { ok: true };
+  }
+  const verdict = plausibility({
+    game: input.game,
+    moves: input.moves,
+    durationMs: input.durationSeconds * 1000,
+    score: input.score,
+  });
+  if (!verdict.plausible) {
+    return { ok: false, reason: verdict.reason };
+  }
+  return { ok: true };
 }
 
 // ─── anti-cheat fire-and-forget hook ──────────────────────────────────────
@@ -383,6 +426,30 @@ export function createTournamentSoloHandler(
       return jsonError(movesParsed.code, movesParsed.message, 400);
     }
     const moves = movesParsed.value;
+
+    // X20.1 — F0 plausibility formula gate. Implausible submits are rejected
+    // before tournament lookup, signature, or on-chain broadcast. The gate
+    // consumes only request-body fields + the factory-baked game slug, so
+    // running it pre-DB is the earliest sound reject point. Legacy submits
+    // with moves=null bypass — see evaluateF0Gate header for rationale.
+    const f0 = evaluateF0Gate({
+      game: config.game,
+      moves,
+      durationSeconds,
+      score,
+    });
+    if (!f0.ok) {
+      console.warn("[tournament-solo] f0_formula_reject", {
+        tournamentId,
+        player,
+        game: config.game,
+        moves,
+        durationSeconds,
+        score,
+        reason: f0.reason,
+      });
+      return jsonError("f0_formula_implausible", f0.reason, 400);
+    }
 
     // ─── tournament lookup + gating ─────────────────────────────────────
     const supabase = getSupabaseService();
