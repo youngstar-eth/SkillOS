@@ -12,15 +12,21 @@
  *       /tmp/drift-report.json) for downstream consumers (PR comment).
  *   2 — invocation error (missing env, network failure, etc.)
  *
- * Auth:
- *   SUPABASE_PROJECT_REF      = e.g. clizuqvtkekzxiflbsyr
- *   SUPABASE_SERVICE_ROLE_KEY = JWT with at least SELECT on
- *                                supabase_migrations.schema_migrations
+ * Auth (X19a — Management API):
+ *   SUPABASE_PROJECT_REF             = e.g. clizuqvtkekzxiflbsyr
+ *   SUPABASE_PERSONAL_ACCESS_TOKEN   = PAT bearer for the Supabase Management
+ *                                      API (https://api.supabase.com).
  *
- * Per docs/audit-prep/x19-schema-drift-analysis.md §2.
+ * X19 originally targeted PostgREST /rest/v1/schema_migrations with a
+ * service_role JWT + Accept-Profile header, but the internal
+ * `supabase_migrations` schema is not exposed via PostgREST by default and
+ * the JWT cannot route to it (401). X19a swaps to the canonical Management
+ * API endpoint GET /v1/projects/{ref}/database/migrations, which is the
+ * documented path for reading the migration registry.
+ *
+ * Per docs/audit-prep/x19-schema-drift-analysis.md §2, X19a close-out.
  */
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readdirSync, writeFileSync } from 'node:fs';
 
 interface RegistryRow {
   version: string;
@@ -36,37 +42,41 @@ interface DriftReport {
 }
 
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const PAT = process.env.SUPABASE_PERSONAL_ACCESS_TOKEN;
 const REPORT_PATH = process.env.DRIFT_REPORT_PATH ?? '/tmp/drift-report.json';
 const MIGRATIONS_DIR =
   process.env.MIGRATIONS_DIR ?? 'supabase/migrations';
+const MGMT_API_BASE =
+  process.env.SUPABASE_MGMT_API_BASE ?? 'https://api.supabase.com';
 
-if (!PROJECT_REF || !SERVICE_KEY) {
+if (!PROJECT_REF || !PAT) {
   console.error(
-    'X19 drift check: SUPABASE_PROJECT_REF and SUPABASE_SERVICE_ROLE_KEY required.',
+    'X19 drift check: SUPABASE_PROJECT_REF and SUPABASE_PERSONAL_ACCESS_TOKEN required.',
   );
   process.exit(2);
 }
 
 async function fetchRegistry(): Promise<RegistryRow[]> {
-  // PostgREST: GET /rest/v1/schema_migrations?select=version,name
-  // schema_migrations lives in the `supabase_migrations` schema; route via
-  // the Accept-Profile header.
-  const url = `https://${PROJECT_REF}.supabase.co/rest/v1/schema_migrations?select=version,name`;
+  // Supabase Management API: GET /v1/projects/{ref}/database/migrations
+  // Returns the applied-migration registry (the rows backing
+  // supabase_migrations.schema_migrations) without needing PostgREST
+  // exposure of the internal schema.
+  const url = `${MGMT_API_BASE}/v1/projects/${PROJECT_REF}/database/migrations`;
   const res = await fetch(url, {
-    headers: {
-      apikey: SERVICE_KEY!,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-      'Accept-Profile': 'supabase_migrations',
-    },
+    headers: { Authorization: `Bearer ${PAT}` },
   });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(
-      `Registry fetch failed: ${res.status} ${res.statusText} — ${body.slice(0, 200)}`,
+      `Management API ${res.status} ${res.statusText} — ${body.slice(0, 200)}`,
     );
   }
-  return (await res.json()) as RegistryRow[];
+  const payload = (await res.json()) as
+    | RegistryRow[]
+    | { migrations: RegistryRow[] };
+  // Be tolerant of either a bare array or a `{ migrations: [...] }` envelope —
+  // the wire shape is the same field set used downstream either way.
+  return Array.isArray(payload) ? payload : payload.migrations;
 }
 
 function listMigrationFiles(): string[] {
