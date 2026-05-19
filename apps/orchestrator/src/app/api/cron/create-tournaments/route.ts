@@ -3,7 +3,7 @@
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` when hitting
 // the endpoint. Local/manual triggers must include the same header to pass.
 
-import { runCreateTournaments } from "@skillos/duel-backend";
+import { runCreateTournaments, withAlert } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // up to 6 games × daily + 6 × weekly = 12 txs worst case
@@ -26,7 +26,7 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
   try {
-    const result = await runCreateTournaments();
+    const result = await withAlert("create-tournaments", runCreateTournaments)();
     return Response.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";

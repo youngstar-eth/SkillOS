@@ -10,7 +10,7 @@
 // Decisions are logged but no DB or on-chain mutations occur. Used on
 // first deploy to validate sweep behavior before flipping to live action.
 
-import { runReconcileDuels } from "@skillos/duel-backend";
+import { runReconcileDuels, withAlert } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 // Reconcile may broadcast settle() txs for stuck Accepted-with-both-scores
@@ -44,9 +44,9 @@ export async function GET(req: Request): Promise<Response> {
     dryRunParam === "yes" ||
     undefined; // undefined → fall through to DRY_RUN env-var inside runner
   try {
-    const result = await runReconcileDuels(
-      dryRun === true ? { dryRun: true } : {},
-    );
+    const result = await withAlert("reconcile-duels", () =>
+      runReconcileDuels(dryRun === true ? { dryRun: true } : {}),
+    )();
     return Response.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";

@@ -19,6 +19,7 @@ export * from "./cron/sponsors";
 export * from "./cron/reconcile-duels";
 export * from "./cron/index-tournaments-created";
 export * from "./cron/ratings";
+export * from "./lib/alert";
 export * from "./api/sponsor/contributions";
 export * from "./api/sponsor/tournament-sponsors";
 export * from "./api/sponsor/tournament-list";

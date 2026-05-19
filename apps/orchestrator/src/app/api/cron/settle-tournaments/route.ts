@@ -5,7 +5,7 @@
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` when hitting
 // the endpoint. Local/manual triggers must include the same header to pass.
 
-import { runSettleTournaments } from "@skillos/duel-backend";
+import { runSettleTournaments, withAlert } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // batch settles can stack up after a deploy
@@ -26,7 +26,7 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
   try {
-    const result = await runSettleTournaments();
+    const result = await withAlert("settle-tournaments", runSettleTournaments)();
     return Response.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";

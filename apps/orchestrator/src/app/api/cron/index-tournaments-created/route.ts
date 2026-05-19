@@ -11,7 +11,7 @@
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` automatically.
 // Local/manual triggers must include the same header.
 
-import { runIndexTournamentsCreated } from "@skillos/duel-backend";
+import { runIndexTournamentsCreated, withAlert } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // RPC getLogs over a small window is fast
@@ -31,7 +31,10 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
   try {
-    const result = await runIndexTournamentsCreated();
+    const result = await withAlert(
+      "index-tournaments-created",
+      runIndexTournamentsCreated,
+    )();
     return Response.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";

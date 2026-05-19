@@ -35,6 +35,7 @@ import {
   hashSnapshot,
   type UserStatsRow,
 } from "@skillos/sp-engine";
+import { sendAlert } from "@skillos/duel-backend";
 import {
   getPublicClient,
   getSupabaseService,
@@ -150,6 +151,9 @@ export async function GET(req: Request): Promise<Response> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     console.error("[cron anchor-sp-snapshot] fatal", err);
+    // Inline alert (not withAlert HOF) — this route has inline logic rather
+    // than a single runX() call to wrap. Same dedup behavior via the table.
+    await sendAlert({ cron: "anchor-sp-snapshot", error: err });
     return Response.json({ ok: false, error: message }, { status: 500 });
   }
 }

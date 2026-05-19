@@ -11,7 +11,7 @@
 // hitting the endpoint. Local/manual triggers must include the same
 // header to pass.
 
-import { runUpdateRatings } from "@skillos/duel-backend";
+import { runUpdateRatings, withAlert } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,7 +31,7 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("Unauthorized", { status: 401 });
   }
   try {
-    const result = await runUpdateRatings();
+    const result = await withAlert("update-ratings", runUpdateRatings)();
     return Response.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
