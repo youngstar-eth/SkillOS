@@ -31,7 +31,7 @@ import { getWalletClient } from '../lib/contracts-vendored/wallet-client.js';
 import { dataSuffixForGame, type KnownGame } from '../lib/games.js';
 import { ApiError } from '../middleware/errorEnvelope.js';
 import { requireSiwaAuth } from '../middleware/agent-auth.js';
-import { check as rateLimit } from '../lib/rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 export const agentRoutes = new OpenAPIHono();
 
@@ -64,7 +64,7 @@ const submitRoute = createRoute({
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
     429: {
-      description: 'Rate limit exceeded (60/min per agent address)',
+      description: 'Rate limit exceeded (30/min per agent address, Upstash-backed)',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
   },
@@ -75,11 +75,9 @@ agentRoutes.openapi(submitRoute, async (c) => {
   const agent = c.get('agent');
   const agentAddress = agent.address as Address;
 
-  const limited = rateLimit(`agent-scores:${agentAddress.toLowerCase()}`);
-  if (!limited.allowed) {
-    c.header('X-RateLimit-Reset', String(Math.floor(limited.resetAt / 1000)));
-    throw new ApiError(429, 'RATE_LIMITED', 'Per-agent rate limit exceeded (60/min)');
-  }
+  // X15.5: Upstash submit bucket (shared with /v1/scores), 30 req/min per
+  // agent. rateLimit throws 429 and sets X-RateLimit-* headers itself.
+  await rateLimit('submit', agentAddress.toLowerCase(), c);
 
   const body = c.req.valid('json');
   if (body.tier !== 'T0') {
