@@ -68,10 +68,11 @@ jobs:
         run: npm ci
       - name: Run TS tests (node:test via tsx)
         # Direct invocation matches the local developer pattern — no
-        # turbo `test` task defined. 18 test files: 9 in duel-backend
+        # turbo `test` task defined. 19 test files: 9 in duel-backend
         # (incl. X23.2 cron-ratings + X20.1 F0 submit gate), 2 in sp-engine, 1 in ui
-        # (pure-helper test, no RTL setup), 2 in apps/api (X10
-        # server-side dataSuffix attribution + X23.3 rating endpoints),
+        # (pure-helper test, no RTL setup), 3 in apps/api (X10
+        # server-side dataSuffix attribution, X23.3 rating endpoints,
+        # X15.5 Upstash rate-limit wiring),
         # 1 in packages/contracts (X10b canonical Builder Code surface),
         # 1 in packages/glicko-rating (X23.1 wrapper determinism),
         # 1 in packages/anti-cheat (X20.0b F0 plausibility formula).
@@ -97,7 +98,8 @@ jobs:
             packages/glicko-rating/test/update.test.ts \
             packages/anti-cheat/test/formula.test.ts \
             apps/api/test/games.test.ts \
-            apps/api/test/ratings.test.ts
+            apps/api/test/ratings.test.ts \
+            apps/api/test/rate-limit.test.ts
 
   # Status check name: test-foundry
   test-foundry:

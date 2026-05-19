@@ -29,7 +29,7 @@ import { getPublicClient } from '../lib/viem.js';
 import { getSupabaseClient } from '../lib/supabase.js';
 import { ApiError } from '../middleware/errorEnvelope.js';
 import { requireBearer } from '../middleware/bearer.js';
-import { check as rateLimit } from '../lib/rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 type ScoreSubmittedRow = {
   args: {
@@ -175,7 +175,7 @@ const submitRoute = createRoute({
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
     429: {
-      description: 'Rate limit exceeded (60/min per wallet)',
+      description: 'Rate limit exceeded (30/min per wallet, Upstash-backed)',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
   },
@@ -185,15 +185,9 @@ scoreRoutes.use('/v1/scores', requireBearer());
 scoreRoutes.openapi(submitRoute, async (c) => {
   const wallet = c.get('walletAddress');
 
-  const limited = rateLimit(`scores:${wallet.toLowerCase()}`);
-  if (!limited.allowed) {
-    c.header('X-RateLimit-Reset', String(Math.floor(limited.resetAt / 1000)));
-    throw new ApiError(
-      400,
-      'RATE_LIMITED',
-      'Per-wallet rate limit exceeded (60 requests/minute)',
-    );
-  }
+  // X15.5: Upstash-backed submit bucket, 30 req/min per wallet. Throws 429
+  // on rejection (rateLimit sets X-RateLimit-* response headers itself).
+  await rateLimit('submit', wallet.toLowerCase(), c);
 
   const body = c.req.valid('json');
 

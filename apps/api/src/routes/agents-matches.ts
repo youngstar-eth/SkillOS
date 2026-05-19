@@ -24,7 +24,7 @@ import {
   SoloMatchStartRequestSchema,
   SoloMatchStartResponseSchema,
 } from '../schemas/duels.js';
-import { check as rateLimit } from '../lib/rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 import { TOURNAMENT_POOL_ABI } from '../lib/contracts-vendored/abi.js';
 import { TOURNAMENT_POOL_V21_ADDRESS } from '../lib/contracts-vendored/addresses.js';
 import { chargeRetryFeeIfRequired } from '../lib/duel/charge-retry-fee.js';
@@ -69,7 +69,7 @@ const startSoloRoute = createRoute({
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
     429: {
-      description: 'Rate-limit exceeded (60/min per authenticated agent)',
+      description: 'Rate-limit exceeded (30/min per authenticated agent, Upstash-backed)',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
     502: {
@@ -86,15 +86,9 @@ agentMatchesRoutes.use('/v1/agents/matches/*', requireSiwaAuth());
 agentMatchesRoutes.openapi(startSoloRoute, async (c) => {
   const agent = c.get('agent');
   const agentKey = agent.address.toLowerCase();
-  const limited = rateLimit(`agent-matches-start-solo:${agentKey}`);
-  if (!limited.allowed) {
-    c.header('X-RateLimit-Reset', String(Math.floor(limited.resetAt / 1000)));
-    throw new ApiError(
-      429,
-      'RATE_LIMITED',
-      'Per-agent rate limit exceeded — wait before triggering another match.',
-    );
-  }
+  // X15.5: Upstash submit bucket (shared with /v1/scores + /v1/agents/scores),
+  // 30 req/min per agent. rateLimit throws 429 and sets X-RateLimit-* headers.
+  await rateLimit('submit', agentKey, c);
 
   const body = c.req.valid('json');
 
