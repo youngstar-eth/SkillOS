@@ -32,6 +32,7 @@
 
 import Link from "next/link";
 import React from "react";
+import { BuilderMark } from "./BuilderMark";
 
 export type SoloResultCardProps = {
   /** Score from the run that just ended; may be null on localStorage replay. */
@@ -55,6 +56,13 @@ export type SoloResultCardProps = {
   /** Where "View tournament" links to. Defaults to "/tournament". */
   tournamentHref?: string;
 
+  /**
+   * F4 — game slug for <BuilderMark/>. When provided, renders a "Built on
+   * SkillOS · bc_xxx ↗" footer with a BaseScan link to the per-game builder
+   * code (X10/X10b attribution). Omit to hide the mark (e.g., dev pages).
+   */
+  game?: string;
+
   /** Per-app slot for the AI-reviewed badge. */
   aiReviewedBadge: React.ReactNode;
   /** Per-app slot for the SP-earned card. */
@@ -75,6 +83,7 @@ export const SoloResultCard: React.FC<SoloResultCardProps> = ({
   onPlayAgain,
   walletBusy,
   tournamentHref = "/tournament",
+  game,
   aiReviewedBadge,
   spEarnedCard,
   aiRecap,
@@ -121,6 +130,7 @@ export const SoloResultCard: React.FC<SoloResultCardProps> = ({
             View tournament
           </Link>
         </div>
+        {game && <BuilderMark game={game} variant="footer" />}
       </div>
       {spEarnedCard}
       {aiRecap}

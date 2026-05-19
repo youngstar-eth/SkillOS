@@ -72,6 +72,30 @@ export const ERC20_APPROVE_ABI = [
   },
 ] as const;
 
+// ─── Builder Code registry ────────────────────────────────────────────────
+//
+// Canonical map of game slug → Builder Code per `[[project_builder_code_strategy]]`
+// (one wallet per game, Phase-2 dev-fee-split-driven; do not collapse to a
+// shared platform code). These mirror the literals wired into each app's
+// SkillOSProvider in `apps/<game>/src/app/layout.tsx` — when minting a new
+// game's wallet, update BOTH sites in one commit so the on-chain attribution
+// flow (`dataSuffix` from layout.tsx) and the display flow (BuilderMark
+// reading this map) stay in lockstep.
+//
+// `sponsor` is the cross-game sponsor dashboard; included for completeness
+// even though its surfaces do not currently render the BuilderMark.
+export const BUILDER_CODES = {
+  "2048": "bc_o6szuvg1",
+  wordle: "bc_l0drfg77",
+  sudoku: "bc_ixx8hzql",
+  minesweeper: "bc_6gsgkv5q",
+  clicker: "bc_m59xxykm",
+  match3: "bc_iqoz78rc",
+  sponsor: "bc_2hg1v71w",
+} as const satisfies Record<string, `bc_${string}`>;
+
+export type BuilderCodeGame = keyof typeof BUILDER_CODES;
+
 // Convert a Builder Code like "bc_o6szuvg1" into the `0x`-prefixed hex bytes
 // that wagmi `writeContract`'s `dataSuffix` param expects. Returns undefined
 // for falsy inputs so consumers can spread it conditionally.

@@ -12,7 +12,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
-import { truncateAddress } from "@skillos/ui";
+import {
+  ExclusionTooltip,
+  TournamentClassPill,
+  truncateAddress,
+} from "@skillos/ui";
 
 const GAME = "wordle";
 const GAME_DISPLAY = "Wordle";
@@ -70,6 +74,7 @@ type Tournament = {
   settledAt: string | null;
   settleTxHash: string | null;
   entryCount: number;
+  tournamentClass: "human-only" | "agent-only" | "mixed-declared";
 };
 
 type LeaderboardEntry = {
@@ -79,6 +84,7 @@ type LeaderboardEntry = {
   matchCount: number;
   effectiveRankScore: string;
   excluded: boolean;
+  excludedReason: string | null;
   prizeWonUsdc: string | null;
   prizeTxHash: string | null;
   level: number | null;
@@ -254,6 +260,9 @@ function TournamentSection({ tournament }: { tournament: Tournament }) {
           <h2 className="mt-1 text-xl font-semibold tracking-tight">
             {title} {GAME_DISPLAY} Tournament
           </h2>
+          <div className="mt-2">
+            <TournamentClassPill tournamentClass={tournament.tournamentClass} />
+          </div>
         </div>
         <div className="rounded-lg border border-skill/40 bg-skill/5 px-3 py-2 text-right">
           <p className="text-[10px] uppercase tracking-wider text-neutral-400">
@@ -489,9 +498,7 @@ function Leaderboard({
               >
                 <td className="px-3 py-2 tabular-nums">
                   {e.excluded ? (
-                    <span className="text-[10px] uppercase text-red-400">
-                      excluded
-                    </span>
+                    <ExclusionTooltip reason={e.excludedReason} />
                   ) : (
                     `#${e.rank}`
                   )}

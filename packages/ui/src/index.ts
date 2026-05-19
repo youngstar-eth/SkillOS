@@ -32,6 +32,16 @@ export { useIsEmbedded } from "./useIsEmbedded";
 export { Header, type HeaderProps } from "./Header";
 export { SkillOSWordmark, type SkillOSWordmarkProps } from "./SkillOSWordmark";
 export { SoloResultCard, type SoloResultCardProps } from "./SoloResultCard";
+export {
+  TournamentClassPill,
+  type TournamentClassPillProps,
+} from "./TournamentClassPill";
+export {
+  ExclusionTooltip,
+  type ExclusionTooltipProps,
+  type ExclusionReason,
+} from "./ExclusionTooltip";
+export { BuilderMark, type BuilderMarkProps } from "./BuilderMark";
 export { useMiniAppReady } from "./useMiniAppReady";
 export { ReadyMarker } from "./ReadyMarker";
 export { EmbedWalletFallback } from "./EmbedWalletFallback";
