@@ -22,15 +22,15 @@ Apex tagline / phase-framing changes do **not** auto-propagate to SkillOS README
 - **Workspace:** npm 10.9.0 + workspaces (`apps/*`, `packages/*`); Node ≥ 20.0.0
 - **Build orchestration:** Turborepo 2.3.3 — `turbo.json` defines dev/build/lint/typecheck pipelines with `^build` topology between packages
 - **TypeScript:** 5.6.3, root `tsconfig.base.json` extended per-app/per-package
-- **Lint:** ESLint 8.57.1 + eslint-config-next 14.2.35 (note: Next 14 era — apex repo is on Next 16; **do not cross-pollinate config or codemods between repos**)
-- **Frontend:** Next.js App Router, each app deployed independently to its own Vercel project
-- **Smart contracts:** Foundry, Solidity 0.8.26, OpenZeppelin, optimizer 200 runs, no via_ir; remappings in `contracts/foundry.toml`
+- **Lint:** ESLint 8.57.1 + eslint-config-next 16.2.4 (root [`package.json`](./package.json)). Apex repo also on Next 16; **don't cross-pollinate config or codemods between repos** — Vercel project wiring and deploy configs still diverge.
+- **Frontend:** Next.js 16.2.4 App Router across all 8 monorepo apps (2048, wordle, sudoku, minesweeper, clicker, match3, sponsor, orchestrator — see [`apps/*/package.json`](./apps)); each deploys independently to its own Vercel project.
+- **Smart contracts:** Foundry, Solidity 0.8.26, OpenZeppelin, optimizer 200 runs. Dual-profile pipeline ([`contracts/foundry.toml`](./contracts/foundry.toml), [ADR 0002](./docs/adr/0002-dual-profile-pipeline-split.md)): `profile.default` uses `via_ir = true` (ChallengeEscrow + all Phase 2 deploys); `profile.phase1-legacy` uses `via_ir = false` for reproducing the five pre-X19a deployed bytecodes (TournamentPool v2.1, SponsorshipModule, SponsorReceiptSBT, MockSanctionsOracle, SkillbaseAnchor). Set `FOUNDRY_PROFILE=phase1-legacy` to switch profiles.
 - **Chain:** Base Sepolia (testnet), `https://sepolia.base.org`; mainnet migration is Phase 2-gated and audit-pending
 - **Database:** Supabase Postgres (migrations in `supabase/migrations/`, forward-only)
 - **Script runner:** tsx 4.21.0
 - **Dep overrides:** `axios@^1.15.0` forced across `@coinbase/cdp-sdk` + `axios-retry`
 
-**No CI today:** `.github/workflows/` does not exist. PR checks are honor-system; Phase 2 discipline transition adds required GitHub Actions (typecheck + lint + Foundry test gates) — see Engineering discipline below.
+**CI active:** [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs four required gates on every PR to `main` (and on `main` pushes for defense-in-depth): `typecheck`, `test-ts` (15 node:test files via tsx), `test-foundry` (`forge test -vvv` in `contracts/`), and `lint` (`next lint` per app). Vercel previews additionally deploy each PR per Vercel project (8 game/sponsor apps + apex). Direct-to-main is BANNED (see Engineering discipline below); PR review + green CI required before squash-merge.
 
 ## Structure
 
@@ -134,16 +134,18 @@ The shared-package fan-out concern is real either way: changes to `packages/ui/`
 
 ## Engineering discipline (Phase 2 transition)
 
-**Currently honor-system. Phase 2 transition introduces:**
+**Already in force:**
 
-- Direct-to-main BANNED — branch + PR + review mandatory
-- ADR docs (`docs/adr/`) for major decisions
-- Per-sprint drift sweep (30 dk audit committed)
-- Pre-commit hooks (husky + lint-staged: typecheck + secret scan)
-- Integration test expansion (extend settle-guard tripwire pattern)
-- Memory discipline: cross-cutting architectural deltas committed per-decision
+- **CI gate active** — [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) enforces 4 required checks (`typecheck`, `test-ts`, `test-foundry`, `lint`) on every PR to `main`. Branch protection requires CI green + PR approval before merge (solo-founder approval waiver per repo settings).
+- **Direct-to-main BANNED** — branch + PR + squash-merge mandatory.
+- **ADR docs** in [`docs/adr/`](./docs/adr/) for major decisions (see ADR 0002 for the Foundry dual-profile split).
+- **Memory discipline** — cross-cutting architectural deltas committed per-decision.
 
-**Currently NO CI** — no .github/workflows/. PR review is honor-system. Phase 2 discipline transition adds GitHub Actions for required typecheck + lint + Foundry test gates.
+**Phase 2 carry-forward (not yet in CI):**
+
+- Per-sprint drift sweep (30 dk audit committed) — manual today, candidate for `.github/workflows/` gate.
+- Pre-commit hooks (husky + lint-staged: typecheck + secret scan).
+- Integration test expansion (extend settle-guard tripwire pattern).
 
 ## Decision priority order
 
