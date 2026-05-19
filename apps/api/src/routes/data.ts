@@ -18,6 +18,7 @@ import {
   type CohortSnapshotResponse,
   type MatchReplayResponse,
 } from '../schemas/data.js';
+import { rateLimit, ipFromContext } from '../lib/rate-limit.js';
 
 export const dataRoutes = new OpenAPIHono();
 
@@ -76,10 +77,20 @@ const matchReplayRoute = createRoute({
       description: 'Invalid tournament id',
       content: { 'application/json': { schema: ErrorEnvelopeSchema } },
     },
+    429: {
+      description: 'Rate limit exceeded (100/hr per IP, Upstash-backed)',
+      content: { 'application/json': { schema: ErrorEnvelopeSchema } },
+    },
   },
 });
 
-dataRoutes.openapi(matchReplayRoute, (c) => {
+dataRoutes.openapi(matchReplayRoute, async (c) => {
+  // X15.5: Apply rate limit AFTER the global x402 middleware has verified
+  // payment (mounted in app.ts), so unpaid requests never burn the bucket.
+  // Identifier is client IP — the payer address isn't exposed by x402/hono
+  // to the handler context, and IP is the practical anti-scrape signal.
+  await rateLimit('x402', ipFromContext(c), c);
+
   const { id } = c.req.valid('param');
 
   const rand = PRNG_FROM_ID(id, 'match-replay');
@@ -141,6 +152,10 @@ const cohortSnapshotRoute = createRoute({
         'application/json': { schema: X402PaymentRequirementsSchema },
       },
     },
+    429: {
+      description: 'Rate limit exceeded (100/hr per IP, Upstash-backed)',
+      content: { 'application/json': { schema: ErrorEnvelopeSchema } },
+    },
   },
 });
 
@@ -164,7 +179,10 @@ const COHORT_SAMPLE: CohortSnapshotResponse = {
   sampleData: true,
 };
 
-dataRoutes.openapi(cohortSnapshotRoute, (c) => {
+dataRoutes.openapi(cohortSnapshotRoute, async (c) => {
+  // X15.5: Same as match-replay above — rate-limit AFTER x402 payment gate.
+  await rateLimit('x402', ipFromContext(c), c);
+
   c.header('X-SkillOS-Tier', 'T3');
   c.header('X-SkillOS-Verification', 'x402');
   return c.json(COHORT_SAMPLE, 200);

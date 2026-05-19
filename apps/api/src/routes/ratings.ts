@@ -6,10 +6,10 @@
 //
 // Pattern conventions match apps/api/src/routes/scores.ts:
 //   - decodeIndexCursor/encodeIndexCursor opaque cursor (lib/pagination.ts)
-//   - check() rate-limit (60 req/min/key — module-level constant in lib/rate-limit.ts)
-//     SPEC §E.3 suggests 60–120/min per endpoint; the existing lib uses 60/min for
-//     all keys, which satisfies the lower bound. Bumping to per-endpoint limits is
-//     a lib refactor with cross-cutting blast radius — deferred to Phase 2 polish.
+//   - rateLimit('read', …) — Upstash-backed sliding window, 60 req/min per IP
+//     (X15.5; matches SPEC §E.3 lower bound). Per-endpoint scope encoded in
+//     the rateLimitKey suffix so each rating endpoint gets its own counter
+//     namespace even though they share the bucket configuration.
 //   - getSupabaseClient() service-role read (bypasses RLS; anon SELECT policy
 //     exists at DB level too for SDK / external direct-Supabase consumers)
 
@@ -18,7 +18,7 @@ import {
   decodeIndexCursor,
   encodeIndexCursor,
 } from '../lib/pagination.js';
-import { check as rateLimit } from '../lib/rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 import { getSupabaseClient } from '../lib/supabase.js';
 import { ApiError } from '../middleware/errorEnvelope.js';
 import {
@@ -140,27 +140,23 @@ export function paginateRows<T>(
   };
 }
 
-// IP-based rate-limit key for public read endpoints. Vercel functions forward
-// the client IP via x-forwarded-for; first comma-token is the originating
-// client (subsequent tokens are upstream proxies).
-function rateLimitKey(c: { req: { header: (k: string) => string | undefined } }, scope: string): string {
+// IP-based rate-limit identifier for public read endpoints. The Vercel
+// runtime forwards the client IP via x-forwarded-for (first comma-token =
+// originating client; subsequent tokens = upstream proxies). The per-scope
+// suffix gives each endpoint its own counter namespace inside the shared
+// 'read' bucket.
+import type { Context } from 'hono';
+
+function rateLimitKey(c: Context, scope: string): string {
   const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon';
   return `ratings:${scope}:${ip}`;
 }
 
-function enforceRateLimit(
-  c: { req: { header: (k: string) => string | undefined }; header: (k: string, v: string) => void },
-  scope: string,
-): void {
-  const result = rateLimit(rateLimitKey(c, scope));
-  if (!result.allowed) {
-    c.header('X-RateLimit-Reset', String(Math.floor(result.resetAt / 1000)));
-    throw new ApiError(
-      400,
-      'RATE_LIMITED',
-      'Per-IP rate limit exceeded (60 requests/minute)',
-    );
-  }
+async function enforceRateLimit(c: Context, scope: string): Promise<void> {
+  // X15.5: pre-existing drift fixed inline — the in-memory limiter threw 400
+  // for rate-limited reads even though the OpenAPI doc declared 429. The
+  // Upstash-backed rateLimit() throws 429 natively.
+  await rateLimit('read', rateLimitKey(c, scope), c);
 }
 
 // Route registration order matters: the leaderboard route's static path
@@ -198,7 +194,7 @@ const leaderboardRoute = createRoute({
 });
 
 ratingRoutes.openapi(leaderboardRoute, async (c) => {
-  enforceRateLimit(c, 'leaderboard');
+  await enforceRateLimit(c, 'leaderboard');
   const { game, class: classFilter, cursor, limit } = c.req.valid('query');
 
   const start = decodeIndexCursor(cursor) ?? 0;
@@ -268,7 +264,7 @@ const ratingsRoute = createRoute({
 });
 
 ratingRoutes.openapi(ratingsRoute, async (c) => {
-  enforceRateLimit(c, 'wallet');
+  await enforceRateLimit(c, 'wallet');
   const { wallet } = c.req.valid('param');
 
   const supabase = getSupabaseClient();
@@ -319,7 +315,7 @@ const historyRoute = createRoute({
 });
 
 ratingRoutes.openapi(historyRoute, async (c) => {
-  enforceRateLimit(c, 'history');
+  await enforceRateLimit(c, 'history');
   const { wallet } = c.req.valid('param');
   const { game, class: classFilter, cursor, limit } = c.req.valid('query');
 
