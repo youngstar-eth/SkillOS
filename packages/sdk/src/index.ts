@@ -48,10 +48,12 @@ export {
 } from './agent.js';
 
 export {
+  BUILDER_CODES,
   builderCodeToDataSuffix,
   ERC20_APPROVE_ABI,
   getChainAddresses,
   SPONSORSHIP_MODULE_ABI,
   usdcAtoms,
+  type BuilderCodeGame,
   type ChainAddresses,
 } from './contracts.js';

@@ -83,6 +83,13 @@ interface LeaderboardEntryDTO {
   matchCount: number;
   effectiveRankScore: string;
   excluded: boolean;
+  /**
+   * X14.0b — when `excluded` is true, the reason string written by the
+   * settle cron. One of `class_mismatch_settle_exclusion` /
+   * `anticheat_implausible` / `pending_review` / null (legacy rows). UI
+   * renders this via <ExclusionTooltip> so the row dim has explainable copy.
+   */
+  excludedReason: string | null;
   prizeWonUsdc: string | null;
   prizeTxHash: string | null;
   /**
@@ -292,6 +299,7 @@ export function createTournamentDetailHandler(config: TournamentReadHandlerConfi
         matchCount: Number(entry.match_count),
         effectiveRankScore: String(entry.effective_rank_score),
         excluded,
+        excludedReason: (entry.excluded_reason as string | null) ?? null,
         prizeWonUsdc:
           entry.prize_won_usdc != null ? String(entry.prize_won_usdc) : null,
         prizeTxHash: (entry.prize_tx_hash as string | null) ?? null,

@@ -8,7 +8,11 @@ import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { AddressDisplay } from "@skillos/ui";
+import {
+  AddressDisplay,
+  ExclusionTooltip,
+  TournamentClassPill,
+} from "@skillos/ui";
 
 type Tournament = {
   id: string;
@@ -24,6 +28,7 @@ type Tournament = {
   settledAt: string | null;
   settleTxHash: string | null;
   entryCount: number;
+  tournamentClass: "human-only" | "agent-only" | "mixed-declared";
 };
 
 type LeaderboardEntry = {
@@ -33,6 +38,7 @@ type LeaderboardEntry = {
   matchCount: number;
   effectiveRankScore: string;
   excluded: boolean;
+  excludedReason: string | null;
   prizeWonUsdc: string | null;
 };
 
@@ -96,6 +102,9 @@ export default function TournamentDetailPage(
             {tournament.cycleType === "daily" ? "Daily" : "Weekly"}{" "}
             {tournament.game} Tournament
           </h1>
+          <div className="mt-2">
+            <TournamentClassPill tournamentClass={tournament.tournamentClass} />
+          </div>
           <p className="mt-1 text-xs text-neutral-500">
             {new Date(tournament.startsAt).toLocaleString()} —{" "}
             {new Date(tournament.endsAt).toLocaleString()}
@@ -150,9 +159,7 @@ export default function TournamentDetailPage(
                       >
                         <td className="px-3 py-2 tabular-nums">
                           {e.excluded ? (
-                            <span className="text-[10px] uppercase text-red-400">
-                              excluded
-                            </span>
+                            <ExclusionTooltip reason={e.excludedReason} />
                           ) : (
                             `#${e.rank}`
                           )}

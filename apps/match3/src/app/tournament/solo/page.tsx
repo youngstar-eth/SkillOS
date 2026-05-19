@@ -25,6 +25,7 @@ import {
   PopupHint,
   SoloResultCard,
   Timer,
+  TournamentClassPill,
   evaluateExtensionProfile,
   useIsEmbedded,
   useSoloRetry,
@@ -232,7 +233,13 @@ export default function SoloPage() {
           <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
             Solo · {tournament.cycleType}
           </p>
-          <p className="font-mono text-[10px] text-neutral-500">
+          <div className="mt-0.5 flex justify-center">
+            <TournamentClassPill
+              tournamentClass={tournament.tournamentClass}
+              size="xs"
+            />
+          </div>
+          <p className="mt-0.5 font-mono text-[10px] text-neutral-500">
             closes in {countdown}
           </p>
         </div>
@@ -357,6 +364,7 @@ export default function SoloPage() {
               isPaidRetry={result.isPaidRetry}
               onPlayAgain={handlePlayAgain}
               walletBusy={walletBusy}
+              game={GAME}
               aiReviewedBadge={
                 <AIReviewedBadge matchId={result.soloRunId} context="solo" />
               }
