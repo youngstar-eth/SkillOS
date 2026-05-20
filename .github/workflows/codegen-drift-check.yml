@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────────────────
+# SkillOS — X24.3 Codegen drift detector (Codegen Discipline 3/4).
+#
+# Fires on every PR that touches the API source (apps/api/**) or the SDK
+# (packages/sdk/**). Regenerates packages/sdk/src/api.gen.ts from the PR's
+# OWN OpenAPI spec and fails the job if the committed file drifts.
+#
+# ─── Why in-process emit, not live prod fetch ────────────────────────────
+# packages/sdk/scripts/generate-types.ts defaults to fetching the LIVE prod
+# spec (https://api.skillos.network/openapi.json). Diffing against prod would
+# answer the wrong question ("does committed SDK match DEPLOYED prod?") and
+# false-red whenever the repo legitimately leads prod (a PR that adds an
+# endpoint + regens correctly would fail because prod hasn't deployed it yet).
+#
+# Instead we emit the spec IN-PROCESS from the PR's own apps/api (reusing the
+# apps/api/scripts/x23-3-openapi-delta.ts pattern: import the Hono app, call
+# app.request('/openapi.json') with dummy env — no dev server, no network,
+# no DB) and point generate-types at that file:// URL. This scopes the guard
+# to same-commit spec↔SDK consistency — exactly the X24.3 intent: "did this
+# PR change the API surface but skip the SDK regen?"
+#
+# ─── Layered defense (CLAUDE.md ## Tooling layered defense) ───────────────
+# - X24.2 (.husky/pre-commit): commit-time, mainline-activated only
+# - X24.3 (this workflow):     PR-time, server-side, regardless of worktree
+# - X24.4 ADR (next):          policy documentation layer
+#
+# If any single layer fails (e.g. the hook can't fire from a linked
+# worktree), the others maintain enforcement. Defense in depth.
+#
+# Security note: no user-controlled input (PR titles/bodies, branch names,
+# commit messages) is interpolated into any run: shell. Only GitHub-internal
+# metadata is used, and only in the concurrency group key — never in a shell
+# context. See the injection-hardening reference cited in ci.yml.
+# ─────────────────────────────────────────────────────────────────────────
+
+name: Codegen Drift Check
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'packages/sdk/**'
+      - '.github/workflows/codegen-drift-check.yml'
+  # Ad-hoc verification.
+  workflow_dispatch:
+
+concurrency:
+  group: codegen-drift-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codegen-drift:
+    name: codegen-drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node 20 mirrors the package.json engines floor + Vercel runtime,
+          # matching ci.yml and schema-drift-check.yml. (No .nvmrc in repo.)
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Emit OpenAPI spec in-process from PR's apps/api
+        run: npx tsx apps/api/scripts/emit-openapi.ts "${RUNNER_TEMP}/openapi.spec.json"
+
+      - name: Regenerate SDK types from PR spec
+        env:
+          SKILLOS_OPENAPI_URL: file://${{ runner.temp }}/openapi.spec.json
+        run: npm run generate-types --workspace @skillos/sdk
+
+      - name: Check for uncommitted regen drift
+        run: |
+          if ! git diff --exit-code packages/sdk/src/api.gen.ts; then
+            echo ""
+            echo "🚫 Codegen drift detected: packages/sdk/src/api.gen.ts changed after regen."
+            echo ""
+            echo "The committed SDK types do not match the OpenAPI spec emitted from this"
+            echo "PR's apps/api source. This means one of:"
+            echo "  1. apps/api schemas/routes changed but the SDK regen step was skipped"
+            echo "  2. api.gen.ts was hand-edited (banned per X24.2 hook + X24.4 ADR)"
+            echo ""
+            echo "Fix:"
+            echo "  npm run generate-types --workspace @skillos/sdk   # against your local API"
+            echo "  git add packages/sdk/src/api.gen.ts"
+            echo "  git commit -m 'chore: regen SDK types'"
+            echo "  git push"
+            echo ""
+            echo "(Local regen fetches live prod by default; set SKILLOS_OPENAPI_URL to your"
+            echo " local dev API, or emit in-process: npx tsx apps/api/scripts/emit-openapi.ts)"
+            echo ""
+            echo "Reference:"
+            echo "  - X24.3 CI guard (this workflow)"
+            echo "  - X24.2 pre-commit hook (.husky/pre-commit)"
+            echo "  - v1.8 §3.28 v1.8-P1 (X14.0 SDK catch-up gap canonical instance)"
+            echo ""
+            exit 1
+          fi
+          echo "✓ packages/sdk/src/api.gen.ts matches the in-process regen. No drift."
