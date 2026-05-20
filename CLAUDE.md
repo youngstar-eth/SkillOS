@@ -147,6 +147,128 @@ The shared-package fan-out concern is real either way: changes to `packages/ui/`
 - Pre-commit hooks (husky + lint-staged: typecheck + secret scan).
 - Integration test expansion (extend settle-guard tripwire pattern).
 
+## Pre-flight gates (MANDATORY for production-state operations)
+
+This repo enforces the §2.10 Triangulation Budget invariant (canonical in
+[`docs/architecture/supplements/architecture-doc-supplement-v1.8.md`](./docs/architecture/supplements/architecture-doc-supplement-v1.8.md) §2.10).
+
+> *"For decisions touching production state, sprint dispatch must declare
+> ≥2 verification surfaces. Single-surface decisions are permitted only for
+> non-production state changes. Multi-surface triangulation is enforced at
+> scoping, not at recovery."*
+
+### When this applies
+
+- Any sprint that modifies `main` branch, contracts, or deploy artifacts
+- Any sprint touching production runtime (Vercel, Supabase, on-chain Base)
+- Any sprint with cross-worktree implications
+- Any sprint reading or modifying generated artifacts (`*.gen.ts`)
+- Any sprint where state assumptions cross multiple commands
+- Branch creation, commit, push, PR open, merge operations
+
+### When this does NOT apply
+
+- Pure documentation read-only review
+- Single-file artifact creation in isolated /tmp scratch work
+- Conversational exploration without commit intent
+- Founder explicit bypass: "single-surface OK because [reason]"
+
+### Template structure (paste into agent prompts)
+
+Every agent dispatch prompt for production-state work MUST begin with:
+
+````
+## Pre-flight gates (BEFORE any write)
+
+State assumptions:
+- [List each implicit assumption explicitly]
+- Example: Working tree on `main`, clean
+- Example: File X exists at path Y with property Z
+- Example: Production at api.skillos.network serves endpoint W
+
+Verification commands:
+
+```bash
+# 1. <verify assumption 1>
+<command>
+# Expect: <output>
+
+# 2. <verify assumption 2>
+<command>
+# Expect: <output>
+```
+
+STOP CONDITIONS:
+- Any verification output diverges from expected
+- Any cross-surface mismatch (memory vs repo vs runtime)
+- Any pre-existing state would be silently overwritten
+
+→ STOP and surface to founder with divergence detail.
+→ DO NOT proceed under uncertainty.
+````
+
+### Surface categories (canonical)
+
+The Triangulation Budget invariant defines three verification surfaces:
+
+1. **Memory** — claude.ai project memory entries, supplement files, prior
+   chat context, sprint notes
+2. **Repo** — git state, on-disk file contents, file structure, branch
+   positions, hash blobs
+3. **Runtime** — production API behavior, deployed contracts, live database
+   state, observable system behavior
+
+For each assumption, identify which surface(s) verify it. A single-surface
+decision touching production state is a §2.10 violation.
+
+### Worktree isolation default
+
+Per §3.22 pattern lock θ (shared checkout race) + v1.8-S3 (workspace
+concurrency surface):
+
+- Default: agent dispatch operates in ISOLATED git worktree, NOT shared
+  `/Users/inancayvaz/MAS` mainline
+- Create isolated worktree: `git worktree add ../MAS-<sprint> -b chore/<sprint> main`
+- DO NOT run `git checkout -b` on shared mainline — yanks other agents off `main`
+- Mainline reserved for active code-reading and final pulls
+
+### Bypass cases
+
+When the §2.10 rule is overly conservative for a small change, the founder
+may explicitly bypass with phrasing like:
+
+> "single-surface OK for this prompt because [reason]"
+
+This bypass is logged in the next supplement's §3.28 drift catalog under
+D-class (doc/discipline drift) for retrospective audit.
+
+### Tooling layered defense
+
+Pre-flight gates are the FIRST line of defense (planning time). Repo also
+enforces layered defenses:
+
+- **`.husky/pre-commit` hook** (X24.2): last line at commit time, mainline-
+  activated only (worktree linked-checkouts cannot fire pre-merge)
+- **CI guards** (X24.3): first line at PR time, server-side enforcement
+  regardless of local hooks
+- **ADRs** (X24.4): explicit documentation layer for policy-level decisions
+
+If any single layer fails (e.g., hook activation lifecycle constraint), the
+other layers maintain enforcement. Defense in depth = audit-firm requirement.
+
+### Examples from v1.8 thread (canonical instances)
+
+- **v1.8-C1** PR #121 vs #130 X14.0 confusion — caught by triangulation
+  (memory + git log + commit content)
+- **v1.8-C3** §2.13 vs §2.10 numbering slip — caught by pre-draft Gate 4
+  triangulation. Self-demonstrating: the invariant caught its own naming.
+- **v1.8-S2** 3-worktree X14.0 hand-edit — caught by forensic ownership
+- **v1.8-S3** 40+ concurrent agent shared mainline — caught at X24.2 Q2
+
+See [`docs/architecture/supplements/architecture-doc-supplement-v1.8.md`](./docs/architecture/supplements/architecture-doc-supplement-v1.8.md)
+§3.28 for full drift catalog (8 instances + 8 v1.9 candidates from X24.1-2
+thread).
+
 ## Decision priority order
 
 1. **Sweepstakes safety > everything.** If a change risks the invariant, stop and discuss.
