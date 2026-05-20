@@ -512,8 +512,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Submit a score (T0 tier — signature-only, no plausibility)
-         * @description Bearer-authenticated. Server signs a submitSoloScore attestation with STUDIO_PRIVATE_KEY and broadcasts on-chain (fire-and-forget; tx hash returned before block inclusion). Sprint X2 ships T0-only; T1+ submissions return 501 until plausibility pipeline is integrated (Phase 2 mainnet blocker). Game-app frontends should continue using their own per-game /api/tournaments/[id]/solo backends, which run AI plausibility checks.
+         * Submit a score (T0 signature-only or T1+ class-enforced agent submit)
+         * @description Bearer-authenticated. Server signs a submitSoloScore attestation with STUDIO_PRIVATE_KEY and broadcasts on-chain (fire-and-forget; tx hash returned before block inclusion). T0 is signature-only (no plausibility, no DB persistence). T1+ (X14.0) lifts the prior 501 mainnet-blocker by enforcing tournament-class declaration off-chain (supplement v1.5 §3.16) and persisting the run to v2_tournament_solo_runs with class_tag=agent. Game-app frontends continue using their own per-game /api/tournaments/[id]/solo backends for human submissions with AI plausibility checks.
          */
         post: {
             parameters: {
@@ -531,8 +531,8 @@ export interface paths {
                 /** @description Submission broadcast on-chain */
                 200: {
                     headers: {
-                        "X-SkillOS-Tier": "T0";
-                        "X-SkillOS-Verification": "signature-only";
+                        "X-SkillOS-Tier": "T0" | "T1" | "T2" | "T3";
+                        "X-SkillOS-Verification": "signature-only" | "class-enforced";
                         [name: string]: unknown;
                     };
                     content: {
@@ -548,8 +548,8 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Rate limit exceeded (60/min per wallet) */
-                429: {
+                /** @description Class mismatch — tournament is declared human-only and rejects agent submissions (X14.0 off-chain enforcement). */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -557,8 +557,26 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Tier not implemented */
-                501: {
+                /** @description Tournament not found by on_chain_id (T1+ only — T0 path does not read DB). */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Tournament settled (T1+) or on-chain submitSoloScore reverted. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rate limit exceeded (30/min per wallet, Upstash-backed) */
+                429: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -568,6 +586,201 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ratings/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Top-N ratings within a (game, class) cohort
+         * @description Cursor-paginated leaderboard. Rank field is 1-indexed and stable across pages — rank 1 is the global top of the cohort. Cursored responses are NOT cached (per X23 SPEC §E.4).
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Game slug (required). Example slugs: 2048, wordle, sudoku. */
+                    game: string;
+                    /** @description Class to rank within. Required — cohorts never cross classes. */
+                    class: "human" | "agent";
+                    /** @description Opaque cursor from previous page. Pass verbatim. */
+                    cursor?: string;
+                    /** @description Items per page (1-500). Defaults to 100. */
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Leaderboard page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LeaderboardResponse"];
+                    };
+                };
+                /** @description Rate limit exceeded */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Invalid query */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ratings/{wallet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All ratings for a wallet
+         * @description Returns every (game, class) rating row for the wallet. Empty array if no ratings have been computed yet. Public read — no auth required.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description EVM wallet address (checksum or lowercase) */
+                    wallet: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ratings list */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RatingsResponse"];
+                    };
+                };
+                /** @description Rate limit exceeded */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Invalid wallet format */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ratings/history/{wallet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rating-change audit log for a wallet
+         * @description Append-only history of rating updates, newest-first. Optional game + class filters narrow the scope. Audit-friendly: each row carries before/after rating + RD plus the originating tournament_id.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Optional game-slug filter. Omit to span all games. */
+                    game?: string;
+                    /** @description Optional class filter. Omit to span both classes. */
+                    class?: "human" | "agent";
+                    /** @description Opaque cursor from previous page. Pass verbatim. */
+                    cursor?: string;
+                    /** @description Items per page (1-100). Defaults to 20. */
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    /** @description EVM wallet address (checksum or lowercase) */
+                    wallet: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description History page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HistoryResponse"];
+                    };
+                };
+                /** @description Rate limit exceeded */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Invalid params */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -676,7 +889,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Rate limit exceeded (60/min per agent address) */
+                /** @description Rate limit exceeded (30/min per agent address, Upstash-backed) */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -789,7 +1002,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Rate-limit exceeded (60/min per authenticated agent) */
+                /** @description Rate-limit exceeded (30/min per authenticated agent, Upstash-backed) */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -867,6 +1080,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description Rate limit exceeded (100/hr per IP, Upstash-backed) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         put?: never;
@@ -915,6 +1137,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["X402PaymentRequirements"];
+                    };
+                };
+                /** @description Rate limit exceeded (100/hr per IP, Upstash-backed) */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1081,6 +1312,13 @@ export interface components {
             participationBonus: string;
             settled: boolean;
             participantsCount: number;
+            /**
+             * @description X14.0: off-chain class declaration per supplement v1.5 §3.16. Determines whether the tournament accepts human (SIWB), agent (SIWA), or both submission paths. Contract layer is class-agnostic; enforcement lives at submit-handler level.
+             * @default mixed-declared
+             * @example mixed-declared
+             * @enum {string}
+             */
+            tournamentClass: "human-only" | "agent-only" | "mixed-declared";
         };
         LeaderboardResponse: {
             /**
@@ -1178,7 +1416,14 @@ export interface components {
              * @description Confirms the trust tier server applied. Echoed in X-SkillOS-Tier header.
              * @enum {string}
              */
-            tier: "T0";
+            tier: "T0" | "T1" | "T2" | "T3";
+            /** @description X14.0: present on T1+ responses. True when the submission was persisted with class_tag=agent. Omitted on T0 (no DB persistence). */
+            isAgent?: boolean;
+            /**
+             * @description X14.0: present on T1+ responses. Mirrors v2_tournament_solo_runs.class_tag for the persisted row.
+             * @enum {string}
+             */
+            classTag?: "human" | "agent";
         };
         ScoreSubmitRequest: {
             /**
@@ -1199,11 +1444,91 @@ export interface components {
              */
             matchCountDelta: number;
             /**
-             * @description Quality tier per spec. Sprint X2 only validates T0 (signature-only). T1+ rejected with 501.
+             * @description Quality tier per spec. T0 is signature-only (no plausibility, no DB persistence). T1+ lifts class declaration into off-chain enforcement (X14.0) and persists to v2_tournament_solo_runs as agent-class.
              * @default T0
              * @enum {string}
              */
             tier: "T0" | "T1" | "T2" | "T3";
+        };
+        RatingsResponse: {
+            /**
+             * @description EVM wallet address (checksum or lowercase)
+             * @example 0x1234567890abcdef1234567890abcdef12345678
+             */
+            wallet: string;
+            ratings: components["schemas"]["RatingEntry"][];
+        };
+        RatingEntry: {
+            /**
+             * @description Game slug
+             * @example 2048
+             */
+            game: string;
+            /**
+             * @description Participant class declaration. Ratings are partitioned per-(wallet, game, class); cohorts never cross class boundaries.
+             * @example human
+             * @enum {string}
+             */
+            class: "human" | "agent";
+            /**
+             * @description Glicko-2 rating. SkillOS default 1000 (≡ legacy Glicko 1500).
+             * @example 1081.9
+             */
+            rating: number;
+            /**
+             * @description Rating Deviation. Lower = more confident. SkillOS default 350.
+             * @example 312.4
+             */
+            rd: number;
+            /**
+             * @description Glicko-2 volatility. SkillOS default 0.06.
+             * @example 0.0599
+             */
+            volatility: number;
+            /**
+             * @description Total rating periods applied (denormalized from history log for leaderboard read perf).
+             * @example 3
+             */
+            updatesCount: number;
+            /**
+             * @description ISO8601 timestamp of most recent rating update, or null if never updated since row creation.
+             * @example 2026-05-18T14:32:00.000Z
+             */
+            lastUpdate: string | null;
+        };
+        HistoryResponse: {
+            /**
+             * @description EVM wallet address (checksum or lowercase)
+             * @example 0x1234567890abcdef1234567890abcdef12345678
+             */
+            wallet: string;
+            history: components["schemas"]["HistoryItem"][];
+            pagination: {
+                /** @description Cursor for the next page. Absent when no more results. */
+                next?: string;
+            };
+        };
+        HistoryItem: {
+            game: string;
+            /**
+             * @description Participant class declaration. Ratings are partitioned per-(wallet, game, class); cohorts never cross class boundaries.
+             * @example human
+             * @enum {string}
+             */
+            class: "human" | "agent";
+            ratingBefore: number;
+            ratingAfter: number;
+            rdBefore: number;
+            rdAfter: number;
+            /**
+             * Format: uuid
+             * @description v2_tournaments.id of the tournament that produced this rating change. Nullable — tournament rows can be purged at testnet→mainnet cutover.
+             */
+            tournamentId: string | null;
+            /** @description Number of pairwise outcomes applied in this rating period. */
+            matchesCount: number;
+            /** @description ISO8601 timestamp when the rating change was recorded. */
+            recordedAt: string;
         };
         SponsorReceiptsResponse: {
             /**
