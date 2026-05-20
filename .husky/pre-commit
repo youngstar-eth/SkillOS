@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+# ─────────────────────────────────────────────────────────────────────────
+# SkillOS — pre-commit hook (X24.2 Codegen Discipline §2, *.gen.ts edit ban)
+#
+# Goal: reject `git commit` that stages hand-edits to AUTO-GENERATED files.
+# Generated artifacts (e.g. packages/sdk/src/api.gen.ts) are produced by
+# `npm run generate-types` from the OpenAPI source of truth and carry the
+# banner "AUTO-GENERATED — do not edit by hand." This hook enforces that
+# banner at commit time.
+#
+# Note: a regen output is itself a staged *.gen.ts, so legitimate regens
+# trip this gate by design — they go through the bypass below.
+#
+# X24 Codegen Discipline sub-sprint 2 of 4 (sibling of the X19 pre-push gate).
+#
+# ─── Bypass ──────────────────────────────────────────────────────────────
+# Standard hook behavior: `git commit --no-verify` skips this hook.
+# Use it for the ONE legit case: committing a regenerated artifact after the
+# upstream spec changed (spec-source-of-truth catch-up). Document the reason
+# in the commit message.
+# ─────────────────────────────────────────────────────────────────────────
+
+STAGED_GEN=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(gen|generated)\.(ts|js|d\.ts)$' || true)
+
+if [ -n "$STAGED_GEN" ]; then
+  echo ""
+  echo "🚫 Generated files staged for commit:"
+  echo "$STAGED_GEN" | sed 's/^/    /'
+  echo ""
+  echo "These files are AUTO-GENERATED. Hand-edits are not allowed."
+  echo ""
+  echo "Allowed workflow:"
+  echo "  1. Verify upstream spec change committed first (OpenAPI / Foundry)"
+  echo "  2. Regenerate via: npm run generate-types"
+  echo "  3. Stage the regen result: git add <regenerated files>"
+  echo ""
+  echo "Bypass (use only for spec-source-of-truth catch-up):"
+  echo "  git commit --no-verify"
+  echo "  (document reason in commit message)"
+  echo ""
+  exit 1
+fi
+
+exit 0
