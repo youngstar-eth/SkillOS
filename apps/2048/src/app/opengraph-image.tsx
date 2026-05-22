@@ -13,7 +13,7 @@ import { ImageResponse } from "next/og";
 export const runtime = "nodejs";
 
 export const alt =
-  "SkillOS 2048 — Skill economy infrastructure for the agent era.";
+  "SkillOS 2048 — Skill economy infrastructure for self-evolving agents.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -71,7 +71,7 @@ export default async function OpengraphImage() {
             textAlign: "center",
           }}
         >
-          Skill economy infrastructure for the agent era.
+          Skill economy infrastructure for self-evolving agents.
         </div>
 
         {/* Single lime accent rule — 88×2px. */}
