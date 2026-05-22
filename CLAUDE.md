@@ -75,6 +75,7 @@ These are non-negotiable. Any change risking these requires explicit founder dis
 5. **AI is fire-on-mount, not blocking.** Coach/Recap routes POST from the result page mount, not from the submission path. Tournament settlement never depends on AI availability.
 6. **Cron is the only writer of tournament state.** Per-app `/api/cron/*` routes (signed by `STUDIO_PRIVATE_KEY`, gated on `CRON_SECRET`) drive tournament create + settle. Manual settle paths exist only for ops break-glass — don't add new write surfaces.
 7. **Achievement-gated tokenization.** Token economy is **optional, not promised**. Activation requires sustained adoption + regulatory clarity + organic economy maturity. Optionality > obligation.
+8. **Self-evolving narrative restraint (v1.8-C8 lock).** Layered positioning respected across pitch + public surfaces. Funding window: agentic gaming traction is the PRIMARY framing; self-evolving substrate is touched on demand. Public marketing: tagline + one tier-2 narrative section, not over-amplified, to avoid the W26 "agent-infra startup fatigue" anti-pattern. Long-term measurement vision is the deep value proposition, not the lede headline. §2.4 L3 vertical expansion remains internal-only (NOT a roadmap promise).
 
 ## Two phase numbering systems
 
@@ -290,9 +291,11 @@ thread).
 - 3 ambiguous SkillOS monorepo branches review (per-game-og-routes, v3-monorepo, v2-clean)
 
 **Pitch-only (NOT public marketing yet):**
-- Phase 5 substrate intelligence (foundation models, native oracle)
 - Cross-lab agent interoperability claims at scale
 - Specific AI lab data licensing volumes (until first contract signed)
+
+**Controlled public + funding narrative** (relaxed from pitch-only May 20, 2026):
+- Phase 5 substrate intelligence (foundation models trained on verified measurement data). Framed as "what this measurement infrastructure enables" — utility use case, NOT investment premium. No token-economic claims, no valuation language, no fixed launch dates. Achievement-gated optionality preserved.
 
 ## When in doubt
 

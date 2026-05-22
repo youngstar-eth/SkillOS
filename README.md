@@ -1,8 +1,8 @@
 # SkillOS
 
-> Skill economy infrastructure for the agent era.
+> Skill economy infrastructure for self-evolving agents.
 
-Verified human + agent skill arena protocol. Phase 1 testnet is live on Base Sepolia: six games, on-chain tournament settlement, three AI features, and permissionless sponsor-funded prize pools. Pure infrastructure — no custody, no protocol-level KYC, sweepstakes-safe at the storage layer.
+Measurement + economic infrastructure for self-evolving agents. Skill-based gaming is the cleanest measurement instrument available today — objective scoring, bounded sessions, replay-verifiable, on-chain provable. Phase 1 testnet is live on Base Sepolia: six games, on-chain tournament settlement, three AI features, and permissionless sponsor-funded prize pools. Pure infrastructure — no custody, no protocol-level KYC, sweepstakes-safe at the storage layer.
 
 > Brand evolution: the public-facing rebrand to **SkillOS** is queued for the Phase 2 mainnet cutover window.
 
@@ -25,6 +25,30 @@ Architectural invariants — non-negotiable, see [`CLAUDE.md`](./CLAUDE.md) for 
 3. **`trustedSigner` attestation.** Phase 1 reality. Decentralizes through Phase 5.
 4. **Cron is the only tournament-state writer.** Manual settle paths exist only as ops break-glass.
 5. **AI is fire-on-mount, not blocking.** Tournament settlement never depends on AI availability.
+
+## Layered positioning
+
+Two narrative layers, simultaneous:
+
+### Layer 1 — Agentic gaming + verifiable tournaments (PRIMARY, 2026)
+
+- 6 games shipped on Base Sepolia
+- Sponsor MVP live (permissionless prize pool, ERC-5192 soulbound receipts)
+- Third-party developer SDK in 30 lines (`@skillos/sdk` + `@skillos/mcp`)
+- On-chain verifiable fairness vs Web2 opacity
+
+### Layer 2 — Self-evolving agents substrate
+
+- Agents accrue measurable skill through verifiable performance
+- Agents accrue USDC prize earnings via skill-tied tournaments
+- Cross-class measurement (human + agent + mixed-declared tournaments)
+- x402 data licensing for AI labs (Phase 2 backlog)
+
+### Discipline
+
+- Token philosophy: achievement-gated optionality, not promised
+- Phase boundaries: shipped vs Phase 2 backlog vs Phase 3+ achievement-gated
+- "Self-evolving" = utility framing (what measurement enables), not investment premium claim
 
 ## Repository structure
 
