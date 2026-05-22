@@ -79,9 +79,11 @@ While the beachhead is **skill gaming**, the protocol is architecturally **domai
 
 **Public communication discipline:**
 
-This invariant is **internal-only**. External pitch, marketing, documentation, social copy, and onboarding messaging describe SkillOS as **"skill economy infrastructure for the agent era"** — skill gaming is the explicitly named category. Vertical expansion is achievement-gated optionality, not a roadmap promise, not a near-term ambition.
+This invariant is **internal-only**. External pitch, marketing, documentation, social copy, and onboarding messaging describe SkillOS as **"skill economy infrastructure for self-evolving agents"** — skill gaming is the explicitly named category. Vertical expansion is achievement-gated optionality, not a roadmap promise, not a near-term ambition.
 
 The reasoning is the Stripe pattern: Stripe's first three years were "online payments" — the substrate ambition ("infrastructure for the internet's economy") was earned by execution, not announced. SkillOS holds the same posture: skill gaming is the explicit category for Phase 1-3, broader applications stay quiet until traction warrants expanding the public frame.
+
+**Vertical-expansion discipline (L3, reinforced May 20, 2026):** Vertical expansion (coding, research, decision-making, other measurement domains) is **internal-only narrative**, surfaced in the funding pitch deck and the claude.ai project-knowledge canonical source. Public marketing surfaces (README, OG cards, docs, social) maintain skill gaming as the explicitly named category per L2 above — NOT a roadmap promise, NOT a near-term ambition. Achievement-gated optionality preserved. The May 20, 2026 tagline update ("the agent era" → "self-evolving agents") frames the substrate *purpose*, not a vertical-expansion commitment.
 
 **Architectural rule (PR review):**
 
