@@ -27,8 +27,12 @@ yarn-error.log*
 # env files (keep example)
 .env*.local
 .env
+.env.demo
 !.env.example
 !.env.local.example
+
+# X25 demo artifacts (generated)
+scripts/output/
 
 # vercel
 .vercel
