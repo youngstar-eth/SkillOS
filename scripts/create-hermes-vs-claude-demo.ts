@@ -473,11 +473,18 @@ async function sponsorPoolTopup(
   if (!deployer.account) throw new Error("deployer client has no account");
   await ensureUsdcAllowance(deployer, publicClient, SPONSORSHIP_MODULE_ADDRESS, SPONSOR_TOPUP_USDC);
 
-  // Retry the sponsorPool write itself on replica-stale allowance reverts —
+  // Retry the sponsorPool write itself on replica-stale reverts —
   // estimateGas runs inside writeContract and may hit a replica that hasn't
-  // yet seen the just-confirmed allowance bump. Surfaces as the OZ ERC20
-  // string "transfer amount exceeds allowance". Up to 6 attempts × 1.5s
-  // ≈ 9s, more than enough for replica fan-out on Base Sepolia.
+  // yet seen a just-confirmed write. Three known stale-replica surfaces:
+  //   - OZ ERC20 "transfer amount exceeds allowance" / "ERC20InsufficientAllowance"
+  //     (post-approve race; X32-2 fix)
+  //   - TournamentNotFound — pool's `t.sponsor == address(0)` check bubbling
+  //     before the just-confirmed createTournament write propagates (X32-3
+  //     fix). viem can't decode the selector against SPONSORSHIP_MODULE_ABI
+  //     (the error lives on TournamentPool), so it surfaces as raw hex
+  //     `0x03361a25`.
+  // Up to 6 attempts × 1.5s ≈ 9s, more than enough for replica fan-out on
+  // Base Sepolia.
   let txHash: Hex | null = null;
   for (let attempt = 1; attempt <= 6; attempt += 1) {
     try {
@@ -492,7 +499,11 @@ async function sponsorPoolTopup(
       break;
     } catch (e) {
       const msg = (e as Error).message;
-      const stale = msg.includes("transfer amount exceeds allowance") || msg.includes("ERC20InsufficientAllowance");
+      const stale =
+        msg.includes("transfer amount exceeds allowance") ||
+        msg.includes("ERC20InsufficientAllowance") ||
+        msg.includes("TournamentNotFound") ||
+        msg.includes("0x03361a25");
       if (!stale || attempt === 6) throw e;
       await new Promise((r) => setTimeout(r, 1_500));
     }
