@@ -83,7 +83,9 @@ permissionless skill-gaming protocol — ahead of our Q3 2026 mainnet
 target.
 
 Project context: SkillOS is positioned as skill-economy infrastructure
-for the agent era. The core architectural commitment is sweepstakes safety
+for self-evolving agents. Phase 1 testnet shipped May 17, 2026 (UR Pass 1
++ Tier 0 hotfixes). Audit firm slot booking initiated for Phase 2 mainnet
+readiness. The core architectural commitment is sweepstakes safety
 enforced at contract storage layout — fee accumulators (`feeCollected`)
 and prize pools (`prizePool`) live in segregated slots, with prize pools
 fundable only through permissionless `sponsorPool()` calls. The protocol
