@@ -58,15 +58,32 @@ export function buildWallet(
 
 // Minimal adapter that satisfies the @buildersgarden/siwa Signer interface
 // for signing-only operations (signSIWAMessage, signAuthenticatedRequest).
-// Library expects `.getAddress(): Promise<string>` and `.signMessage(message:
-// string): Promise<Hex>` — viem exposes `account.address` (property) and
-// `account.signMessage({ message })` so we wrap.
+//
+// Library entry points use two distinct signing paths:
+//   - SIWA flow (`signSIWAMessage`) calls `signer.signMessage(string)` —
+//     signs the EIP-191 wrapping of the UTF-8 SIWA message template.
+//   - ERC-8128 flow (`signAuthenticatedRequest` → `createErc8128Signer`)
+//     calls `signer.signRawMessage(hex)` preferentially. The `hex` is the
+//     hex encoding of the RFC 9421 signature-base BYTES; the verifier
+//     reconstructs the same bytes and calls `verifyMessage({message:
+//     {raw: hex}})`. If `signRawMessage` is missing, the adapter falls
+//     back to `signer.signMessage(hex)` which would sign the UTF-8 of
+//     the hex string — producing a signature that does NOT recover under
+//     the verifier's raw-bytes view. That mismatch surfaced as
+//     `/v1/agents/scores` returning 401 in X32-2 broadcast (PR #173).
+//
+// Both methods delegate to viem: `account.signMessage({ message })` for
+// UTF-8 strings, `account.signMessage({ message: { raw: hex } })` for
+// raw bytes.
 export function buildSiwaSigner(account: PrivateKeyAccount): {
   getAddress: () => Promise<Address>;
   signMessage: (message: string) => Promise<Hex>;
+  signRawMessage: (rawHex: `0x${string}`) => Promise<Hex>;
 } {
   return {
     getAddress: async () => account.address,
     signMessage: async (message: string) => account.signMessage({ message }),
+    signRawMessage: async (rawHex: `0x${string}`) =>
+      account.signMessage({ message: { raw: rawHex } }),
   };
 }
