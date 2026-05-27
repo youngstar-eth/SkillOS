@@ -84,6 +84,11 @@ import {
   TOURNAMENT_POOL_V2_ADDRESS,
   USDC_ADDRESS,
 } from "@skillos/contracts";
+import {
+  createHermesMcpClient,
+  type McpClientLike,
+  type TokenUsage,
+} from "@skillos/hermes-mcp-wrapper";
 
 // ─── Config (founder-confirmed) ────────────────────────────────────────────
 
@@ -451,47 +456,258 @@ async function sponsorPoolTopup(
   return { txHash, receiptTokenId };
 }
 
-// ─── Step 6: per-agent submission flow (PSEUDOCODE skeleton) ───────────────
+// ─── Step 6: per-agent submission flow via @skillos/hermes-mcp-wrapper ─────
+//
+// X32 update (replaces the original X25 PSEUDOCODE skeleton):
+//
+// Both agent legs share a single MCP host implementation — `createHermesMcpClient`
+// from @skillos/hermes-mcp-wrapper — differing only in the OpenRouter model id.
+// This is the "wire-identical multi-agent" pattern locked in X27/X29: same
+// @modelcontextprotocol/sdk transport, same tools-bridge, same agentic loop,
+// only the LLM brain differs. (Founder direction on X32 question 1, May 27 2026:
+// "wrapper is generic by design — Anthropic SDK was an unnecessary constraint".)
+//
+// Dry-run path (this sprint, no chain broadcast):
+//   - Wrapper's `_mcp` test seam injects an in-process stub that exposes the
+//     real @skillos/mcp `submit_score` JSON-Schema and returns synthetic
+//     success (no SIWA, no HTTP, no broadcast). The wrapper's agentic loop is
+//     exercised end-to-end; only the chain-touching tail is stubbed out.
+//   - The stub captures the LLM's tool-call args so the artifact records what
+//     each agent claimed.
+//
+// Broadcast path (deferred to next sprint per X32 constraint):
+//   - Replace `_mcp` stub with a real stdio transport to `packages/mcp/dist/index.js`,
+//     pass the agent's freshly-registered agentId + privateKey via env so the
+//     MCP server can do SIWA + signed POST /v1/agents/scores. Out of scope here.
 
-/**
- * Per-agent submission flow — pseudocode skeleton.
- *
- * The actual submission wiring depends on Workstream C (Hermes wrapper) +
- * Claude-direct via @skillos/sdk. Both routes converge on the API:
- *   POST /v1/agents/scores (SIWA + ERC-8128 signed)
- * which server-signs `submitSoloScore` with STUDIO_PRIVATE_KEY and broadcasts.
- *
- * For the X25 climax demo, this script does NOT execute submissions — the
- * agent runtimes do, during the 60-min tournament window. The script's role
- * is bootstrap (steps 1-5) + post-window settle (step 7).
- *
- * The skeleton below documents the expected per-agent shape; populate when
- * Workstream C exposes its CLI entry point.
- */
-interface SubmissionPlan {
-  agent: AgentBundle;
-  tournamentId: Hex;
-  game: "match3";
-  // Provided at runtime by the agent runtime (Hermes wrapper / Claude SDK):
-  expectedRuns: number;
-  expectedScoreRange: { min: number; max: number };
+// X32 model selection — see PR description for full rationale.
+//
+// The "hermes" agent leg label is retained (preserves AgentBundle wiring,
+// env var names X25_HERMES_*, endpoint URLs) but the underlying model is
+// NOT a Hermes variant: as of May 27 2026, OpenRouter routes every Hermes
+// model (3-70b, 3-405b, 3-405b:free, 4-70b, 4-405b) to providers that do
+// not expose function-calling (`tools: false` in `/api/v1/models`). The
+// X29 wrapper relies on tool-use, so any Hermes leg routed through
+// OpenRouter cannot drive a `submit_score` tool call today.
+//
+// Founder direction on X32 question 2 (May 27 2026): pick the first
+// tool-use-verified open-weights model on OpenRouter from a defined
+// fallback chain. Verified order at the time of selection:
+//   1. meta-llama/llama-3.3-70b-instruct   — tools: true, $0.10/$0.32 per M (chosen)
+//   2. mistralai/mistral-large-2411        — tools: true, $2.00/$6.00 per M
+//   3. qwen/qwen-2.5-72b-instruct          — tools: true, $0.36/$0.40 per M
+//   4. deepseek/deepseek-chat              — tools: true, $0.23/$0.91 per M
+//   5. google/gemini-2.0-flash-exp:free    — not currently on OpenRouter
+//
+// Phase 2 follow-up (out of X32 scope): direct Nous Research Hermes Agent
+// API integration would restore "Hermes vs Claude" narrative; tracked
+// separately. v1.11 housekeeping: Strategic Memory v1.10 demo-narrative
+// note + pitch deck Slide 8 must update to "{ChosenModel} vs Claude" or
+// adopt the looser "open-weights vs frontier" framing.
+const OPEN_WEIGHTS_MODEL = "meta-llama/llama-3.3-70b-instruct";
+
+// Founder direction: Claude Sonnet 4.5 is the locked Claude leg model for
+// this sprint. Sonnet 4.6 is also available on OpenRouter (tools: true) and
+// is the documented "latest" per system context; staying on 4.5 per the
+// founder's X32 message.
+const CLAUDE_MODEL = "anthropic/claude-sonnet-4.5";
+
+// OpenRouter pricing overlay for models the X29 wrapper's `estimateCostUsd`
+// doesn't natively price (it only knows the three validated Hermes ids,
+// degrades to $0 otherwise — by design). We layer a local table so the
+// demo artifact's per-agent costEstimate is non-zero for Claude + the
+// chosen open-weights leg. Rates sourced from OpenRouter `/api/v1/models`
+// `pricing` field at selection time; cross-check on rerun if drift suspected.
+const OPENROUTER_PRICING_USD_PER_M: Record<string, { input: number; output: number }> = {
+  "anthropic/claude-sonnet-4.5": { input: 3.0, output: 15.0 },
+  "anthropic/claude-sonnet-4.6": { input: 3.0, output: 15.0 },
+  "anthropic/claude-haiku-4.5": { input: 1.0, output: 5.0 },
+  "anthropic/claude-opus-4.5": { input: 15.0, output: 75.0 },
+  "meta-llama/llama-3.3-70b-instruct": { input: 0.1, output: 0.32 },
+  "mistralai/mistral-large-2411": { input: 2.0, output: 6.0 },
+  "qwen/qwen-2.5-72b-instruct": { input: 0.36, output: 0.4 },
+  "deepseek/deepseek-chat": { input: 0.2288, output: 0.9144 },
+};
+
+function overlayCostUsd(model: string, prompt: number, completion: number): number {
+  const rates = OPENROUTER_PRICING_USD_PER_M[model];
+  if (!rates) return 0;
+  return (prompt * rates.input + completion * rates.output) / 1_000_000;
 }
 
-function describeSubmissionPlan(plan: SubmissionPlan): Record<string, unknown> {
+const AGENT_SYSTEM_PROMPT = (label: string, tournamentId: Hex): string =>
+  [
+    `You are an autonomous agent competing in a Match3 score-attack tournament on`,
+    `SkillOS testnet (Base Sepolia). Your agent label is "${label}".`,
+    ``,
+    `Game: Match3 (deterministic — engine seeds runs with seed=42).`,
+    `Tournament ID: ${tournamentId}`,
+    `Tier: T0 (signature-only submission; no plausibility infra in v0.1).`,
+    ``,
+    `Task: Compose exactly one \`submit_score\` tool call claiming your final score`,
+    `for a single Match3 playthrough. Choose a plausible integer score in [100, 10000]`,
+    `reflecting competent (not perfect) play. After the tool returns, output a single`,
+    `concise sentence describing your run.`,
+    ``,
+    `Constraints:`,
+    `- Call \`submit_score\` exactly once with the tournamentId above.`,
+    `- Score must be an integer in [100, 10000].`,
+    `- Do not call any other tools.`,
+    `- Do not retry on tool error — surface it and stop.`,
+  ].join("\n");
+
+const AGENT_USER_PROMPT = "Submit your Match3 score for this tournament.";
+
+// JSON-Schema mirror of packages/mcp/src/tools/submit_score.ts inputSchema.
+// We keep this in sync manually rather than importing it because the source
+// uses zod and Hermes/Claude on OpenRouter expect plain JSON-Schema in the
+// tools bridge. If the real submit_score schema drifts, the broadcast-path
+// migration will catch it (it'll listTools off the real server).
+const DRY_RUN_SUBMIT_SCORE_SCHEMA = {
+  type: "object",
+  properties: {
+    tournamentId: {
+      type: "string",
+      pattern: "^0x[a-fA-F0-9]{64}$",
+      description: "Tournament id (bytes32 hex).",
+    },
+    score: { type: "integer", minimum: 0, description: "Raw player score." },
+    tier: { type: "string", enum: ["T0", "T1", "T2", "T3"], description: "Quality tier. v0.1 only supports T0." },
+    soloRunId: { type: "string", pattern: "^0x[a-fA-F0-9]{64}$" },
+    matchCountDelta: { type: "integer", minimum: 1, maximum: 10 },
+  },
+  required: ["tournamentId", "score"],
+  additionalProperties: false,
+} as const;
+
+interface DryRunStubCapture {
+  args: Record<string, unknown> | null;
+  calls: number;
+}
+
+function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClientLike {
   return {
-    agent: plan.agent.label,
-    walletAddress: plan.agent.address,
-    agentId: plan.agent.agentId?.toString() ?? null,
-    tournamentId: plan.tournamentId,
-    game: plan.game,
-    note: [
-      "Submission executed by external agent runtime (out of script scope).",
-      "Hermes route: Workstream C wrapper → @skillos/mcp submit_score.",
-      "Claude route: @skillos/sdk createSkillOSAgentClient → POST /v1/agents/scores.",
-      "Both routes: server signs submitSoloScore with STUDIO_PRIVATE_KEY + broadcasts.",
-    ].join(" "),
-    expectedRuns: plan.expectedRuns,
-    expectedScoreRange: plan.expectedScoreRange,
+    async connect(): Promise<void> {
+      // No transport open — this stub is in-process.
+    },
+    async listTools() {
+      return {
+        tools: [
+          {
+            name: "submit_score",
+            description:
+              "Submit a score as a verified agent. [DRY-RUN STUB: mirrors @skillos/mcp submit_score input schema; returns synthetic success without SIWA / chain broadcast.]",
+            inputSchema: DRY_RUN_SUBMIT_SCORE_SCHEMA as unknown as Record<string, unknown>,
+          },
+        ],
+      };
+    },
+    async callTool(req: { name: string; arguments?: Record<string, unknown> }) {
+      capture.calls += 1;
+      if (req.name !== "submit_score") {
+        return {
+          content: [{ type: "text", text: `Unknown tool "${req.name}" in dry-run stub.` }],
+          isError: true,
+        };
+      }
+      capture.args = req.arguments ?? {};
+      const synthetic = {
+        txHash: `0x${"dryrun".padEnd(64, "0")}`,
+        soloRunId: `0x${"dryrun".padEnd(64, "a")}`,
+        tier: capture.args.tier ?? "T0",
+        note: `DRY-RUN STUB (${label}): args captured; no SIWA, no HTTP, no chain broadcast.`,
+        receivedArgs: capture.args,
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(synthetic, null, 2) }],
+      };
+    },
+    async close(): Promise<void> {
+      // No transport to close.
+    },
+  };
+}
+
+interface AgentLegResult {
+  label: AgentBundle["label"];
+  model: string;
+  tokenUsage: TokenUsage;
+  costEstimateUsd: number;
+  iterations: number;
+  stoppedReason: "no_more_tool_calls" | "max_iterations";
+  finalContent: string | null;
+  claimedSubmission: { tournamentId: string; score: number; tier: string } | null;
+  toolCallCount: number;
+}
+
+async function runAgentLegDryRun(args: {
+  label: AgentBundle["label"];
+  model: string;
+  tournamentId: Hex;
+  openrouterApiKey: string;
+}): Promise<AgentLegResult> {
+  const capture: DryRunStubCapture = { args: null, calls: 0 };
+  const stub = createDryRunMcpStub(args.label, capture);
+  const client = createHermesMcpClient(
+    {
+      openrouterApiKey: args.openrouterApiKey,
+      model: args.model,
+      costWarningThresholdUsd: 5,
+      clientName: `x25-demo-${args.label}`,
+    },
+    {
+      // Transport config is required by the factory but ignored when `_mcp` is
+      // supplied — the stub's `connect()` is a no-op. We still pass a
+      // syntactically valid stdio config so `createTransport()` (called
+      // eagerly inside `connect()`) constructs a Transport object without
+      // spawning anything.
+      transport: {
+        kind: "stdio",
+        command: "node",
+        args: ["./packages/mcp/dist/index.js"],
+      },
+      _mcp: stub,
+    },
+  );
+
+  await client.connect();
+  let result: Awaited<ReturnType<typeof client.run>>;
+  try {
+    result = await client.run(AGENT_USER_PROMPT, {
+      systemPrompt: AGENT_SYSTEM_PROMPT(args.label, args.tournamentId),
+      maxIterations: 5,
+    });
+  } finally {
+    await client.close();
+  }
+
+  // Cost overlay: wrapper estimates only Hermes ids natively; Claude/Anthropic
+  // models go through our local pricing table.
+  const wrapperCost = result.usage.estimatedCostUsd;
+  const localCost = overlayCostUsd(args.model, result.usage.promptTokens, result.usage.completionTokens);
+  const costEstimateUsd = wrapperCost > 0 ? wrapperCost : localCost;
+
+  const claimedSubmission: AgentLegResult["claimedSubmission"] =
+    capture.args &&
+    typeof capture.args["tournamentId"] === "string" &&
+    typeof capture.args["score"] === "number"
+      ? {
+          tournamentId: capture.args["tournamentId"] as string,
+          score: capture.args["score"] as number,
+          tier: typeof capture.args["tier"] === "string" ? (capture.args["tier"] as string) : "T0",
+        }
+      : null;
+
+  return {
+    label: args.label,
+    model: args.model,
+    tokenUsage: { ...result.usage, estimatedCostUsd: costEstimateUsd },
+    costEstimateUsd,
+    iterations: result.iterations,
+    stoppedReason: result.stoppedReason,
+    finalContent: result.finalContent,
+    claimedSubmission,
+    toolCallCount: capture.calls,
   };
 }
 
@@ -572,6 +788,18 @@ async function settleTournament(
 
 // ─── Output artifact ───────────────────────────────────────────────────────
 
+interface AgentArtifact {
+  label: AgentBundle["label"];
+  model: string;
+  tokenUsage: TokenUsage;
+  costEstimateUsd: number;
+  iterations: number;
+  stoppedReason: "no_more_tool_calls" | "max_iterations";
+  finalContent: string | null;
+  claimedSubmission: { tournamentId: string; score: number; tier: string } | null;
+  toolCallCount: number;
+}
+
 interface DemoArtifact {
   mode: "DRY-RUN" | "BROADCAST";
   generatedAt: string;
@@ -609,7 +837,13 @@ interface DemoArtifact {
     totalDistributed: string | null;
     refunded: string | null;
   };
-  submissionPlans: Record<string, unknown>[];
+  /**
+   * Per-agent submission + LLM telemetry. In dry-run, populated by the X29
+   * wrapper integration (model name, token usage, cost estimate, captured
+   * claimed score). In broadcast (current sprint defers wiring), null.
+   */
+  hermesAgent: AgentArtifact | null;
+  claudeAgent: AgentArtifact | null;
   basescanUrls: {
     tournament: string;
     sponsorshipModule: string;
@@ -702,7 +936,58 @@ async function main(): Promise<void> {
     console.log(`[x25] settle: post-window-close, deployer signs settle(id, sortedRanking)`);
     console.log(`[x25] sortedRanking built from on-chain effectiveScoreOf reads`);
 
-    console.log("\n[x25] DRY-RUN complete. Re-run with --broadcast to send all txs.\n");
+    // ─── X32: exercise the X29 wrapper end-to-end against stubbed @skillos/mcp ───
+    const openrouterApiKey = process.env.OPENROUTER_API_KEY;
+    if (!openrouterApiKey) {
+      throw new Error(
+        "OPENROUTER_API_KEY env required for dry-run wrapper integration. " +
+          "Source it before running (e.g. `set -a; source .env.demo; set +a`).",
+      );
+    }
+    console.log(`\n--- DRY-RUN: agent legs via @skillos/hermes-mcp-wrapper (stubbed MCP) ---\n`);
+    console.log(`[x25] hermes leg: model=${OPEN_WEIGHTS_MODEL} (open-weights; Hermes routing on OpenRouter has tools:false — see PR description)`);
+    console.log(`[x25] claude leg: model=${CLAUDE_MODEL}`);
+    console.log(`[x25] mcp transport: in-process stub (mirrors @skillos/mcp submit_score schema; no broadcast)`);
+
+    const hermesLeg = await runAgentLegDryRun({
+      label: "hermes",
+      model: OPEN_WEIGHTS_MODEL,
+      tournamentId,
+      openrouterApiKey,
+    });
+    console.log(
+      `[x25][hermes] iterations=${hermesLeg.iterations} stop=${hermesLeg.stoppedReason} ` +
+        `tokens=${hermesLeg.tokenUsage.totalTokens} cost≈$${hermesLeg.costEstimateUsd.toFixed(6)}`,
+    );
+    if (hermesLeg.claimedSubmission) {
+      console.log(
+        `[x25][hermes] claimed score=${hermesLeg.claimedSubmission.score} (tier ${hermesLeg.claimedSubmission.tier})`,
+      );
+    } else {
+      console.log(`[x25][hermes] no claimed submission captured (toolCalls=${hermesLeg.toolCallCount})`);
+    }
+
+    const claudeLeg = await runAgentLegDryRun({
+      label: "claude",
+      model: CLAUDE_MODEL,
+      tournamentId,
+      openrouterApiKey,
+    });
+    console.log(
+      `[x25][claude] iterations=${claudeLeg.iterations} stop=${claudeLeg.stoppedReason} ` +
+        `tokens=${claudeLeg.tokenUsage.totalTokens} cost≈$${claudeLeg.costEstimateUsd.toFixed(6)}`,
+    );
+    if (claudeLeg.claimedSubmission) {
+      console.log(
+        `[x25][claude] claimed score=${claudeLeg.claimedSubmission.score} (tier ${claudeLeg.claimedSubmission.tier})`,
+      );
+    } else {
+      console.log(`[x25][claude] no claimed submission captured (toolCalls=${claudeLeg.toolCallCount})`);
+    }
+
+    const combinedCost = hermesLeg.costEstimateUsd + claudeLeg.costEstimateUsd;
+    console.log(`\n[x25] combined estimated cost: $${combinedCost.toFixed(6)} (both legs, dry-run)`);
+    console.log(`\n[x25] DRY-RUN complete. Re-run with --broadcast to send all txs.\n`);
 
     // Emit artifact even in dry-run for review.
     const artifact: DemoArtifact = {
@@ -738,15 +1023,8 @@ async function main(): Promise<void> {
         settle: null,
       },
       settle: { sortedRanking: null, totalDistributed: null, refunded: null },
-      submissionPlans: bundles.map((b) =>
-        describeSubmissionPlan({
-          agent: b,
-          tournamentId,
-          game: "match3",
-          expectedRuns: 3,
-          expectedScoreRange: { min: 100, max: 10_000 },
-        }),
-      ),
+      hermesAgent: hermesLeg,
+      claudeAgent: claudeLeg,
       basescanUrls: {
         tournament: `https://sepolia.basescan.org/address/${TOURNAMENT_POOL_V2_ADDRESS}`,
         sponsorshipModule: `https://sepolia.basescan.org/address/${SPONSORSHIP_MODULE_ADDRESS}`,
@@ -862,15 +1140,10 @@ async function main(): Promise<void> {
       totalDistributed: settleResult?.totalDistributed.toString() ?? null,
       refunded: settleResult?.refunded.toString() ?? null,
     },
-    submissionPlans: bundles.map((b) =>
-      describeSubmissionPlan({
-        agent: b,
-        tournamentId,
-        game: "match3",
-        expectedRuns: 3,
-        expectedScoreRange: { min: 100, max: 10_000 },
-      }),
-    ),
+    // Broadcast-path wrapper wiring deferred to next sprint per X32 constraint
+    // (no `--broadcast` in this sprint — on-chain run gated for founder review).
+    hermesAgent: null,
+    claudeAgent: null,
     basescanUrls: {
       tournament: `https://sepolia.basescan.org/address/${TOURNAMENT_POOL_V2_ADDRESS}`,
       sponsorshipModule: `https://sepolia.basescan.org/address/${SPONSORSHIP_MODULE_ADDRESS}`,
