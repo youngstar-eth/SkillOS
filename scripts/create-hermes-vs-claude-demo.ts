@@ -37,11 +37,14 @@
 //     /usr/local/bin/node --env-file=apps/2048/.env.local \
 //       ./node_modules/.bin/tsx scripts/create-hermes-vs-claude-demo.ts
 //
-//   Broadcast (after dry-run output reviewed):
+//   Broadcast (X32-2 — end-to-end on Base Sepolia, short window + settle):
+//     set -a; source .env.demo; set +a   # provides OPENROUTER_API_KEY
 //     /usr/local/bin/node --env-file=apps/2048/.env.local \
-//       ./node_modules/.bin/tsx scripts/create-hermes-vs-claude-demo.ts --broadcast
+//       ./node_modules/.bin/tsx scripts/create-hermes-vs-claude-demo.ts \
+//       --broadcast --duration-min=3
 //
-//   Custom tournament window (default 60 min):
+//   Custom tournament window (default 60 min; --duration-min=3 recommended for
+//   X32-2 broadcast since the script blocks until startsAt + endsAt for settle):
 //     ... scripts/create-hermes-vs-claude-demo.ts --duration-min=120
 //
 // REQUIRED ENV (from apps/2048/.env.local):
@@ -99,13 +102,20 @@ const DEFAULT_DURATION_MIN = 60;    // demo tournament window
 const PARTICIPATION_BONUS = 50n;
 
 // Tournament economics
+// X32-2 adjustment: sponsor pool is $40 USDC (not $50) due to demo-deployer
+// wallet balance ceiling on Base Sepolia (45.5 USDC at sprint open). Demo
+// narrative framing: "real sponsored stake" without dollar-specific claim,
+// or explicit $40 narration — founder discretion in video script.
 const SEED_PRIZE_USDC = 1_000_000n;       // 1 USDC: minimum to bypass ZeroPrize
-const SPONSOR_TOPUP_USDC = 49_000_000n;   // 49 USDC: brings total to 50 USDC
+const SPONSOR_TOPUP_USDC = 39_000_000n;   // 39 USDC: brings total to 40 USDC
 const TOTAL_PRIZE_USDC = SEED_PRIZE_USDC + SPONSOR_TOPUP_USDC;
 
-// Per-agent funding
-const AGENT_GAS_ETH = 5_000_000_000_000_000n;  // 0.005 ETH
-const AGENT_USDC = 5_000_000n;                 // 5 USDC (any future retry buffer)
+// Per-agent funding. Agents only need ETH for the register() tx — submit_score
+// goes through the SkillOS API which broadcasts the attestation server-side
+// using STUDIO_PRIVATE_KEY, so agent wallets do not need USDC. AGENT_USDC kept
+// at 0 in X32-2 to keep deployer USDC inside the $40 pool budget.
+const AGENT_GAS_ETH = 2_000_000_000_000_000n;  // 0.002 ETH (register costs ~0.0005)
+const AGENT_USDC = 0n;                          // X32-2: skip — not needed for submit_score
 
 // Base Sepolia ERC-8004 IdentityRegistry (testnet — per packages/mcp/src/config.ts).
 // Sprint prompt cited mainnet 0x8004A169...a432; demo is testnet → corrected.
@@ -338,12 +348,28 @@ async function registerAgent(
   const { agentId, owner } = logs[0]!.args as { agentId: bigint; owner: Address };
 
   // Verify on-chain ownerOf(agentId) == wallet.address (sprint deliverable #2).
-  const onChainOwner = (await publicClient.readContract({
-    address: IDENTITY_REGISTRY_ADDRESS,
-    abi: IDENTITY_REGISTRY_ABI,
-    functionName: "ownerOf",
-    args: [agentId],
-  })) as Address;
+  // sepolia.base.org is a load-balanced public RPC — `waitForTransactionReceipt`
+  // resolves against the proposer node, but subsequent reads can hit a replica
+  // that hasn't yet ingested the block. Retry briefly on ERC721NonexistentToken
+  // (selector 0x7e273289) — first observed during X32-2 broadcast smoke.
+  let onChainOwner: Address | null = null;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      onChainOwner = (await publicClient.readContract({
+        address: IDENTITY_REGISTRY_ADDRESS,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: "ownerOf",
+        args: [agentId],
+      })) as Address;
+      break;
+    } catch (e) {
+      const msg = (e as Error).message;
+      const stale = msg.includes("0x7e273289") || msg.includes("NonexistentToken");
+      if (!stale || attempt === 6) throw e;
+      await new Promise((r) => setTimeout(r, 750 * attempt)); // 0.75s, 1.5s, 2.25s, 3s, 3.75s
+    }
+  }
+  if (!onChainOwner) throw new Error(`[x25] ${agent.label} ownerOf returned null after retries`);
   if (onChainOwner.toLowerCase() !== agent.address.toLowerCase()) {
     throw new Error(
       `[x25] ${agent.label} ownerOf mismatch: registry=${onChainOwner}, wallet=${agent.address}`,
@@ -384,7 +410,24 @@ async function ensureUsdcAllowance(
     chain: baseSepolia,
   });
   await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 });
-  return hash;
+
+  // Public Base Sepolia RPC is load-balanced. After waitForTransactionReceipt
+  // resolves, the simulation for the immediately-following writeContract can
+  // still hit a replica without the new allowance, reverting with
+  // "ERC20: transfer amount exceeds allowance". Poll readContract until the
+  // replica we're talking to reports the new allowance. (First observed
+  // during X32-2 broadcast smoke at sponsorPool, after createTournament.)
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    const seen = (await publicClient.readContract({
+      address: USDC_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [deployer.account.address, spender],
+    })) as bigint;
+    if (seen >= need) return hash;
+    await new Promise((r) => setTimeout(r, 500 * attempt)); // 0.5s … up to 5s
+  }
+  throw new Error(`[x32-2] approve replica-propagation timeout for spender=${spender}`);
 }
 
 async function createTournament(
@@ -430,14 +473,31 @@ async function sponsorPoolTopup(
   if (!deployer.account) throw new Error("deployer client has no account");
   await ensureUsdcAllowance(deployer, publicClient, SPONSORSHIP_MODULE_ADDRESS, SPONSOR_TOPUP_USDC);
 
-  const txHash = await deployer.writeContract({
-    address: SPONSORSHIP_MODULE_ADDRESS,
-    abi: SPONSORSHIP_MODULE_ABI,
-    functionName: "sponsorPool",
-    args: [tournamentId, SPONSOR_TOPUP_USDC],
-    account: deployer.account,
-    chain: baseSepolia,
-  });
+  // Retry the sponsorPool write itself on replica-stale allowance reverts —
+  // estimateGas runs inside writeContract and may hit a replica that hasn't
+  // yet seen the just-confirmed allowance bump. Surfaces as the OZ ERC20
+  // string "transfer amount exceeds allowance". Up to 6 attempts × 1.5s
+  // ≈ 9s, more than enough for replica fan-out on Base Sepolia.
+  let txHash: Hex | null = null;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      txHash = await deployer.writeContract({
+        address: SPONSORSHIP_MODULE_ADDRESS,
+        abi: SPONSORSHIP_MODULE_ABI,
+        functionName: "sponsorPool",
+        args: [tournamentId, SPONSOR_TOPUP_USDC],
+        account: deployer.account,
+        chain: baseSepolia,
+      });
+      break;
+    } catch (e) {
+      const msg = (e as Error).message;
+      const stale = msg.includes("transfer amount exceeds allowance") || msg.includes("ERC20InsufficientAllowance");
+      if (!stale || attempt === 6) throw e;
+      await new Promise((r) => setTimeout(r, 1_500));
+    }
+  }
+  if (!txHash) throw new Error("[x32-2] sponsorPool: no txHash after retries");
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 120_000 });
   if (receipt.status !== "success") {
     throw new Error(`[x25] sponsorPool reverted: ${txHash}`);
@@ -458,7 +518,24 @@ async function sponsorPoolTopup(
 
 // ─── Step 6: per-agent submission flow via @skillos/hermes-mcp-wrapper ─────
 //
-// X32 update (replaces the original X25 PSEUDOCODE skeleton):
+// X32-2 update (broadcast path live; replaces "dry-run only" X32 disclaimer):
+//
+// Two execution modes share `createHermesMcpClient` from
+// `@skillos/hermes-mcp-wrapper`:
+//   - DRY-RUN: `runAgentLegDryRun` injects an in-process `_mcp` stub that
+//     mirrors @skillos/mcp's `submit_score` JSON-Schema and returns synthetic
+//     success (no SIWA, no HTTP, no broadcast). Used for cost-bounded smokes.
+//   - BROADCAST: `runAgentLegBroadcast` spawns the real @skillos/mcp stdio
+//     server (`packages/mcp/dist/index.js`) via the wrapper's StdioClient
+//     transport AND wraps the real `Client` through `_mcp` to capture the
+//     `submit_score` tool result text — that's how we recover the on-chain
+//     txHash + soloRunId the SkillOS API returns. The wrapper still drives
+//     the agentic loop end-to-end against the real MCP server; the
+//     `_mcp` wrapper is just a passthrough with a result-capture side effect.
+//
+// X32 (PR #172) update:
+//
+// X32 baseline (preserved verbatim — broadcast extension is X32-2 only):
 //
 // Both agent legs share a single MCP host implementation — `createHermesMcpClient`
 // from @skillos/hermes-mcp-wrapper — differing only in the OpenRouter model id.
@@ -711,6 +788,204 @@ async function runAgentLegDryRun(args: {
   };
 }
 
+// ─── X32-2: broadcast-path agent leg (real stdio MCP transport) ───────────
+
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+
+interface BroadcastSubmitCapture {
+  args: Record<string, unknown> | null;
+  resultText: string | null;
+  parsedResult: { txHash?: string; soloRunId?: string; [k: string]: unknown } | null;
+  toolCalls: number;
+  errored: boolean;
+}
+
+/**
+ * Wrap a real @modelcontextprotocol/sdk Client as an McpClientLike whose
+ * `callTool` intercepts `submit_score` results (so we can recover the
+ * API-returned txHash + soloRunId) and otherwise delegates straight through.
+ * The transport spawned by the wrapper (`createTransport(factoryOpts.transport)`)
+ * is the real Stdio child process talking to `packages/mcp/dist/index.js`.
+ */
+function createCapturingMcpWrapper(capture: BroadcastSubmitCapture): McpClientLike {
+  const realClient = new Client(
+    { name: "x25-broadcast-demo", version: "0.1.0" },
+    { capabilities: {} },
+  );
+  return {
+    async connect(transport: unknown): Promise<void> {
+      // The wrapper hands us a real StdioClientTransport instance. Just delegate.
+      await (realClient as unknown as { connect: (t: unknown) => Promise<void> }).connect(transport);
+    },
+    async listTools() {
+      const out = await realClient.listTools();
+      return out as unknown as { tools: Array<{ name: string; description?: string; inputSchema: Record<string, unknown> }> };
+    },
+    async callTool(req: { name: string; arguments?: Record<string, unknown> }) {
+      capture.toolCalls += 1;
+      try {
+        const out = await realClient.callTool(req as never);
+        if (req.name === "submit_score") {
+          capture.args = req.arguments ?? {};
+          // Surface the text payload back to the caller — the SDK packs the
+          // server's JSON-stringified result inside `content[0].text`.
+          const contentArr = (out as { content?: Array<{ type: string; text?: string }> }).content;
+          const text = Array.isArray(contentArr) && contentArr[0]?.type === "text" ? contentArr[0].text ?? null : null;
+          capture.resultText = text;
+          if (text) {
+            try {
+              capture.parsedResult = JSON.parse(text) as BroadcastSubmitCapture["parsedResult"];
+            } catch {
+              capture.parsedResult = null;
+            }
+          }
+          const isErr = (out as { isError?: boolean }).isError;
+          if (isErr) capture.errored = true;
+        }
+        return out as never;
+      } catch (e) {
+        if (req.name === "submit_score") {
+          capture.errored = true;
+          capture.resultText = `EXCEPTION: ${(e as Error).message}`;
+        }
+        throw e;
+      }
+    },
+    async close(): Promise<void> {
+      await realClient.close();
+    },
+  };
+}
+
+interface AgentLegBroadcastResult extends AgentLegResult {
+  submitTxHash: Hex | null;
+  submitTxConfirmed: boolean;
+  soloRunId: string | null;
+  mcpResultText: string | null;
+}
+
+async function runAgentLegBroadcast(args: {
+  agent: AgentBundle;
+  model: string;
+  tournamentId: Hex;
+  openrouterApiKey: string;
+  publicClient: PublicClientT;
+}): Promise<AgentLegBroadcastResult> {
+  if (args.agent.agentId === null) {
+    throw new Error(`[x32-2] ${args.agent.label}: agentId is null — register must run first`);
+  }
+  const capture: BroadcastSubmitCapture = {
+    args: null,
+    resultText: null,
+    parsedResult: null,
+    toolCalls: 0,
+    errored: false,
+  };
+  const wrapped = createCapturingMcpWrapper(capture);
+
+  // Spawn @skillos/mcp with this agent's credentials so submit_score → API
+  // signs SIWA + ERC-8128 as this agent. Each agent gets a fresh subprocess
+  // (no shared state between legs).
+  const mcpServerPath = resolve(process.cwd(), "packages/mcp/dist/index.js");
+  const client = createHermesMcpClient(
+    {
+      openrouterApiKey: args.openrouterApiKey,
+      model: args.model,
+      costWarningThresholdUsd: 5,
+      clientName: `x32-2-broadcast-${args.agent.label}`,
+    },
+    {
+      transport: {
+        kind: "stdio",
+        command: process.execPath, // current node binary
+        args: [mcpServerPath],
+        env: {
+          // Inherit critical vars for the child env minimally — do NOT leak
+          // STUDIO_PRIVATE_KEY into agent subprocess (server-broadcast path
+          // belongs to api.skillos.network, not the local MCP server).
+          PATH: process.env.PATH ?? "",
+          HOME: process.env.HOME ?? "",
+          SKILLOS_ENV: "testnet",
+          SKILLOS_PRIVATE_KEY: args.agent.privateKey,
+          SKILLOS_AGENT_ID: String(args.agent.agentId),
+          SKILLOS_BASE_URL: process.env.SKILLOS_BASE_URL ?? "https://api.skillos.network",
+          SKILLOS_RPC_URL: rpcUrl(),
+        },
+      },
+      _mcp: wrapped,
+    },
+  );
+
+  await client.connect();
+  let result: Awaited<ReturnType<typeof client.run>>;
+  try {
+    result = await client.run(AGENT_USER_PROMPT, {
+      systemPrompt: AGENT_SYSTEM_PROMPT(args.agent.label, args.tournamentId),
+      maxIterations: 5,
+    });
+  } finally {
+    await client.close();
+  }
+
+  const wrapperCost = result.usage.estimatedCostUsd;
+  const localCost = overlayCostUsd(args.model, result.usage.promptTokens, result.usage.completionTokens);
+  const costEstimateUsd = wrapperCost > 0 ? wrapperCost : localCost;
+
+  const claimedSubmission: AgentLegResult["claimedSubmission"] =
+    capture.args &&
+    typeof capture.args["tournamentId"] === "string" &&
+    typeof capture.args["score"] === "number"
+      ? {
+          tournamentId: capture.args["tournamentId"] as string,
+          score: capture.args["score"] as number,
+          tier: typeof capture.args["tier"] === "string" ? (capture.args["tier"] as string) : "T0",
+        }
+      : null;
+
+  // Pull the txHash from the parsed MCP result. SkillOS API returns
+  // `{ txHash, soloRunId, ... }` per the submit_score handler comment.
+  const parsed = capture.parsedResult;
+  const submitTxHash: Hex | null =
+    parsed && typeof parsed["txHash"] === "string" && /^0x[a-fA-F0-9]{64}$/.test(parsed["txHash"] as string)
+      ? (parsed["txHash"] as Hex)
+      : null;
+  const soloRunId =
+    parsed && typeof parsed["soloRunId"] === "string" ? (parsed["soloRunId"] as string) : null;
+
+  // Confirm the API-broadcast tx is mined before downstream effectiveScoreOf
+  // reads see the new score. SkillOS API broadcasts fire-and-forget, so we
+  // explicitly wait here.
+  let submitTxConfirmed = false;
+  if (submitTxHash) {
+    try {
+      const receipt = await args.publicClient.waitForTransactionReceipt({
+        hash: submitTxHash,
+        timeout: 180_000,
+        confirmations: 1,
+      });
+      submitTxConfirmed = receipt.status === "success";
+    } catch {
+      submitTxConfirmed = false;
+    }
+  }
+
+  return {
+    label: args.agent.label,
+    model: args.model,
+    tokenUsage: { ...result.usage, estimatedCostUsd: costEstimateUsd },
+    costEstimateUsd,
+    iterations: result.iterations,
+    stoppedReason: result.stoppedReason,
+    finalContent: result.finalContent,
+    claimedSubmission,
+    toolCallCount: capture.toolCalls,
+    submitTxHash,
+    submitTxConfirmed,
+    soloRunId,
+    mcpResultText: capture.resultText,
+  };
+}
+
 // ─── Step 7: settle(id, sortedRanking) — post-window-close ─────────────────
 
 /**
@@ -850,9 +1125,27 @@ interface DemoArtifact {
     sponsorReceiptSbt: string;
     identityRegistry: string;
   };
+  /**
+   * Blockscout URLs — sprint spec calls out Blockscout as the demo-video
+   * explorer of record. Per-tx links populated only in BROADCAST mode.
+   */
+  blockscoutUrls: {
+    tournament: string;
+    sponsorshipModule: string;
+    sponsorReceiptSbt: string;
+    identityRegistry: string;
+    submissionTxs: Record<string, string | null>;
+    settleTx: string | null;
+    sponsorTx: string | null;
+    createTx: string | null;
+  };
   leaderboardUrl: string;
   profileUrls: Record<string, string>;
 }
+
+const BLOCKSCOUT_BASE = "https://base-sepolia.blockscout.com";
+const blockscoutTxUrl = (h: Hex | null): string | null => (h ? `${BLOCKSCOUT_BASE}/tx/${h}` : null);
+const blockscoutAddrUrl = (a: Address): string => `${BLOCKSCOUT_BASE}/address/${a}`;
 
 function writeArtifact(artifact: DemoArtifact): string {
   const outDir = process.env.HERMES_DEMO_OUTPUT_DIR ?? resolve(process.cwd(), "scripts/output");
@@ -1031,6 +1324,16 @@ async function main(): Promise<void> {
         sponsorReceiptSbt: `https://sepolia.basescan.org/address/${SPONSOR_RECEIPT_SBT_ADDRESS}`,
         identityRegistry: `https://sepolia.basescan.org/address/${IDENTITY_REGISTRY_ADDRESS}`,
       },
+      blockscoutUrls: {
+        tournament: blockscoutAddrUrl(TOURNAMENT_POOL_V2_ADDRESS),
+        sponsorshipModule: blockscoutAddrUrl(SPONSORSHIP_MODULE_ADDRESS),
+        sponsorReceiptSbt: blockscoutAddrUrl(SPONSOR_RECEIPT_SBT_ADDRESS),
+        identityRegistry: blockscoutAddrUrl(IDENTITY_REGISTRY_ADDRESS),
+        submissionTxs: Object.fromEntries(bundles.map((b) => [b.label, null])),
+        settleTx: null,
+        sponsorTx: null,
+        createTx: null,
+      },
       leaderboardUrl: `https://match3.skillos.games/tournament/${tournamentId}`,
       profileUrls: Object.fromEntries(
         bundles.map((b) => [b.label, `https://match3.skillos.games/agent/${b.address}`]),
@@ -1053,12 +1356,18 @@ async function main(): Promise<void> {
   // ─── BROADCAST PATH ──────────────────────────────────────────────────────
   console.log("--- BROADCAST: live txs on Base Sepolia ---\n");
 
-  // Step 2: fund each agent (ETH + USDC).
+  // Step 2: fund each agent (ETH only — X32-2 skips USDC funding; agents
+  // don't need USDC for the submit_score flow which goes through the API,
+  // and the deployer USDC budget is reserved entirely for the $40 pool).
   for (const b of bundles) {
     b.fundEthTxHash = await fundAgentEth(deployer, publicClient, b);
     console.log(`[x25][${b.label}] fundEth tx: ${b.fundEthTxHash}`);
-    b.fundUsdcTxHash = await fundAgentUsdc(deployer, publicClient, b);
-    console.log(`[x25][${b.label}] fundUsdc tx: ${b.fundUsdcTxHash}`);
+    if (AGENT_USDC > 0n) {
+      b.fundUsdcTxHash = await fundAgentUsdc(deployer, publicClient, b);
+      console.log(`[x25][${b.label}] fundUsdc tx: ${b.fundUsdcTxHash}`);
+    } else {
+      console.log(`[x25][${b.label}] fundUsdc: SKIPPED (AGENT_USDC=0; submit_score is API-broadcast, agents need ETH only)`);
+    }
   }
 
   // Step 3: register each agent (uses agent's own wallet).
@@ -1080,26 +1389,85 @@ async function main(): Promise<void> {
   const { txHash: sponsorTxHash, receiptTokenId } = await sponsorPoolTopup(deployer, publicClient, tournamentId);
   console.log(`[x25] sponsorPool tx: ${sponsorTxHash} → receiptTokenId=${receiptTokenId}`);
 
-  // Step 6: submission — deferred to agent runtimes (skeleton only).
-  console.log(`\n[x25] === Bootstrap complete. Agent submissions run during the next ${DURATION_MIN}min window. ===`);
-  console.log(`[x25] Re-invoke with --settle-only=${tournamentId} after window close to settle.\n`);
+  // Step 6: live agent submissions via @skillos/hermes-mcp-wrapper.
+  // X32-2: both legs spawn real @skillos/mcp stdio subprocesses; each agent's
+  // `submit_score` tool call POSTs to api.skillos.network /v1/agents/scores,
+  // which signs + broadcasts the on-chain attestation server-side and returns
+  // the unconfirmed txHash. The wrapper-around-real-Client (createCapturing-
+  // McpWrapper) intercepts the tool result text so we capture txHash +
+  // soloRunId without forking the wrapper's agentic loop. Each leg waits
+  // on-chain confirmation before the next step.
+  const openrouterApiKey = process.env.OPENROUTER_API_KEY;
+  if (!openrouterApiKey) {
+    throw new Error(
+      "OPENROUTER_API_KEY env required for --broadcast agent legs. " +
+        "Source it before running (e.g. `set -a; source .env.demo; set +a`).",
+    );
+  }
 
-  // NOTE: The settle step is deliberately NOT broadcast in this same invocation —
-  // the tournament window has not yet elapsed. Settle is the founder's second
-  // invocation (or a follow-up cron sweep). For the climax demo, settle is run
-  // after both agents have submitted.
+  // Wait until startsAt before submission — the contract enforces tournament
+  // is active. startsAt was set with a 60s buffer above; account for the time
+  // already consumed by funding + register + create + sponsor.
+  {
+    const waitToStartMs = Math.max(0, startsAt * 1000 - Date.now()) + 2_000;
+    if (waitToStartMs > 0) {
+      console.log(`\n[x32-2] sleeping ${Math.round(waitToStartMs / 1000)}s until startsAt...`);
+      await new Promise((r) => setTimeout(r, waitToStartMs));
+    }
+  }
+
+  console.log(`\n--- BROADCAST: agent legs via @skillos/hermes-mcp-wrapper (real stdio MCP) ---\n`);
+  console.log(`[x32-2] hermes leg: model=${OPEN_WEIGHTS_MODEL}`);
+  console.log(`[x32-2] claude leg: model=${CLAUDE_MODEL}`);
+  console.log(`[x32-2] mcp transport: stdio → node packages/mcp/dist/index.js (per-agent env)`);
+
+  const hermesLeg = await runAgentLegBroadcast({
+    agent: hermes,
+    model: OPEN_WEIGHTS_MODEL,
+    tournamentId,
+    openrouterApiKey,
+    publicClient,
+  });
+  console.log(
+    `[x32-2][hermes] iterations=${hermesLeg.iterations} stop=${hermesLeg.stoppedReason} ` +
+      `tokens=${hermesLeg.tokenUsage.totalTokens} cost≈$${hermesLeg.costEstimateUsd.toFixed(6)}`,
+  );
+  console.log(`[x32-2][hermes] submitTx=${hermesLeg.submitTxHash ?? "<none>"} confirmed=${hermesLeg.submitTxConfirmed}`);
+  if (hermesLeg.claimedSubmission) {
+    console.log(`[x32-2][hermes] claimed score=${hermesLeg.claimedSubmission.score} (tier ${hermesLeg.claimedSubmission.tier})`);
+  }
+
+  const claudeLeg = await runAgentLegBroadcast({
+    agent: claude,
+    model: CLAUDE_MODEL,
+    tournamentId,
+    openrouterApiKey,
+    publicClient,
+  });
+  console.log(
+    `[x32-2][claude] iterations=${claudeLeg.iterations} stop=${claudeLeg.stoppedReason} ` +
+      `tokens=${claudeLeg.tokenUsage.totalTokens} cost≈$${claudeLeg.costEstimateUsd.toFixed(6)}`,
+  );
+  console.log(`[x32-2][claude] submitTx=${claudeLeg.submitTxHash ?? "<none>"} confirmed=${claudeLeg.submitTxConfirmed}`);
+  if (claudeLeg.claimedSubmission) {
+    console.log(`[x32-2][claude] claimed score=${claudeLeg.claimedSubmission.score} (tier ${claudeLeg.claimedSubmission.tier})`);
+  }
+
+  const combinedCost = hermesLeg.costEstimateUsd + claudeLeg.costEstimateUsd;
+  console.log(`\n[x32-2] combined LLM cost: $${combinedCost.toFixed(6)} (both legs, broadcast)`);
+
+  // Step 7: settle. Always broadcast settle in X32-2 (sprint demands end-to-end
+  // artifact). Wait until past endsAt, then settle(id, sortedRanking).
   let settleResult: { txHash: Hex; sortedRanking: Address[]; totalDistributed: bigint; refunded: bigint } | null = null;
-  const settleNowArg = process.argv.includes("--settle-now");
-  if (settleNowArg) {
-    console.log(`[x25] --settle-now flag present: waiting until endsAt and broadcasting settle.`);
-    const waitMs = Math.max(0, endsAt * 1000 - Date.now()) + 5_000;
-    if (waitMs > 0) {
-      console.log(`[x25] sleeping ${Math.round(waitMs / 1000)}s until past endsAt...`);
-      await new Promise((r) => setTimeout(r, waitMs));
+  {
+    const waitToEndMs = Math.max(0, endsAt * 1000 - Date.now()) + 5_000;
+    if (waitToEndMs > 0) {
+      console.log(`\n[x32-2] sleeping ${Math.round(waitToEndMs / 1000)}s until past endsAt before settle...`);
+      await new Promise((r) => setTimeout(r, waitToEndMs));
     }
     settleResult = await settleTournament(deployer, publicClient, tournamentId);
-    console.log(`[x25] settle tx: ${settleResult.txHash}`);
-    console.log(`[x25] totalDistributed=${formatUnits(settleResult.totalDistributed, 6)} USDC, refunded=${formatUnits(settleResult.refunded, 6)} USDC`);
+    console.log(`[x32-2] settle tx: ${settleResult.txHash}`);
+    console.log(`[x32-2] totalDistributed=${formatUnits(settleResult.totalDistributed, 6)} USDC, refunded=${formatUnits(settleResult.refunded, 6)} USDC`);
   }
 
   // Final artifact.
@@ -1140,15 +1508,27 @@ async function main(): Promise<void> {
       totalDistributed: settleResult?.totalDistributed.toString() ?? null,
       refunded: settleResult?.refunded.toString() ?? null,
     },
-    // Broadcast-path wrapper wiring deferred to next sprint per X32 constraint
-    // (no `--broadcast` in this sprint — on-chain run gated for founder review).
-    hermesAgent: null,
-    claudeAgent: null,
+    // X32-2: wrapper wiring is live for both legs over real stdio MCP.
+    hermesAgent: hermesLeg,
+    claudeAgent: claudeLeg,
     basescanUrls: {
       tournament: `https://sepolia.basescan.org/address/${TOURNAMENT_POOL_V2_ADDRESS}`,
       sponsorshipModule: `https://sepolia.basescan.org/address/${SPONSORSHIP_MODULE_ADDRESS}`,
       sponsorReceiptSbt: `https://sepolia.basescan.org/address/${SPONSOR_RECEIPT_SBT_ADDRESS}`,
       identityRegistry: `https://sepolia.basescan.org/address/${IDENTITY_REGISTRY_ADDRESS}`,
+    },
+    blockscoutUrls: {
+      tournament: blockscoutAddrUrl(TOURNAMENT_POOL_V2_ADDRESS),
+      sponsorshipModule: blockscoutAddrUrl(SPONSORSHIP_MODULE_ADDRESS),
+      sponsorReceiptSbt: blockscoutAddrUrl(SPONSOR_RECEIPT_SBT_ADDRESS),
+      identityRegistry: blockscoutAddrUrl(IDENTITY_REGISTRY_ADDRESS),
+      submissionTxs: {
+        hermes: blockscoutTxUrl(hermesLeg.submitTxHash),
+        claude: blockscoutTxUrl(claudeLeg.submitTxHash),
+      },
+      settleTx: blockscoutTxUrl(settleResult?.txHash ?? null),
+      sponsorTx: blockscoutTxUrl(sponsorTxHash),
+      createTx: blockscoutTxUrl(createTxHash),
     },
     leaderboardUrl: `https://match3.skillos.games/tournament/${tournamentId}`,
     profileUrls: Object.fromEntries(
@@ -1156,7 +1536,7 @@ async function main(): Promise<void> {
     ),
   };
   const out = writeArtifact(artifact);
-  console.log(`\n[x25] artifact: ${out}`);
+  console.log(`\n[x32-2] artifact: ${out}`);
   console.log(`\n=== SUCCESS ===\n`);
 }
 
