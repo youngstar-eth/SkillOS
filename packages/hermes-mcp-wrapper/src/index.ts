@@ -134,7 +134,21 @@ export function createHermesMcpClient(
     };
 
     for (let i = 1; i <= maxIterations; i++) {
-      const completion = await inference({ messages, tools, signal: options.signal });
+      // X32-4 credit-burn guard #1 — context windowing.
+      //
+      // Without this the wrapper sends the full accumulated history each
+      // turn, producing quadratic token growth (every turn's prompt
+      // contains all prior turns). For the X32-4 2048 demo the
+      // authoritative game state lives in the MCP server's session_store,
+      // so the model only needs the system prompt + original user prompt
+      // + recent context to pick the next move.
+      //
+      // Windowing rule: keep system + user prompts (positions 0 and 1)
+      // plus the tail end of `messages` that covers the most-recent
+      // `windowTurns` × 2 entries (assistant + tool result per turn).
+      const windowed = windowMessages(messages, options.windowTurns);
+
+      const completion = await inference({ messages: windowed, tools, signal: options.signal });
       const choice = completion.choices[0];
       if (!choice) throw new Error('OpenRouter returned no choices');
       const msg = choice.message;
@@ -183,6 +197,30 @@ export function createHermesMcpClient(
           );
         }
       }
+
+      // X32-4 credit-burn guard #2 — token budget abort.
+      //
+      // After folding this turn's usage in, if cumulative `totalTokens`
+      // exceeds `maxTotalTokens`, abort the loop cleanly. We do this
+      // AFTER tool dispatch so the trail captures the last turn's moves
+      // — important for the X32-4 video replay artifact.
+      if (
+        options.maxTotalTokens !== undefined &&
+        runUsage.totalTokens > options.maxTotalTokens
+      ) {
+        runUsage.estimatedCostUsd = estimateCostUsd(
+          config.model,
+          runUsage.promptTokens,
+          runUsage.completionTokens,
+        );
+        commitUsage(runUsage);
+        return {
+          finalContent: null,
+          iterations: i,
+          stoppedReason: 'aborted_budget',
+          usage: runUsage,
+        };
+      }
     }
 
     runUsage.estimatedCostUsd = estimateCostUsd(
@@ -197,6 +235,50 @@ export function createHermesMcpClient(
       stoppedReason: 'max_iterations',
       usage: runUsage,
     };
+  }
+
+  /**
+   * X32-4 context windowing helper.
+   *
+   * Keeps the system prompt (if present) + the original user prompt + the
+   * most-recent `windowTurns` × 2 messages (one assistant + one tool
+   * result per turn). If `windowTurns` is undefined, returns the full
+   * `messages` array (legacy behavior).
+   *
+   * The tail-slicing aligns on conversation boundaries — we slice from
+   * the FIRST non-system / non-original-user message, so the kept tail
+   * always starts with an assistant turn (the model expects this).
+   */
+  function windowMessages(
+    messages: ChatCompletionMessageParam[],
+    windowTurns: number | undefined,
+  ): ChatCompletionMessageParam[] {
+    if (windowTurns === undefined || windowTurns < 1) return messages;
+
+    // First find the boundary: everything up to and including the first
+    // user message is the "preamble" (kept unconditionally).
+    let preambleEnd = 0;
+    for (let k = 0; k < messages.length; k++) {
+      if (messages[k].role === 'user') {
+        preambleEnd = k + 1;
+        break;
+      }
+    }
+    const preamble = messages.slice(0, preambleEnd);
+    const tail = messages.slice(preambleEnd);
+    // Each turn is roughly (assistant + N tool results). Keep the last
+    // `windowTurns × 2` messages of the tail as an approximation —
+    // tolerates multiple tool_calls per assistant turn naturally.
+    const tailKeep = windowTurns * 2;
+    if (tail.length <= tailKeep) return [...preamble, ...tail];
+    // Slice from a safe boundary: walk back from the end until we land
+    // on an assistant message (so the kept tail doesn't start with an
+    // orphaned tool result, which the OpenAI API rejects).
+    let startIdx = tail.length - tailKeep;
+    while (startIdx < tail.length && tail[startIdx].role !== 'assistant') {
+      startIdx++;
+    }
+    return [...preamble, ...tail.slice(startIdx)];
   }
 
   function commitUsage(delta: TokenUsage): void {

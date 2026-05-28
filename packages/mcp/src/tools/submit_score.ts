@@ -118,30 +118,60 @@ export function registerSubmitScoreTool(server: McpServer, ctx: ServerContext): 
       if (!ctx.config.privateKey) throw new MissingWalletError();
       if (ctx.config.agentId === null) throw new MissingAgentIdError();
 
-      // X32-4 engine validation for the 2048 demo game. We replay the moves
-      // on the same seed (sessionId) and compare against the engine's score.
-      // The replay is preferred over the in-memory session because tool
-      // calls and submit_score may run in different processes during the
-      // demo's broadcast path — replay() is pure and works regardless.
+      // X32-4 engine validation for the 2048 demo game.
+      //
+      // We have two engine-authoritative sources for the score:
+      //   - LIVE: the in-memory session_store, populated by make_move calls
+      //     in THIS process. Captures the exact gameplay the agent observed.
+      //   - REPLAY: replay(sessionId, moves) — pure, works cross-process.
+      //
+      // Single-process broadcast (the X32-4 demo) → LIVE exists and is
+      // authoritative. Cross-process / replay-only verification → fall back
+      // to REPLAY.
+      //
+      // Initial X32-4 implementation rejected on `replayed.score !== claimed`
+      // — but that surfaced an unrelated failure mode: LLMs (both Mistral
+      // and Claude) can't reliably reproduce the chronological direction
+      // array of a 30-move game in their final tool-call payload, even
+      // when the captured live-session score matches the agent's `score`
+      // field exactly. They omit moves, include retried no-ops, or shuffle
+      // order. Rejecting on that bookkeeping mistake blocks the demo
+      // without catching any actual score fraud.
+      //
+      // v0.1 rule (X32-4): trust LIVE when it exists; only fall back to
+      // REPLAY when no live session is available. The validation still
+      // catches the "no live session, lying about replay" case which is
+      // the cross-process attack surface.
+      //
+      // v1.11 backlog (H-v1.11-24, H-v1.11-25): tighten this once either
+      // (a) the wrapper auto-populates `moves` from its captured trail,
+      // (b) the prompt + LLM bookkeeping reliably produce faithful trails,
+      // or (c) the engine grows on-chain move-by-move verification.
       if (game === '2048') {
         if (!sessionId || !moves) {
           throw new Error(
             'submit_score(game="2048") requires `sessionId` and `moves` for engine validation.',
           );
         }
-        const replayed = replay(sessionId, moves as Direction[]);
-        if (replayed.score !== score) {
-          throw new Error(
-            `Engine score mismatch: claimed=${score} replayed=${replayed.score} (sessionId=${sessionId}, moves=${moves.length}). Refusing to submit.`,
-          );
-        }
-        // Live-session sanity check (best-effort: in single-process dry-run,
-        // the live session and the replay should agree exactly).
         const live = getSession(sessionId);
-        if (live && live.score !== replayed.score) {
-          throw new Error(
-            `Live session score (${live.score}) diverges from replay (${replayed.score}) for sessionId=${sessionId}. Engine bug; refusing to submit.`,
-          );
+        if (live) {
+          if (live.score !== score) {
+            throw new Error(
+              `Engine score mismatch (live session): claimed=${score} live=${live.score} (sessionId=${sessionId}). Refusing to submit.`,
+            );
+          }
+          // LIVE matches — accept. (The agent-supplied `moves` array is
+          // retained in the on-chain attestation payload; it's still a
+          // signed claim by the agent, just no longer the validation
+          // gatekeeper in single-process mode.)
+        } else {
+          // Cross-process / no live session — fall back to pure replay.
+          const replayed = replay(sessionId, moves as Direction[]);
+          if (replayed.score !== score) {
+            throw new Error(
+              `Engine score mismatch (replay): claimed=${score} replayed=${replayed.score} (sessionId=${sessionId}, moves=${moves.length}). Refusing to submit.`,
+            );
+          }
         }
       }
 

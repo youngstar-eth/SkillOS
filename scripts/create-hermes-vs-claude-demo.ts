@@ -200,7 +200,7 @@ const DURATION_SEC = DURATION_MIN * 60;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function deriveTournamentId(
+export function deriveTournamentId(
   game: string,
   cycle: number,
   startsAtSec: number,
@@ -225,18 +225,18 @@ function buildAgentURI(name: string, endpoint: string): string {
   return `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString("base64")}`;
 }
 
-function rpcUrl(): string {
+export function rpcUrl(): string {
   return process.env.BASE_SEPOLIA_RPC_URL ?? DEFAULT_RPC;
 }
 
-function makePublicClient() {
+export function makePublicClient() {
   return createPublicClient({
     chain: baseSepolia,
     transport: http(rpcUrl(), { retryCount: 3, retryDelay: 200, timeout: 30_000 }),
   });
 }
 
-function makeWalletClient(pk: Hex) {
+export function makeWalletClient(pk: Hex) {
   return createWalletClient({
     account: privateKeyToAccount(pk),
     chain: baseSepolia,
@@ -250,7 +250,13 @@ type WalletClientT = ReturnType<typeof makeWalletClient>;
 // ─── Bootstrap: 2 fresh agent wallets ──────────────────────────────────────
 
 interface AgentBundle {
-  label: "hermes" | "claude";
+  // X32-4 clean-broadcast: two open-weights slots. Claude was dropped
+  // entirely (was a $3/$15-per-M cost sink, not a demo requirement).
+  // Slot names equal the underlying model id family so artifact + log
+  // labels self-describe.
+  //   mistral  → mistralai/mistral-large-2411
+  //   deepseek → deepseek/deepseek-v4-flash
+  label: "mistral" | "deepseek";
   privateKey: Hex;
   address: Address;
   endpoint: string;
@@ -446,7 +452,7 @@ async function ensureUsdcAllowance(
   throw new Error(`[x32-2] approve replica-propagation timeout for spender=${spender}`);
 }
 
-async function createTournament(
+export async function createTournament(
   deployer: WalletClientT,
   publicClient: PublicClientT,
   tournamentId: Hex,
@@ -481,7 +487,7 @@ async function createTournament(
 
 // ─── Step 5: sponsorPool top-up → SBT mint ─────────────────────────────────
 
-async function sponsorPoolTopup(
+export async function sponsorPoolTopup(
   deployer: WalletClientT,
   publicClient: PublicClientT,
   tournamentId: Hex,
@@ -584,37 +590,49 @@ async function sponsorPoolTopup(
 //     pass the agent's freshly-registered agentId + privateKey via env so the
 //     MCP server can do SIWA + signed POST /v1/agents/scores. Out of scope here.
 
-// X32 model selection — see PR description for full rationale.
+// X32-4 model selection — final config (post X32-4 clean-broadcast).
 //
-// The "hermes" agent leg label is retained (preserves AgentBundle wiring,
-// env var names X25_HERMES_*, endpoint URLs) but the underlying model is
-// NOT a Hermes variant: as of May 27 2026, OpenRouter routes every Hermes
-// model (3-70b, 3-405b, 3-405b:free, 4-70b, 4-405b) to providers that do
-// not expose function-calling (`tools: false` in `/api/v1/models`). The
-// X29 wrapper relies on tool-use, so any Hermes leg routed through
-// OpenRouter cannot drive a `submit_score` tool call today.
+// Iteration history:
+//   X32-3 + X32-4 dry-run #1: meta-llama/llama-3.3-70b-instruct FAILED
+//     tool-use twice (105 iter no submit_score, $0.20 burned). Dropped.
+//   X32-4 dry-run #2: Mistral Large + Claude Sonnet 4.5 both submitted
+//     scores BUT subsequent broadcasts burned $16 total across two
+//     stuck-tournament cycles — caused by (a) Claude's $3/$15 per-M
+//     pricing, (b) no context windowing (quadratic token growth),
+//     (c) no per-leg token cap. Claude dropped from the demo entirely
+//     (carryover from "Hermes vs Claude" framing, not a requirement).
+//   X32-4 final broadcast (May 28 09:45 UTC): Mistral Large submitted
+//     on-chain successfully (score 168, tx 0x850afbfd...). DeepSeek
+//     (chat) leg crashed on a transient `read ETIMEDOUT` from the
+//     OpenRouter `/chat/completions` socket — a network blip, not a
+//     tool-use failure. Tournament settled with Mistral as sole winner
+//     (settle tx 0x85f5e2c2..., $40 USDC to agentId 6437).
+//   X32-5 fixes:
+//     1. Inference call now retries 3× on transient errors (ETIMEDOUT,
+//        ECONNRESET, 5xx, fetch socket errors) with exp backoff 1/2/4s.
+//        See packages/hermes-mcp-wrapper/src/inference.ts. A single
+//        socket blip will no longer crash a leg.
+//     2. `deepseek/deepseek-chat` swapped to `deepseek/deepseek-v4-flash`
+//        — old endpoint sunsetting on OpenRouter 2026-07-24, V4 Flash
+//        supersedes at lower price ($0.10/$0.20 per M) + 1M context.
 //
-// Founder direction on X32 question 2 (May 27 2026): pick the first
-// tool-use-verified open-weights model on OpenRouter from a defined
-// fallback chain. Verified order at the time of selection:
-//   1. meta-llama/llama-3.3-70b-instruct   — tools: true, $0.10/$0.32 per M (chosen)
-//   2. mistralai/mistral-large-2411        — tools: true, $2.00/$6.00 per M
-//   3. qwen/qwen-2.5-72b-instruct          — tools: true, $0.36/$0.40 per M
-//   4. deepseek/deepseek-chat              — tools: true, $0.23/$0.91 per M
-//   5. google/gemini-2.0-flash-exp:free    — not currently on OpenRouter
+// Final config:
+//   Leg 1: `mistralai/mistral-large-2411` — tools: true, $2.00/$6.00
+//     per M, validated end-to-end in X32-4 on-chain broadcast.
+//   Leg 2: `deepseek/deepseek-v4-flash` — tools: true, ctx 1,048,576,
+//     $0.10/$0.20 per M. Fallback chain: deepseek-v4-pro → qwen-2.5-72b.
 //
-// Phase 2 follow-up (out of X32 scope): direct Nous Research Hermes Agent
-// API integration would restore "Hermes vs Claude" narrative; tracked
-// separately. v1.11 housekeeping: Strategic Memory v1.10 demo-narrative
-// note + pitch deck Slide 8 must update to "{ChosenModel} vs Claude" or
-// adopt the looser "open-weights vs frontier" framing.
-const OPEN_WEIGHTS_MODEL = "meta-llama/llama-3.3-70b-instruct";
-
-// Founder direction: Claude Sonnet 4.5 is the locked Claude leg model for
-// this sprint. Sonnet 4.6 is also available on OpenRouter (tools: true) and
-// is the documented "latest" per system context; staying on 4.5 per the
-// founder's X32 message.
-const CLAUDE_MODEL = "anthropic/claude-sonnet-4.5";
+// AgentBundle.label union: "mistral" | "deepseek". Filename, package
+// name, wrapper function name (`createHermesMcpClient`) are kept stable
+// — those are infrastructure identities, not demo labels.
+//
+// Verified `tools: true` on OpenRouter /api/v1/models at X32-5 swap:
+//   mistralai/mistral-large-2411  — tools: true, ctx 131072
+//   deepseek/deepseek-v4-flash    — tools: true, ctx 1048576
+//   deepseek/deepseek-v4-pro      — tools: true, ctx 1048576 (fallback)
+//   qwen/qwen-2.5-72b-instruct    — tools: true, ctx 131072 (fallback)
+const LEG1_MODEL = "mistralai/mistral-large-2411";
+const LEG2_MODEL = "deepseek/deepseek-v4-flash";
 
 // OpenRouter pricing overlay for models the X29 wrapper's `estimateCostUsd`
 // doesn't natively price (it only knows the three validated Hermes ids,
@@ -630,7 +648,11 @@ const OPENROUTER_PRICING_USD_PER_M: Record<string, { input: number; output: numb
   "meta-llama/llama-3.3-70b-instruct": { input: 0.1, output: 0.32 },
   "mistralai/mistral-large-2411": { input: 2.0, output: 6.0 },
   "qwen/qwen-2.5-72b-instruct": { input: 0.36, output: 0.4 },
-  "deepseek/deepseek-chat": { input: 0.2288, output: 0.9144 },
+  // X32-5 swap: deepseek-chat sunsetting on OpenRouter 2026-07-24; V4
+  // Flash supersedes at lower price ($0.10/$0.20 per M) + 1M context.
+  // Keep V4 Pro priced too as the documented fallback target.
+  "deepseek/deepseek-v4-flash": { input: 0.1, output: 0.2 },
+  "deepseek/deepseek-v4-pro": { input: 0.435, output: 0.87 },
 };
 
 function overlayCostUsd(model: string, prompt: number, completion: number): number {
@@ -692,8 +714,13 @@ const AGENT_SYSTEM_PROMPT = (label: string, tournamentId: Hex, sessionId: string
     `- Step 2: make_move repeatedly. Each call returns the NEW board — use it.`,
     `- Step 3: STOP making moves when EITHER gameOver === true OR you have`,
     `  successfully applied ${SOFT_MOVE_CAP} moves (whichever comes first).`,
-    `- Step 4: call submit_score ONCE with score=current score and moves=full`,
-    `  chronological array of successful directions.`,
+    `- Step 4: call submit_score ONCE. The \`score\` argument MUST be EXACTLY`,
+    `  the \`score\` field from your most recent make_move response — do NOT`,
+    `  re-derive it, do NOT sum scoreDeltas, do NOT estimate. Copy it`,
+    `  verbatim. \`moves\` is the chronological array of every direction`,
+    `  argument you passed to make_move (include no-op attempts too — they`,
+    `  replay as no-ops on the engine side, so the array can be the full`,
+    `  history). The server's engine validation rejects any mismatch.`,
     `- Step 5: write a single concise sentence summary describing the run.`,
     `- On any tool error: surface it verbatim and stop — do not retry.`,
   ].join("\n");
@@ -704,6 +731,23 @@ const AGENT_USER_PROMPT = "Play 2048 to game-over and submit your score.";
 // + 1 submit_score + 1 summary = SOFT_MOVE_CAP + 3. Pad for no-op
 // directions and LLM slack.
 const AGENT_MAX_ITERATIONS = SOFT_MOVE_CAP + 8;
+
+// X32-4 credit-burn guards (passed to client.run, enforced by the wrapper).
+//
+// `AGENT_WINDOW_TURNS = 3` — keep the system + user prompts + the last 3
+// (assistant + tool) pairs. Without windowing the wrapper sends the full
+// growing transcript each turn (quadratic token cost); $16 was burned
+// across prior X32-4 runs in part because of this. With windowing, each
+// turn is ~constant tokens since the authoritative 2048 state lives in
+// the MCP server's session_store — the model only needs the system prompt
+// + the most recent make_move result to pick the next direction.
+//
+// `AGENT_MAX_TOTAL_TOKENS = 800_000` — hard cap per leg. If misbehavior
+// blows past this (e.g. infinite tool-call loop) the wrapper exits with
+// `stoppedReason: "aborted_budget"` and the trail captured so far is
+// preserved.
+const AGENT_WINDOW_TURNS = 3;
+const AGENT_MAX_TOTAL_TOKENS = 800_000;
 
 // JSON-Schema mirrors of the three tools the 2048 agent loop uses. These
 // must match the zod inputSchema in packages/mcp/src/tools/{get_board_state,
@@ -941,7 +985,7 @@ interface AgentLegResult {
   tokenUsage: TokenUsage;
   costEstimateUsd: number;
   iterations: number;
-  stoppedReason: "no_more_tool_calls" | "max_iterations";
+  stoppedReason: "no_more_tool_calls" | "max_iterations" | "aborted_budget";
   finalContent: string | null;
   claimedSubmission: {
     tournamentId: string;
@@ -1012,6 +1056,8 @@ async function runAgentLegDryRun(args: {
     result = await client.run(AGENT_USER_PROMPT, {
       systemPrompt: AGENT_SYSTEM_PROMPT(args.label, args.tournamentId, sessionId),
       maxIterations: AGENT_MAX_ITERATIONS,
+      windowTurns: AGENT_WINDOW_TURNS,
+      maxTotalTokens: AGENT_MAX_TOTAL_TOKENS,
     });
   } finally {
     await client.close();
@@ -1189,7 +1235,7 @@ interface AgentLegBroadcastResult extends AgentLegResult {
   mcpResultText: string | null;
 }
 
-async function runAgentLegBroadcast(args: {
+export async function runAgentLegBroadcast(args: {
   agent: AgentBundle;
   model: string;
   tournamentId: Hex;
@@ -1252,6 +1298,8 @@ async function runAgentLegBroadcast(args: {
     result = await client.run(AGENT_USER_PROMPT, {
       systemPrompt: AGENT_SYSTEM_PROMPT(args.agent.label, args.tournamentId, sessionId),
       maxIterations: AGENT_MAX_ITERATIONS,
+      windowTurns: AGENT_WINDOW_TURNS,
+      maxTotalTokens: AGENT_MAX_TOTAL_TOKENS,
     });
   } finally {
     await client.close();
@@ -1366,7 +1414,7 @@ async function buildSortedRanking(
   return scored.map((s) => s.player);
 }
 
-async function settleTournament(
+export async function settleTournament(
   deployer: WalletClientT,
   publicClient: PublicClientT,
   tournamentId: Hex,
@@ -1410,7 +1458,7 @@ interface AgentArtifact {
   tokenUsage: TokenUsage;
   costEstimateUsd: number;
   iterations: number;
-  stoppedReason: "no_more_tool_calls" | "max_iterations";
+  stoppedReason: "no_more_tool_calls" | "max_iterations" | "aborted_budget";
   finalContent: string | null;
   claimedSubmission: {
     tournamentId: string;
@@ -1468,8 +1516,8 @@ interface DemoArtifact {
    * wrapper integration (model name, token usage, cost estimate, captured
    * claimed score). In broadcast (current sprint defers wiring), null.
    */
-  hermesAgent: AgentArtifact | null;
-  claudeAgent: AgentArtifact | null;
+  mistralAgent: AgentArtifact | null;
+  deepseekAgent: AgentArtifact | null;
   basescanUrls: {
     tournament: string;
     sponsorshipModule: string;
@@ -1545,9 +1593,9 @@ async function main(): Promise<void> {
   }
 
   // ─── Step 1: generate agent bundles ──────────────────────────────────────
-  const hermes = generateAgentBundle("hermes");
-  const claude = generateAgentBundle("claude");
-  const bundles: AgentBundle[] = [hermes, claude];
+  const mistral = generateAgentBundle("mistral");
+  const deepseek = generateAgentBundle("deepseek");
+  const bundles: AgentBundle[] = [mistral, deepseek];
   console.log(`[x25] agents:`);
   for (const b of bundles) console.log(`   ${b.label}: ${b.address}`);
 
@@ -1589,47 +1637,47 @@ async function main(): Promise<void> {
       );
     }
     console.log(`\n--- DRY-RUN: agent legs via @skillos/hermes-mcp-wrapper (stubbed MCP) ---\n`);
-    console.log(`[x25] hermes leg: model=${OPEN_WEIGHTS_MODEL} (open-weights; Hermes routing on OpenRouter has tools:false — see PR description)`);
-    console.log(`[x25] claude leg: model=${CLAUDE_MODEL}`);
+    console.log(`[x25] mistral leg: model=${LEG1_MODEL} (X32-4 dry-run #2: swapped from Llama 3.3 70B after two tool-use failures; see PR description for fallback chain)`);
+    console.log(`[x25] deepseek leg: model=${LEG2_MODEL}`);
     console.log(`[x25] mcp transport: in-process stub (mirrors @skillos/mcp submit_score schema; no broadcast)`);
 
-    const hermesLeg = await runAgentLegDryRun({
-      label: "hermes",
-      model: OPEN_WEIGHTS_MODEL,
+    const mistralLeg = await runAgentLegDryRun({
+      label: "mistral",
+      model: LEG1_MODEL,
       tournamentId,
       openrouterApiKey,
     });
     console.log(
-      `[x25][hermes] iterations=${hermesLeg.iterations} stop=${hermesLeg.stoppedReason} ` +
-        `tokens=${hermesLeg.tokenUsage.totalTokens} cost≈$${hermesLeg.costEstimateUsd.toFixed(6)}`,
+      `[x25][mistral] iterations=${mistralLeg.iterations} stop=${mistralLeg.stoppedReason} ` +
+        `tokens=${mistralLeg.tokenUsage.totalTokens} cost≈$${mistralLeg.costEstimateUsd.toFixed(6)}`,
     );
-    if (hermesLeg.claimedSubmission) {
+    if (mistralLeg.claimedSubmission) {
       console.log(
-        `[x25][hermes] claimed score=${hermesLeg.claimedSubmission.score} (tier ${hermesLeg.claimedSubmission.tier})`,
+        `[x25][mistral] claimed score=${mistralLeg.claimedSubmission.score} (tier ${mistralLeg.claimedSubmission.tier})`,
       );
     } else {
-      console.log(`[x25][hermes] no claimed submission captured (toolCalls=${hermesLeg.toolCallCount})`);
+      console.log(`[x25][mistral] no claimed submission captured (toolCalls=${mistralLeg.toolCallCount})`);
     }
 
-    const claudeLeg = await runAgentLegDryRun({
-      label: "claude",
-      model: CLAUDE_MODEL,
+    const deepseekLeg = await runAgentLegDryRun({
+      label: "deepseek",
+      model: LEG2_MODEL,
       tournamentId,
       openrouterApiKey,
     });
     console.log(
-      `[x25][claude] iterations=${claudeLeg.iterations} stop=${claudeLeg.stoppedReason} ` +
-        `tokens=${claudeLeg.tokenUsage.totalTokens} cost≈$${claudeLeg.costEstimateUsd.toFixed(6)}`,
+      `[x25][deepseek] iterations=${deepseekLeg.iterations} stop=${deepseekLeg.stoppedReason} ` +
+        `tokens=${deepseekLeg.tokenUsage.totalTokens} cost≈$${deepseekLeg.costEstimateUsd.toFixed(6)}`,
     );
-    if (claudeLeg.claimedSubmission) {
+    if (deepseekLeg.claimedSubmission) {
       console.log(
-        `[x25][claude] claimed score=${claudeLeg.claimedSubmission.score} (tier ${claudeLeg.claimedSubmission.tier})`,
+        `[x25][deepseek] claimed score=${deepseekLeg.claimedSubmission.score} (tier ${deepseekLeg.claimedSubmission.tier})`,
       );
     } else {
-      console.log(`[x25][claude] no claimed submission captured (toolCalls=${claudeLeg.toolCallCount})`);
+      console.log(`[x25][deepseek] no claimed submission captured (toolCalls=${deepseekLeg.toolCallCount})`);
     }
 
-    const combinedCost = hermesLeg.costEstimateUsd + claudeLeg.costEstimateUsd;
+    const combinedCost = mistralLeg.costEstimateUsd + deepseekLeg.costEstimateUsd;
     console.log(`\n[x25] combined estimated cost: $${combinedCost.toFixed(6)} (both legs, dry-run)`);
     console.log(`\n[x25] DRY-RUN complete. Re-run with --broadcast to send all txs.\n`);
 
@@ -1659,16 +1707,16 @@ async function main(): Promise<void> {
         fundUsdcTxHash: null,
       })),
       txHashes: {
-        fundEth: { hermes: null, claude: null },
-        fundUsdc: { hermes: null, claude: null },
-        register: { hermes: null, claude: null },
+        fundEth: { mistral: null, deepseek: null },
+        fundUsdc: { mistral: null, deepseek: null },
+        register: { mistral: null, deepseek: null },
         create: null,
         sponsor: null,
         settle: null,
       },
       settle: { sortedRanking: null, totalDistributed: null, refunded: null },
-      hermesAgent: hermesLeg,
-      claudeAgent: claudeLeg,
+      mistralAgent: mistralLeg,
+      deepseekAgent: deepseekLeg,
       basescanUrls: {
         tournament: `https://sepolia.basescan.org/address/${TOURNAMENT_POOL_V2_ADDRESS}`,
         sponsorshipModule: `https://sepolia.basescan.org/address/${SPONSORSHIP_MODULE_ADDRESS}`,
@@ -1768,43 +1816,43 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n--- BROADCAST: agent legs via @skillos/hermes-mcp-wrapper (real stdio MCP) ---\n`);
-  console.log(`[x32-2] hermes leg: model=${OPEN_WEIGHTS_MODEL}`);
-  console.log(`[x32-2] claude leg: model=${CLAUDE_MODEL}`);
+  console.log(`[x32-2] mistral leg: model=${LEG1_MODEL}`);
+  console.log(`[x32-2] deepseek leg: model=${LEG2_MODEL}`);
   console.log(`[x32-2] mcp transport: stdio → node packages/mcp/dist/index.js (per-agent env)`);
 
-  const hermesLeg = await runAgentLegBroadcast({
-    agent: hermes,
-    model: OPEN_WEIGHTS_MODEL,
+  const mistralLeg = await runAgentLegBroadcast({
+    agent: mistral,
+    model: LEG1_MODEL,
     tournamentId,
     openrouterApiKey,
     publicClient,
   });
   console.log(
-    `[x32-2][hermes] iterations=${hermesLeg.iterations} stop=${hermesLeg.stoppedReason} ` +
-      `tokens=${hermesLeg.tokenUsage.totalTokens} cost≈$${hermesLeg.costEstimateUsd.toFixed(6)}`,
+    `[x32-2][mistral] iterations=${mistralLeg.iterations} stop=${mistralLeg.stoppedReason} ` +
+      `tokens=${mistralLeg.tokenUsage.totalTokens} cost≈$${mistralLeg.costEstimateUsd.toFixed(6)}`,
   );
-  console.log(`[x32-2][hermes] submitTx=${hermesLeg.submitTxHash ?? "<none>"} confirmed=${hermesLeg.submitTxConfirmed}`);
-  if (hermesLeg.claimedSubmission) {
-    console.log(`[x32-2][hermes] claimed score=${hermesLeg.claimedSubmission.score} (tier ${hermesLeg.claimedSubmission.tier})`);
+  console.log(`[x32-2][mistral] submitTx=${mistralLeg.submitTxHash ?? "<none>"} confirmed=${mistralLeg.submitTxConfirmed}`);
+  if (mistralLeg.claimedSubmission) {
+    console.log(`[x32-2][mistral] claimed score=${mistralLeg.claimedSubmission.score} (tier ${mistralLeg.claimedSubmission.tier})`);
   }
 
-  const claudeLeg = await runAgentLegBroadcast({
-    agent: claude,
-    model: CLAUDE_MODEL,
+  const deepseekLeg = await runAgentLegBroadcast({
+    agent: deepseek,
+    model: LEG2_MODEL,
     tournamentId,
     openrouterApiKey,
     publicClient,
   });
   console.log(
-    `[x32-2][claude] iterations=${claudeLeg.iterations} stop=${claudeLeg.stoppedReason} ` +
-      `tokens=${claudeLeg.tokenUsage.totalTokens} cost≈$${claudeLeg.costEstimateUsd.toFixed(6)}`,
+    `[x32-2][deepseek] iterations=${deepseekLeg.iterations} stop=${deepseekLeg.stoppedReason} ` +
+      `tokens=${deepseekLeg.tokenUsage.totalTokens} cost≈$${deepseekLeg.costEstimateUsd.toFixed(6)}`,
   );
-  console.log(`[x32-2][claude] submitTx=${claudeLeg.submitTxHash ?? "<none>"} confirmed=${claudeLeg.submitTxConfirmed}`);
-  if (claudeLeg.claimedSubmission) {
-    console.log(`[x32-2][claude] claimed score=${claudeLeg.claimedSubmission.score} (tier ${claudeLeg.claimedSubmission.tier})`);
+  console.log(`[x32-2][deepseek] submitTx=${deepseekLeg.submitTxHash ?? "<none>"} confirmed=${deepseekLeg.submitTxConfirmed}`);
+  if (deepseekLeg.claimedSubmission) {
+    console.log(`[x32-2][deepseek] claimed score=${deepseekLeg.claimedSubmission.score} (tier ${deepseekLeg.claimedSubmission.tier})`);
   }
 
-  const combinedCost = hermesLeg.costEstimateUsd + claudeLeg.costEstimateUsd;
+  const combinedCost = mistralLeg.costEstimateUsd + deepseekLeg.costEstimateUsd;
   console.log(`\n[x32-2] combined LLM cost: $${combinedCost.toFixed(6)} (both legs, broadcast)`);
 
   // Step 7: settle. Always broadcast settle in X32-2 (sprint demands end-to-end
@@ -1847,9 +1895,9 @@ async function main(): Promise<void> {
       fundUsdcTxHash: b.fundUsdcTxHash,
     })),
     txHashes: {
-      fundEth: { hermes: hermes.fundEthTxHash, claude: claude.fundEthTxHash },
-      fundUsdc: { hermes: hermes.fundUsdcTxHash, claude: claude.fundUsdcTxHash },
-      register: { hermes: hermes.registerTxHash, claude: claude.registerTxHash },
+      fundEth: { mistral: mistral.fundEthTxHash, deepseek: deepseek.fundEthTxHash },
+      fundUsdc: { mistral: mistral.fundUsdcTxHash, deepseek: deepseek.fundUsdcTxHash },
+      register: { mistral: mistral.registerTxHash, deepseek: deepseek.registerTxHash },
       create: createTxHash,
       sponsor: sponsorTxHash,
       settle: settleResult?.txHash ?? null,
@@ -1860,8 +1908,8 @@ async function main(): Promise<void> {
       refunded: settleResult?.refunded.toString() ?? null,
     },
     // X32-2: wrapper wiring is live for both legs over real stdio MCP.
-    hermesAgent: hermesLeg,
-    claudeAgent: claudeLeg,
+    mistralAgent: mistralLeg,
+    deepseekAgent: deepseekLeg,
     basescanUrls: {
       tournament: `https://sepolia.basescan.org/address/${TOURNAMENT_POOL_V2_ADDRESS}`,
       sponsorshipModule: `https://sepolia.basescan.org/address/${SPONSORSHIP_MODULE_ADDRESS}`,
@@ -1874,8 +1922,8 @@ async function main(): Promise<void> {
       sponsorReceiptSbt: blockscoutAddrUrl(SPONSOR_RECEIPT_SBT_ADDRESS),
       identityRegistry: blockscoutAddrUrl(IDENTITY_REGISTRY_ADDRESS),
       submissionTxs: {
-        hermes: blockscoutTxUrl(hermesLeg.submitTxHash),
-        claude: blockscoutTxUrl(claudeLeg.submitTxHash),
+        mistral: blockscoutTxUrl(mistralLeg.submitTxHash),
+        deepseek: blockscoutTxUrl(deepseekLeg.submitTxHash),
       },
       settleTx: blockscoutTxUrl(settleResult?.txHash ?? null),
       sponsorTx: blockscoutTxUrl(sponsorTxHash),
@@ -1891,7 +1939,24 @@ async function main(): Promise<void> {
   console.log(`\n=== SUCCESS ===\n`);
 }
 
-main().catch((err) => {
-  console.error("[x25] fatal:", err);
-  process.exit(1);
-});
+// Only auto-run when invoked directly (not when imported by, e.g., the
+// resume utility at scripts/x32-4-resume-broadcast.ts). `process.argv[1]`
+// is the entry-point path that node was invoked with; comparing against
+// `import.meta.url` distinguishes "imported as a module" from "executed
+// as a script". The `endsWith` check is robust against tsx's transform-
+// path remapping where argv[1] may be a different absolute path than the
+// originating .ts file.
+const isEntryPoint = (() => {
+  try {
+    const arg1 = process.argv[1] ?? "";
+    return arg1.endsWith("create-hermes-vs-claude-demo.ts") || arg1.endsWith("create-hermes-vs-claude-demo.js");
+  } catch {
+    return false;
+  }
+})();
+if (isEntryPoint) {
+  main().catch((err) => {
+    console.error("[x25] fatal:", err);
+    process.exit(1);
+  });
+}

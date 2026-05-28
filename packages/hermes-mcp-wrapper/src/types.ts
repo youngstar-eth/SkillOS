@@ -59,6 +59,25 @@ export interface RunOptions {
   systemPrompt?: string;
   /** Abort signal for the underlying OpenRouter request(s). */
   signal?: AbortSignal;
+  /**
+   * X32-4 credit-burn guard. Hard cap on cumulative `total_tokens` for
+   * THIS `run()` call. When exceeded after a turn's usage is folded in,
+   * the loop exits with `stoppedReason: "aborted_budget"`. Default
+   * `undefined` = no budget cap (legacy behavior). Recommended for any
+   * agent loop that may run >10 turns against a deterministic-game tool.
+   */
+  maxTotalTokens?: number;
+  /**
+   * X32-4 credit-burn guard. Number of recent assistant/tool turn-pairs
+   * to retain when sending the next inference request. The system prompt
+   * and the original user prompt are always preserved. Default `undefined`
+   * = no windowing (full history sent each turn → quadratic token growth).
+   * `windowTurns: 3` keeps the system + user + last 3 (assistant + tool)
+   * pairs — converts quadratic growth to roughly flat ~6-8K tokens/turn
+   * for the X32-4 2048 demo where game state lives in the MCP server's
+   * session store, not the conversation.
+   */
+  windowTurns?: number;
 }
 
 export interface TokenUsage {
@@ -74,8 +93,12 @@ export interface RunResult {
   finalContent: string | null;
   /** Number of agentic iterations actually consumed. */
   iterations: number;
-  /** Whether the loop terminated naturally (no further tool_calls) vs hit `maxIterations`. */
-  stoppedReason: 'no_more_tool_calls' | 'max_iterations';
+  /**
+   * Whether the loop terminated naturally (no further tool_calls), hit
+   * `maxIterations`, or aborted because cumulative tokens crossed
+   * `maxTotalTokens` (X32-4 credit-burn guard).
+   */
+  stoppedReason: 'no_more_tool_calls' | 'max_iterations' | 'aborted_budget';
   /** Token usage for this single `run()` call. */
   usage: TokenUsage;
 }
