@@ -44,7 +44,7 @@ apps/
 packages/
   ai-coach       — Claude Sonnet 4.6 (Coach) + Haiku 4.5 (Recap, Anti-Cheat)
   contracts      — ABIs + addresses + game-slug helpers (re-exports from /contracts/out)
-  duel-backend   — solo handlers + bracket round advancement (X22), settle, settle-guard, cron
+  duel-backend   — solo handlers, settle, settle-guard, cron
   game-types     — shared TS types (Duel state, status enums)
   lib-shared     — shared utilities
   sp-engine      — Skill Points calculation engine
