@@ -35,6 +35,11 @@
       "import": "./dist/server.js",
       "types": "./dist/server.d.ts"
     },
+    "./engine/2048": {
+      "types": "./dist/engine-2048.d.ts",
+      "import": "./dist/engine-2048.js",
+      "default": "./dist/engine-2048.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

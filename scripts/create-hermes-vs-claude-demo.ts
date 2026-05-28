@@ -92,10 +92,26 @@ import {
   type McpClientLike,
   type TokenUsage,
 } from "@skillos/hermes-mcp-wrapper";
+// X32-4: pull the 2048 engine directly so the dry-run stub can present
+// real boards to the LLM and validate scores in-process. The package
+// subpath export is built by tsup (see packages/mcp/tsup.config.ts).
+import {
+  createSession,
+  applyMove as engineApplyMove,
+  isGameOver as engineIsGameOver,
+  serializeBoard,
+  MAX_MOVES,
+  type GameSession,
+  type Direction,
+} from "@skillos/mcp/engine/2048";
 
 // ─── Config (founder-confirmed) ────────────────────────────────────────────
 
-const GAME = "match3" as const;
+// X32-4: switched from "match3" → "2048" to exercise real gameplay through
+// the new engine + tools (get_board_state, make_move, submit_score with
+// engine validation). 2048 = 4-direction enum, deterministic per-seed,
+// simpler tool-use schema, and the launcher UI is replay-ready.
+const GAME = "2048" as const;
 const CYCLE_WEEKLY = 1;             // CycleType.Weekly — longest valid v2.1 cycle
 const START_BUFFER_SEC = 60;        // small buffer to avoid mining-edge race
 const DEFAULT_DURATION_MIN = 60;    // demo tournament window
@@ -200,7 +216,7 @@ function deriveTournamentId(
 function buildAgentURI(name: string, endpoint: string): string {
   const metadata = {
     name,
-    description: `X25 demo agent (${name}) — Match3 on Base Sepolia.`,
+    description: `X25 demo agent (${name}) — 2048 on Base Sepolia.`,
     image: "https://skillos.network/agent-default.png",
     services: [{ name: "web", endpoint }],
     active: true,
@@ -623,34 +639,96 @@ function overlayCostUsd(model: string, prompt: number, completion: number): numb
   return (prompt * rates.input + completion * rates.output) / 1_000_000;
 }
 
-const AGENT_SYSTEM_PROMPT = (label: string, tournamentId: Hex): string =>
+// X32-4: 2048 gameplay loop prompt. Three-tool agentic loop — read board,
+// pick direction, repeat until game-over or the soft cap, then submit
+// with the recorded move trail. The submit_score tool's engine validation
+// rejects any mismatch between the claimed score and the deterministic
+// replay, so the LLM cannot "fake" a high score.
+//
+// SOFT_MOVE_CAP < MAX_MOVES is intentional: a smaller per-run move budget
+// keeps total LLM iterations + token cost predictable across both legs
+// (smaller open-weights models were observed looping past their iteration
+// budget when the soft cap matched MAX_MOVES). The engine still caps at
+// MAX_MOVES for replay determinism, but the prompt asks the agent to
+// submit by SOFT_MOVE_CAP.
+const SOFT_MOVE_CAP = 30;
+const AGENT_SYSTEM_PROMPT = (label: string, tournamentId: Hex, sessionId: string): string =>
   [
-    `You are an autonomous agent competing in a Match3 score-attack tournament on`,
-    `SkillOS testnet (Base Sepolia). Your agent label is "${label}".`,
+    `You are an autonomous agent playing 2048 in a SkillOS tournament on Base Sepolia.`,
+    `Your agent label is "${label}". Goal: maximize your final score.`,
     ``,
-    `Game: Match3 (deterministic — engine seeds runs with seed=42).`,
+    `Game rules:`,
+    `- 4×4 grid of numbered tiles (2, 4, 8, 16, ...). Empty cells are 0.`,
+    `- Each move: choose a direction (up | down | left | right). All tiles slide`,
+    `  that way. Two adjacent tiles of equal value collide → merge into one tile`,
+    `  with their sum, and your score increases by that sum.`,
+    `- After every successful move, one new tile (2 or 4) spawns in a random`,
+    `  empty cell.`,
+    `- Engine hard cap: ${MAX_MOVES} legal moves. Your soft cap for this run:`,
+    `  ${SOFT_MOVE_CAP} moves — you MUST submit before exceeding it.`,
+    ``,
     `Tournament ID: ${tournamentId}`,
-    `Tier: T0 (signature-only submission; no plausibility infra in v0.1).`,
+    `Your session ID: ${sessionId}`,
+    `Tier: T0 (signature-only submission).`,
     ``,
-    `Task: Compose exactly one \`submit_score\` tool call claiming your final score`,
-    `for a single Match3 playthrough. Choose a plausible integer score in [100, 10000]`,
-    `reflecting competent (not perfect) play. After the tool returns, output a single`,
-    `concise sentence describing your run.`,
+    `Available tools:`,
+    `1. get_board_state({ sessionId }) — returns the current 4×4 board, score,`,
+    `   movesUsed, and gameOver flag. Call this ONCE at the start. First call`,
+    `   also initializes the session. You do NOT need to call it again between`,
+    `   moves — make_move returns the updated board on every call.`,
+    `2. make_move({ sessionId, direction }) — applies one direction. Returns the`,
+    `   new board, scoreDelta, moved (false = no-op direction, try a different`,
+    `   one — the move budget is NOT consumed), gameOver, and movesUsed.`,
+    `3. submit_score({ tournamentId, game: "2048", score, sessionId, moves }) —`,
+    `   call EXACTLY ONCE at the end. \`moves\` is the chronological array of`,
+    `   every direction you successfully applied (excluding no-ops). The server`,
+    `   replays the engine and rejects mismatched scores, so be honest.`,
     ``,
-    `Constraints:`,
-    `- Call \`submit_score\` exactly once with the tournamentId above.`,
-    `- Score must be an integer in [100, 10000].`,
-    `- Do not call any other tools.`,
-    `- Do not retry on tool error — surface it and stop.`,
+    `Strategy hint: keep the largest tile in a corner and avoid scattering tiles`,
+    `randomly. Don't deadlock the board too early.`,
+    ``,
+    `Procedure (FOLLOW STRICTLY):`,
+    `- Step 1: get_board_state once to see the opening tiles.`,
+    `- Step 2: make_move repeatedly. Each call returns the NEW board — use it.`,
+    `- Step 3: STOP making moves when EITHER gameOver === true OR you have`,
+    `  successfully applied ${SOFT_MOVE_CAP} moves (whichever comes first).`,
+    `- Step 4: call submit_score ONCE with score=current score and moves=full`,
+    `  chronological array of successful directions.`,
+    `- Step 5: write a single concise sentence summary describing the run.`,
+    `- On any tool error: surface it verbatim and stop — do not retry.`,
   ].join("\n");
 
-const AGENT_USER_PROMPT = "Submit your Match3 score for this tournament.";
+const AGENT_USER_PROMPT = "Play 2048 to game-over and submit your score.";
 
-// JSON-Schema mirror of packages/mcp/src/tools/submit_score.ts inputSchema.
-// We keep this in sync manually rather than importing it because the source
-// uses zod and Hermes/Claude on OpenRouter expect plain JSON-Schema in the
-// tools bridge. If the real submit_score schema drifts, the broadcast-path
-// migration will catch it (it'll listTools off the real server).
+// Total agentic turns budget: 1 get_board_state + SOFT_MOVE_CAP make_moves
+// + 1 submit_score + 1 summary = SOFT_MOVE_CAP + 3. Pad for no-op
+// directions and LLM slack.
+const AGENT_MAX_ITERATIONS = SOFT_MOVE_CAP + 8;
+
+// JSON-Schema mirrors of the three tools the 2048 agent loop uses. These
+// must match the zod inputSchema in packages/mcp/src/tools/{get_board_state,
+// make_move,submit_score}.ts. We keep them inlined here because Claude /
+// open-weights tool-use on OpenRouter expects plain JSON-Schema in the
+// bridge — the wrapper does not transform zod for us.
+const DRY_RUN_GET_BOARD_STATE_SCHEMA = {
+  type: "object",
+  properties: {
+    sessionId: { type: "string", minLength: 1, maxLength: 128 },
+  },
+  required: ["sessionId"],
+  additionalProperties: false,
+} as const;
+
+const DRY_RUN_MAKE_MOVE_SCHEMA = {
+  type: "object",
+  properties: {
+    sessionId: { type: "string", minLength: 1, maxLength: 128 },
+    direction: { type: "string", enum: ["up", "down", "left", "right"] },
+  },
+  required: ["sessionId", "direction"],
+  additionalProperties: false,
+} as const;
+
 const DRY_RUN_SUBMIT_SCORE_SCHEMA = {
   type: "object",
   properties: {
@@ -659,21 +737,66 @@ const DRY_RUN_SUBMIT_SCORE_SCHEMA = {
       pattern: "^0x[a-fA-F0-9]{64}$",
       description: "Tournament id (bytes32 hex).",
     },
+    game: {
+      type: "string",
+      enum: ["2048", "wordle", "sudoku", "minesweeper", "clicker", "match3"],
+    },
     score: { type: "integer", minimum: 0, description: "Raw player score." },
     tier: { type: "string", enum: ["T0", "T1", "T2", "T3"], description: "Quality tier. v0.1 only supports T0." },
     soloRunId: { type: "string", pattern: "^0x[a-fA-F0-9]{64}$" },
     matchCountDelta: { type: "integer", minimum: 1, maximum: 10 },
+    sessionId: { type: "string", minLength: 1, maxLength: 128 },
+    moves: {
+      type: "array",
+      items: { type: "string", enum: ["up", "down", "left", "right"] },
+      maxItems: 1000,
+    },
   },
-  required: ["tournamentId", "score"],
+  required: ["tournamentId", "game", "score"],
   additionalProperties: false,
 } as const;
 
-interface DryRunStubCapture {
-  args: Record<string, unknown> | null;
-  calls: number;
+// One captured turn of gameplay — populated by either the dry-run stub
+// (engine is in-process) or the broadcast-path wrapper (engine is in the
+// MCP subprocess; we mirror it locally for trail capture).
+interface MoveTrailEntry {
+  turn: number;
+  direction: Direction;
+  boardBefore: number[][];
+  boardAfter: number[][];
+  scoreDelta: number;
+  scoreAfter: number;
+  moved: boolean;
+  gameOver: boolean;
 }
 
-function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClientLike {
+interface DryRunStubCapture {
+  // submit_score args, captured for downstream artifact emission.
+  args: Record<string, unknown> | null;
+  // Total tool calls of any kind. Used to verify the loop actually ran.
+  calls: number;
+  // Full chronological move trail captured by the stub — one entry per
+  // successful make_move (no-ops still recorded as moved:false for debug).
+  moves: MoveTrailEntry[];
+  // Final engine snapshot at submit_score time (or game-over).
+  finalScore: number;
+  movesUsed: number;
+}
+
+/**
+ * Dry-run stub: plays a real in-process 2048 engine session so the LLM
+ * sees real boards and scores. Mirrors the @skillos/mcp tool surface for
+ * get_board_state / make_move / submit_score. No SIWA, no HTTP, no chain.
+ */
+function createDryRunMcpStub(
+  label: string,
+  sessionId: string,
+  capture: DryRunStubCapture,
+): McpClientLike {
+  // In-process engine session, keyed by sessionId. The stub manages its own
+  // map (not the MCP package's session_store) because dry-run runs entirely
+  // outside the MCP server process.
+  const sessions = new Map<string, GameSession>();
   return {
     async connect(): Promise<void> {
       // No transport open — this stub is in-process.
@@ -682,9 +805,21 @@ function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClie
       return {
         tools: [
           {
+            name: "get_board_state",
+            description:
+              "Read the current 4×4 2048 board for this session. First call auto-creates the session seeded by sessionId. [DRY-RUN STUB]",
+            inputSchema: DRY_RUN_GET_BOARD_STATE_SCHEMA as unknown as Record<string, unknown>,
+          },
+          {
+            name: "make_move",
+            description:
+              "Apply one direction (up/down/left/right) to a 2048 session. Returns the new board + scoreDelta + moved + gameOver. [DRY-RUN STUB]",
+            inputSchema: DRY_RUN_MAKE_MOVE_SCHEMA as unknown as Record<string, unknown>,
+          },
+          {
             name: "submit_score",
             description:
-              "Submit a score as a verified agent. [DRY-RUN STUB: mirrors @skillos/mcp submit_score input schema; returns synthetic success without SIWA / chain broadcast.]",
+              "Submit the final score with the full move trail. Engine replays the moves and rejects score mismatches. [DRY-RUN STUB: validates against in-process engine; no SIWA, no HTTP, no chain.]",
             inputSchema: DRY_RUN_SUBMIT_SCORE_SCHEMA as unknown as Record<string, unknown>,
           },
         ],
@@ -692,22 +827,105 @@ function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClie
     },
     async callTool(req: { name: string; arguments?: Record<string, unknown> }) {
       capture.calls += 1;
-      if (req.name !== "submit_score") {
-        return {
-          content: [{ type: "text", text: `Unknown tool "${req.name}" in dry-run stub.` }],
-          isError: true,
+      const args = (req.arguments ?? {}) as Record<string, unknown>;
+
+      if (req.name === "get_board_state") {
+        const sid = String(args.sessionId ?? "");
+        if (!sid) {
+          return { content: [{ type: "text", text: "sessionId required" }], isError: true };
+        }
+        let sess = sessions.get(sid);
+        if (!sess) {
+          sess = createSession(sid);
+          sessions.set(sid, sess);
+        }
+        const payload = {
+          sessionId: sid,
+          board: serializeBoard(sess.board),
+          score: sess.score,
+          movesUsed: sess.movesUsed,
+          gameOver: engineIsGameOver(sess),
         };
+        return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
       }
-      capture.args = req.arguments ?? {};
-      const synthetic = {
-        txHash: `0x${"dryrun".padEnd(64, "0")}`,
-        soloRunId: `0x${"dryrun".padEnd(64, "a")}`,
-        tier: capture.args.tier ?? "T0",
-        note: `DRY-RUN STUB (${label}): args captured; no SIWA, no HTTP, no chain broadcast.`,
-        receivedArgs: capture.args,
-      };
+
+      if (req.name === "make_move") {
+        const sid = String(args.sessionId ?? "");
+        const dir = args.direction as Direction;
+        const sess = sessions.get(sid);
+        if (!sess) {
+          return {
+            content: [{ type: "text", text: `Unknown sessionId "${sid}". Call get_board_state first.` }],
+            isError: true,
+          };
+        }
+        if (engineIsGameOver(sess)) {
+          return {
+            content: [{ type: "text", text: `Session "${sid}" is game-over.` }],
+            isError: true,
+          };
+        }
+        const before = serializeBoard(sess.board);
+        const r = engineApplyMove(sess, dir);
+        const after = serializeBoard(sess.board);
+        capture.moves.push({
+          turn: sess.movesUsed,
+          direction: dir,
+          boardBefore: before,
+          boardAfter: after,
+          scoreDelta: r.scoreDelta,
+          scoreAfter: sess.score,
+          moved: r.moved,
+          gameOver: r.gameOver,
+        });
+        capture.finalScore = sess.score;
+        capture.movesUsed = sess.movesUsed;
+        const payload = {
+          sessionId: sid,
+          direction: dir,
+          board: after,
+          score: sess.score,
+          scoreDelta: r.scoreDelta,
+          moved: r.moved,
+          gameOver: r.gameOver,
+          movesUsed: sess.movesUsed,
+        };
+        return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
+      }
+
+      if (req.name === "submit_score") {
+        capture.args = args;
+        // Engine validation — mirror what the real submit_score does for 2048.
+        const sid = String(args.sessionId ?? "");
+        const moves = (args.moves as Direction[] | undefined) ?? [];
+        const claimedScore = Number(args.score ?? -1);
+        const live = sessions.get(sid);
+        const liveScore = live ? live.score : null;
+        if (liveScore !== null && liveScore !== claimedScore) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `[STUB] Engine score mismatch: claimed=${claimedScore} live=${liveScore} (sessionId=${sid}, moves=${moves.length}). Submission rejected.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        const synthetic = {
+          txHash: `0x${"dryrun".padEnd(64, "0")}`,
+          soloRunId: `0x${"dryrun".padEnd(64, "a")}`,
+          tier: args.tier ?? "T0",
+          note: `DRY-RUN STUB (${label}): engine-validated; no SIWA, no HTTP, no chain broadcast.`,
+          receivedArgs: args,
+          engineValidatedScore: liveScore,
+        };
+        return { content: [{ type: "text", text: JSON.stringify(synthetic, null, 2) }] };
+      }
+
       return {
-        content: [{ type: "text", text: JSON.stringify(synthetic, null, 2) }],
+        content: [{ type: "text", text: `Unknown tool "${req.name}" in dry-run stub.` }],
+        isError: true,
       };
     },
     async close(): Promise<void> {
@@ -719,13 +937,33 @@ function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClie
 interface AgentLegResult {
   label: AgentBundle["label"];
   model: string;
+  sessionId: string;
   tokenUsage: TokenUsage;
   costEstimateUsd: number;
   iterations: number;
   stoppedReason: "no_more_tool_calls" | "max_iterations";
   finalContent: string | null;
-  claimedSubmission: { tournamentId: string; score: number; tier: string } | null;
+  claimedSubmission: {
+    tournamentId: string;
+    game: string;
+    score: number;
+    tier: string;
+    sessionId: string | null;
+    movesCount: number;
+  } | null;
+  // X32-4: full move trail (visualization-ready). Populated in both
+  // dry-run and broadcast paths.
+  moves: MoveTrailEntry[];
+  finalScore: number;
+  movesUsed: number;
   toolCallCount: number;
+}
+
+function buildSessionId(label: string, tournamentId: Hex): string {
+  // sessionId is the engine's seed AND the session key. Pin it to the
+  // (label, tournamentId) pair so reruns of the same agent in the same
+  // tournament observe the same opening board — useful for debugging.
+  return `${label}:${tournamentId}`;
 }
 
 async function runAgentLegDryRun(args: {
@@ -734,8 +972,15 @@ async function runAgentLegDryRun(args: {
   tournamentId: Hex;
   openrouterApiKey: string;
 }): Promise<AgentLegResult> {
-  const capture: DryRunStubCapture = { args: null, calls: 0 };
-  const stub = createDryRunMcpStub(args.label, capture);
+  const sessionId = buildSessionId(args.label, args.tournamentId);
+  const capture: DryRunStubCapture = {
+    args: null,
+    calls: 0,
+    moves: [],
+    finalScore: 0,
+    movesUsed: 0,
+  };
+  const stub = createDryRunMcpStub(args.label, sessionId, capture);
   const client = createHermesMcpClient(
     {
       openrouterApiKey: args.openrouterApiKey,
@@ -761,9 +1006,12 @@ async function runAgentLegDryRun(args: {
   await client.connect();
   let result: Awaited<ReturnType<typeof client.run>>;
   try {
+    // X32-4: AGENT_MAX_ITERATIONS = SOFT_MOVE_CAP + 8 — enough for one
+    // get_board_state + SOFT_MOVE_CAP make_moves + submit + summary, with
+    // pad for no-op slack.
     result = await client.run(AGENT_USER_PROMPT, {
-      systemPrompt: AGENT_SYSTEM_PROMPT(args.label, args.tournamentId),
-      maxIterations: 5,
+      systemPrompt: AGENT_SYSTEM_PROMPT(args.label, args.tournamentId, sessionId),
+      maxIterations: AGENT_MAX_ITERATIONS,
     });
   } finally {
     await client.close();
@@ -781,20 +1029,28 @@ async function runAgentLegDryRun(args: {
     typeof capture.args["score"] === "number"
       ? {
           tournamentId: capture.args["tournamentId"] as string,
+          game: String(capture.args["game"] ?? GAME),
           score: capture.args["score"] as number,
           tier: typeof capture.args["tier"] === "string" ? (capture.args["tier"] as string) : "T0",
+          sessionId:
+            typeof capture.args["sessionId"] === "string" ? (capture.args["sessionId"] as string) : null,
+          movesCount: Array.isArray(capture.args["moves"]) ? (capture.args["moves"] as unknown[]).length : 0,
         }
       : null;
 
   return {
     label: args.label,
     model: args.model,
+    sessionId,
     tokenUsage: { ...result.usage, estimatedCostUsd: costEstimateUsd },
     costEstimateUsd,
     iterations: result.iterations,
     stoppedReason: result.stoppedReason,
     finalContent: result.finalContent,
     claimedSubmission,
+    moves: capture.moves,
+    finalScore: capture.finalScore,
+    movesUsed: capture.movesUsed,
     toolCallCount: capture.calls,
   };
 }
@@ -809,6 +1065,12 @@ interface BroadcastSubmitCapture {
   parsedResult: { txHash?: string; soloRunId?: string; [k: string]: unknown } | null;
   toolCalls: number;
   errored: boolean;
+  // X32-4: parsed move trail captured from the real make_move tool calls.
+  // The real MCP server returns boardBefore is implicit (it's the prior
+  // make_move's `board`); we reconstruct it from the previous turn.
+  moves: MoveTrailEntry[];
+  finalScore: number;
+  movesUsed: number;
 }
 
 /**
@@ -823,6 +1085,10 @@ function createCapturingMcpWrapper(capture: BroadcastSubmitCapture): McpClientLi
     { name: "x25-broadcast-demo", version: "0.1.0" },
     { capabilities: {} },
   );
+  // X32-4: Reconstruct boardBefore for each make_move by remembering the last
+  // observed board (initially from get_board_state, then from each prior
+  // make_move's `board` field).
+  let lastBoardSnapshot: number[][] | null = null;
   return {
     async connect(transport: unknown): Promise<void> {
       // The wrapper hands us a real StdioClientTransport instance. Just delegate.
@@ -836,12 +1102,60 @@ function createCapturingMcpWrapper(capture: BroadcastSubmitCapture): McpClientLi
       capture.toolCalls += 1;
       try {
         const out = await realClient.callTool(req as never);
+
+        // X32-4: trail capture for 2048 tools.
+        const contentArr = (out as { content?: Array<{ type: string; text?: string }> }).content;
+        const text =
+          Array.isArray(contentArr) && contentArr[0]?.type === "text" ? contentArr[0].text ?? null : null;
+
+        if (req.name === "get_board_state" && text) {
+          try {
+            const parsed = JSON.parse(text) as {
+              board?: number[][];
+              score?: number;
+              movesUsed?: number;
+            };
+            if (Array.isArray(parsed.board)) lastBoardSnapshot = parsed.board;
+            if (typeof parsed.score === "number") capture.finalScore = parsed.score;
+            if (typeof parsed.movesUsed === "number") capture.movesUsed = parsed.movesUsed;
+          } catch {
+            // Tolerate non-JSON tool output; trail capture is best-effort.
+          }
+        }
+
+        if (req.name === "make_move" && text) {
+          try {
+            const parsed = JSON.parse(text) as {
+              board?: number[][];
+              direction?: Direction;
+              score?: number;
+              scoreDelta?: number;
+              moved?: boolean;
+              gameOver?: boolean;
+              movesUsed?: number;
+            };
+            const boardAfter = Array.isArray(parsed.board) ? parsed.board : [];
+            const dir = (parsed.direction ?? (req.arguments?.direction as Direction)) as Direction;
+            capture.moves.push({
+              turn: typeof parsed.movesUsed === "number" ? parsed.movesUsed : capture.moves.length + 1,
+              direction: dir,
+              boardBefore: lastBoardSnapshot ?? [],
+              boardAfter,
+              scoreDelta: typeof parsed.scoreDelta === "number" ? parsed.scoreDelta : 0,
+              scoreAfter: typeof parsed.score === "number" ? parsed.score : 0,
+              moved: parsed.moved ?? false,
+              gameOver: parsed.gameOver ?? false,
+            });
+            if (boardAfter.length > 0) lastBoardSnapshot = boardAfter;
+            if (typeof parsed.score === "number") capture.finalScore = parsed.score;
+            if (typeof parsed.movesUsed === "number") capture.movesUsed = parsed.movesUsed;
+          } catch {
+            // Same tolerance as get_board_state.
+          }
+        }
+
         if (req.name === "submit_score") {
           capture.args = req.arguments ?? {};
-          // Surface the text payload back to the caller — the SDK packs the
-          // server's JSON-stringified result inside `content[0].text`.
-          const contentArr = (out as { content?: Array<{ type: string; text?: string }> }).content;
-          const text = Array.isArray(contentArr) && contentArr[0]?.type === "text" ? contentArr[0].text ?? null : null;
           capture.resultText = text;
           if (text) {
             try {
@@ -885,12 +1199,16 @@ async function runAgentLegBroadcast(args: {
   if (args.agent.agentId === null) {
     throw new Error(`[x32-2] ${args.agent.label}: agentId is null — register must run first`);
   }
+  const sessionId = buildSessionId(args.agent.label, args.tournamentId);
   const capture: BroadcastSubmitCapture = {
     args: null,
     resultText: null,
     parsedResult: null,
     toolCalls: 0,
     errored: false,
+    moves: [],
+    finalScore: 0,
+    movesUsed: 0,
   };
   const wrapped = createCapturingMcpWrapper(capture);
 
@@ -930,9 +1248,10 @@ async function runAgentLegBroadcast(args: {
   await client.connect();
   let result: Awaited<ReturnType<typeof client.run>>;
   try {
+    // X32-4: AGENT_MAX_ITERATIONS budget — matches dry-run leg semantics.
     result = await client.run(AGENT_USER_PROMPT, {
-      systemPrompt: AGENT_SYSTEM_PROMPT(args.agent.label, args.tournamentId),
-      maxIterations: 5,
+      systemPrompt: AGENT_SYSTEM_PROMPT(args.agent.label, args.tournamentId, sessionId),
+      maxIterations: AGENT_MAX_ITERATIONS,
     });
   } finally {
     await client.close();
@@ -948,8 +1267,14 @@ async function runAgentLegBroadcast(args: {
     typeof capture.args["score"] === "number"
       ? {
           tournamentId: capture.args["tournamentId"] as string,
+          game: String(capture.args["game"] ?? GAME),
           score: capture.args["score"] as number,
           tier: typeof capture.args["tier"] === "string" ? (capture.args["tier"] as string) : "T0",
+          sessionId:
+            typeof capture.args["sessionId"] === "string" ? (capture.args["sessionId"] as string) : null,
+          movesCount: Array.isArray(capture.args["moves"])
+            ? (capture.args["moves"] as unknown[]).length
+            : 0,
         }
       : null;
 
@@ -983,12 +1308,16 @@ async function runAgentLegBroadcast(args: {
   return {
     label: args.agent.label,
     model: args.model,
+    sessionId,
     tokenUsage: { ...result.usage, estimatedCostUsd: costEstimateUsd },
     costEstimateUsd,
     iterations: result.iterations,
     stoppedReason: result.stoppedReason,
     finalContent: result.finalContent,
     claimedSubmission,
+    moves: capture.moves,
+    finalScore: capture.finalScore,
+    movesUsed: capture.movesUsed,
     toolCallCount: capture.toolCalls,
     submitTxHash,
     submitTxConfirmed,
@@ -1077,12 +1406,23 @@ async function settleTournament(
 interface AgentArtifact {
   label: AgentBundle["label"];
   model: string;
+  sessionId: string;
   tokenUsage: TokenUsage;
   costEstimateUsd: number;
   iterations: number;
   stoppedReason: "no_more_tool_calls" | "max_iterations";
   finalContent: string | null;
-  claimedSubmission: { tournamentId: string; score: number; tier: string } | null;
+  claimedSubmission: {
+    tournamentId: string;
+    game: string;
+    score: number;
+    tier: string;
+    sessionId: string | null;
+    movesCount: number;
+  } | null;
+  moves: MoveTrailEntry[];
+  finalScore: number;
+  movesUsed: number;
   toolCallCount: number;
 }
 
@@ -1345,9 +1685,9 @@ async function main(): Promise<void> {
         sponsorTx: null,
         createTx: null,
       },
-      leaderboardUrl: `https://match3.skillos.games/tournament/${tournamentId}`,
+      leaderboardUrl: `https://2048.skillos.games/tournament/${tournamentId}`,
       profileUrls: Object.fromEntries(
-        bundles.map((b) => [b.label, `https://match3.skillos.games/agent/${b.address}`]),
+        bundles.map((b) => [b.label, `https://2048.skillos.games/agent/${b.address}`]),
       ),
     };
     const out = writeArtifact(artifact);
@@ -1541,9 +1881,9 @@ async function main(): Promise<void> {
       sponsorTx: blockscoutTxUrl(sponsorTxHash),
       createTx: blockscoutTxUrl(createTxHash),
     },
-    leaderboardUrl: `https://match3.skillos.games/tournament/${tournamentId}`,
+    leaderboardUrl: `https://2048.skillos.games/tournament/${tournamentId}`,
     profileUrls: Object.fromEntries(
-      bundles.map((b) => [b.label, `https://match3.skillos.games/agent/${b.address}`]),
+      bundles.map((b) => [b.label, `https://2048.skillos.games/agent/${b.address}`]),
     ),
   };
   const out = writeArtifact(artifact);
