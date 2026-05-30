@@ -5,6 +5,8 @@
   "deployBlock": 40851426,
   "contracts": {
     "TournamentPoolV21": "0x52049b812780134d2F69D6c20C2ef881D49702da",
+    "TournamentPoolV23": "0x6c94b94b0A6a05c99AbA7D344097Fa5bF7cb1f78",
+    "DevAttributionNFT": "0x7B132Bfa5Fe682C05E0Ed35b87526C74BA3f95Aa",
     "MockSanctionsOracle": "0x0CB38F0A0511aF07FC34A20DCaB9e2Fc8061B1CC",
     "SponsorReceiptSBT": "0xCCC183c72D666A16E03bf38E8c2DFa8a68b2e768",
     "SponsorshipModule": "0xD76670adB574A4C8D06dfF47127e7143d780ff87"
@@ -12,13 +14,16 @@
   "externalReferences": {
     "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     "deployer": "0x3a4F9eB7fBa1A0015a6F070259F3B9E883d95EEe",
-    "trustedSigner": "0xA24f9122568E98B72f4dDD61119C7D92D0975692"
+    "trustedSigner": "0xA24f9122568E98B72f4dDD61119C7D92D0975692",
+    "scoreSigner": "0xA24f9122568E98B72f4dDD61119C7D92D0975692",
+    "v23DeployBlock": 42196774,
+    "v23DeployTx": "0xe2b8285c…358ca"
   },
   "verification": {
     "status": "verified",
-    "verifier": "blockscout",
-    "verifiedAt": "2026-05-01T11:54:00Z",
-    "explorer": "https://base-sepolia.blockscout.com/",
-    "note": "Etherscan V2 API previously rejected bytecode-identical compilations; switched to Blockscout for successful verification. Verified contracts: TournamentPoolV21, SponsorReceiptSBT, SponsorshipModule (and v2.0 TournamentPool 0x5CadD... via point-in-time source from commit 9e0b593)."
+    "verifier": "basescan",
+    "verifiedAt": "2026-05-30T19:00:00Z",
+    "explorer": "https://sepolia.basescan.org/",
+    "note": "v2.3 (Delta1) + DevAttributionNFT verified on BaseScan. §9 defaults asserted via AssertTournamentPoolV23.s.sol."
   }
 }
