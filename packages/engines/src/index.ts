@@ -13,3 +13,12 @@ export * from './types'; // GameId, GAME_IDS, MoveRecord, VerifyResult, GameEngi
 export * from './rng'; // SeededRng, hashSeed
 export * from './registry'; // registerEngine, getEngine, hasEngine, registeredGameIds, verifyMatch
 export * from './games/game2048'; // Direction, Move2048, engine2048, createSession, replay, …
+
+// Stage 2 engines: export each game's adjudicator + move-payload type by name.
+// (A bare `export *` per game would collide — each game module has its own
+// `numberFromSeed` / `replay` / `createInitialState` internals.)
+export { engineWordle, type MoveWordle } from './games/wordle';
+export { engineSudoku, type MoveSudoku } from './games/sudoku';
+export { engineMinesweeper, type MoveMinesweeper } from './games/minesweeper';
+export { engineClicker, type MoveClicker } from './games/clicker';
+export { engineMatch3, type MoveMatch3 } from './games/match3';

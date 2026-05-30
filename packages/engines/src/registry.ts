@@ -11,6 +11,11 @@
 
 import type { GameEngine, GameId, MoveRecord, VerifyResult } from './types';
 import { engine2048 } from './games/game2048';
+import { engineWordle } from './games/wordle';
+import { engineSudoku } from './games/sudoku';
+import { engineMinesweeper } from './games/minesweeper';
+import { engineClicker } from './games/clicker';
+import { engineMatch3 } from './games/match3';
 
 const REGISTRY = new Map<GameId, GameEngine>();
 
@@ -52,6 +57,10 @@ export function verifyMatch(
 }
 
 // ─── Built-in engines ─────────────────────────────────────────────────────
-// Stage 2 appends wordle / sudoku / minesweeper / clicker / match3 here as
-// each lands. One line per game; nothing else in the registry changes.
+// All six Δ6 games. One line per game; nothing else in the registry changes.
 registerEngine(engine2048);
+registerEngine(engineWordle);
+registerEngine(engineSudoku);
+registerEngine(engineMinesweeper);
+registerEngine(engineClicker);
+registerEngine(engineMatch3);
