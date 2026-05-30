@@ -16,6 +16,13 @@ const external = [
   'zod',
 ];
 
+// Δ6: the shared engines package is a build-time devDependency that we
+// deliberately BUNDLE into the dist artifacts (rather than externalize) so the
+// published @skillos/mcp — and the `./engine/2048` subpath the smoke drives —
+// stays self-contained with no new runtime dependency. `noExternal` forces
+// this regardless of how the dependency is otherwise classified by tsup.
+const noExternal = ['@skillos/engines'];
+
 // The banner only belongs on the CLI bin entry; library entries (server,
 // engine-2048) should NOT have the shebang because consumers import them
 // as modules. tsup applies a single `banner` to every entry, so we split
@@ -31,6 +38,7 @@ export default defineConfig([
     target: 'node20',
     banner: { js: '#!/usr/bin/env node' },
     external,
+    noExternal,
   },
   // Server library entry (no banner)
   {
@@ -44,6 +52,7 @@ export default defineConfig([
     treeshake: true,
     target: 'node20',
     external,
+    noExternal,
     splitting: false,
   },
   // X32-4: 2048 engine as dedicated standalone subpath entry.
@@ -60,6 +69,7 @@ export default defineConfig([
     treeshake: true,
     target: 'node20',
     external,
+    noExternal,
     splitting: false,
   },
 ]);
