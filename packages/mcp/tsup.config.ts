@@ -32,20 +32,34 @@ export default defineConfig([
     banner: { js: '#!/usr/bin/env node' },
     external,
   },
+  // Server library entry (no banner)
   {
     entry: {
       server: 'src/server.ts',
-      // X32-4: expose the 2048 engine as a standalone subpath so the demo
-      // orchestrator (and any external replay tool) can import it without
-      // pulling in the full MCP server bundle.
+    },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    clean: false,
+    treeshake: true,
+    target: 'node20',
+    external,
+    splitting: false,
+  },
+  // X32-4: 2048 engine as dedicated standalone subpath entry.
+  // Separate config ensures reliable emission of dist/engine-2048.js + .d.ts
+  // for the exports map (used by smoke tests and future Δ6 replay).
+  {
+    entry: {
       'engine-2048': 'src/engines/game2048.ts',
     },
     format: ['esm'],
     dts: true,
     sourcemap: true,
-    clean: false, // the cli build above already cleaned
+    clean: false,
     treeshake: true,
     target: 'node20',
     external,
+    splitting: false,
   },
 ]);
