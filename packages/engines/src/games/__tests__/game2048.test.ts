@@ -1,16 +1,15 @@
-// Determinism + bounded-session tests for the MCP 2048 engine.
+// Determinism + bounded-session tests for the 2048 engine.
 //
-// The engine is the source-of-truth for `submit_score` validation in the
-// X32-4 demo (agent's claimed score is re-derived by replaying the move
-// trail under the engine's deterministic RNG). These tests pin three
-// properties that contract guarantees rest on:
+// The engine is the source-of-truth for `submit_score` validation and the
+// Δ6 adjudicator registry (a claimed score is re-derived by replaying the
+// move trail under the engine's deterministic RNG). These tests pin the
+// properties the contract rests on:
 //
 //   1. Same seed + same moves → same board + same score (every machine).
 //   2. No-op directions don't consume the move budget.
-//   3. MAX_MOVES hard-caps the session even if the board still has legal
-//      moves — the engine reports gameOver and refuses further input.
+//   3. MAX_MOVES hard-caps the session even if legal moves remain.
 //
-// Run via the repo-standard `npx tsx --test` pattern; wired into
+// Run via the repo-standard `tsx --test` pattern; wired into
 // `.github/workflows/ci.yml#test-ts`.
 
 import { test } from 'node:test';
@@ -25,7 +24,7 @@ import {
   replay,
   serializeBoard,
   type Direction,
-} from '../game2048.js';
+} from '../game2048';
 
 test('createSession is deterministic for a given seed', () => {
   const a = createSession('seed-42');
@@ -50,10 +49,6 @@ test('replay(seed, moves) reproduces score + board bit-for-bit', () => {
 });
 
 test('no-op direction does not consume a turn', () => {
-  // Build a board with a single tile in the top-left; sliding left should
-  // be a no-op (already there). We don't care about the exact RNG here —
-  // we directly verify the contract on the `move()` helper, which the
-  // session wrapper uses.
   const board = [
     [2, 0, 0, 0],
     [0, 0, 0, 0],
@@ -64,17 +59,12 @@ test('no-op direction does not consume a turn', () => {
   assert.equal(r.moved, false);
   assert.equal(r.gained, 0);
 
-  // Now exercise through the session wrapper.
   const sess = createSession('noop-seed');
-  // Spam every direction four times; any that no-op should not bump movesUsed.
   const before = sess.movesUsed;
   for (let i = 0; i < 4; i++) {
     for (const dir of ['left', 'right', 'up', 'down'] as Direction[]) {
       const m = applyMove(sess, dir);
       if (!m.moved) {
-        // No-op: movesUsed must not advance for THIS call.
-        // (We can't assert globally because legal moves DO advance it; we
-        // assert by checking the return value contract.)
         assert.equal(m.scoreDelta, 0);
       }
     }
@@ -83,7 +73,6 @@ test('no-op direction does not consume a turn', () => {
 });
 
 test('merging two equal tiles adds their sum to score', () => {
-  // Hand-craft a slide with a single merge. `move` is pure; no RNG needed.
   const board = [
     [2, 2, 0, 0],
     [0, 0, 0, 0],
@@ -110,9 +99,6 @@ test('chained merges in one slide: 2,2,2,2 → 4,4', () => {
 });
 
 test('MAX_MOVES bounds the session', () => {
-  // Force the session past MAX_MOVES by hand — apply moves until either
-  // game-over or the cap fires. The cap MUST kick in for any seed since
-  // we're applying every direction in rotation.
   const sess = createSession('bound-seed');
   const dirs: Direction[] = ['left', 'down', 'right', 'up'];
   let i = 0;
@@ -121,7 +107,6 @@ test('MAX_MOVES bounds the session', () => {
     i++;
     if (i > 5000) break; // safety — should never happen
   }
-  // Either we hit the move cap or the board ran out of legal moves first.
   assert.ok(
     sess.movesUsed <= MAX_MOVES,
     `movesUsed ${sess.movesUsed} exceeded MAX_MOVES ${MAX_MOVES}`,
@@ -130,7 +115,6 @@ test('MAX_MOVES bounds the session', () => {
 });
 
 test('canMove false implies isGameOver true on a full deadlocked board', () => {
-  // Hand-craft a fully blocked board: no equal neighbors, no empties.
   const blocked = [
     [2, 4, 2, 4],
     [4, 2, 4, 2],
@@ -141,9 +125,6 @@ test('canMove false implies isGameOver true on a full deadlocked board', () => {
 });
 
 test('different seeds → different opening boards (almost always)', () => {
-  // Not a strict requirement — but a sanity check that hashSeed actually
-  // discriminates between distinct strings. If this ever fires, the LCG
-  // or hashSeed has degenerated.
   const a = createSession('alpha');
   const b = createSession('beta');
   assert.notDeepEqual(serializeBoard(a.board), serializeBoard(b.board));
