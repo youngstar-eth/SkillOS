@@ -66,7 +66,13 @@ contract DeployTournamentPool is Script {
         // Sanity: prediction must hold or we deployed an NFT bound to nothing.
         require(address(pool) == predictedPool, "Deploy: pool address prediction mismatch");
 
-        console2.log("=== Deployed (v2.2 - DevAttributionNFT + 70/30 split) ===");
+        // Δ1 (v2.3): the constructor is UNCHANGED from v2.2 — the Arena config is
+        // per-tournament state set at createTournament, not a constructor arg. So
+        // this same script deploys the v2.3 bytecode (Tournament struct + config
+        // enums + TournamentConfigured event). Post-deploy, verify the new surface
+        // with script/AssertTournamentPoolV23.s.sol (reads a canary tournament's
+        // config and asserts it defaults correctly).
+        console2.log("=== Deployed (v2.3 - Delta1 Arena config + DevAttributionNFT + 70/30 split) ===");
         console2.log("TournamentPool:    ", address(pool));
         console2.log("DevAttributionNFT: ", address(devNFT));
         console2.log("Owner:                ", pool.owner());
