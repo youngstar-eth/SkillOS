@@ -16,14 +16,50 @@ const external = [
   'zod',
 ];
 
-export default defineConfig({
-  entry: { index: 'src/index.ts', server: 'src/server.ts' },
-  format: ['esm'],
-  dts: true,
-  sourcemap: true,
-  clean: true,
-  treeshake: true,
-  target: 'node20',
-  banner: { js: '#!/usr/bin/env node' },
-  external,
-});
+// The banner only belongs on the CLI bin entry; library entries (server,
+// engine-2048) should NOT have the shebang because consumers import them
+// as modules. tsup applies a single `banner` to every entry, so we split
+// into two defineConfig calls in one default array.
+export default defineConfig([
+  {
+    entry: { index: 'src/index.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    clean: true,
+    treeshake: true,
+    target: 'node20',
+    banner: { js: '#!/usr/bin/env node' },
+    external,
+  },
+  // Server library entry (no banner)
+  {
+    entry: {
+      server: 'src/server.ts',
+    },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    clean: false,
+    treeshake: true,
+    target: 'node20',
+    external,
+    splitting: false,
+  },
+  // X32-4: 2048 engine as dedicated standalone subpath entry.
+  // Separate config ensures reliable emission of dist/engine-2048.js + .d.ts
+  // for the exports map (used by smoke tests and future Δ6 replay).
+  {
+    entry: {
+      'engine-2048': 'src/engines/game2048.ts',
+    },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    clean: false,
+    treeshake: true,
+    target: 'node20',
+    external,
+    splitting: false,
+  },
+]);

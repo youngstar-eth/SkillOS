@@ -92,10 +92,26 @@ import {
   type McpClientLike,
   type TokenUsage,
 } from "@skillos/hermes-mcp-wrapper";
+// X32-4: pull the 2048 engine directly so the dry-run stub can present
+// real boards to the LLM and validate scores in-process. The package
+// subpath export is built by tsup (see packages/mcp/tsup.config.ts).
+import {
+  createSession,
+  applyMove as engineApplyMove,
+  isGameOver as engineIsGameOver,
+  serializeBoard,
+  MAX_MOVES,
+  type GameSession,
+  type Direction,
+} from "@skillos/mcp/engine/2048";
 
 // ─── Config (founder-confirmed) ────────────────────────────────────────────
 
-const GAME = "match3" as const;
+// X32-4: switched from "match3" → "2048" to exercise real gameplay through
+// the new engine + tools (get_board_state, make_move, submit_score with
+// engine validation). 2048 = 4-direction enum, deterministic per-seed,
+// simpler tool-use schema, and the launcher UI is replay-ready.
+const GAME = "2048" as const;
 const CYCLE_WEEKLY = 1;             // CycleType.Weekly — longest valid v2.1 cycle
 const START_BUFFER_SEC = 60;        // small buffer to avoid mining-edge race
 const DEFAULT_DURATION_MIN = 60;    // demo tournament window
@@ -184,7 +200,7 @@ const DURATION_SEC = DURATION_MIN * 60;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function deriveTournamentId(
+export function deriveTournamentId(
   game: string,
   cycle: number,
   startsAtSec: number,
@@ -200,7 +216,7 @@ function deriveTournamentId(
 function buildAgentURI(name: string, endpoint: string): string {
   const metadata = {
     name,
-    description: `X25 demo agent (${name}) — Match3 on Base Sepolia.`,
+    description: `X25 demo agent (${name}) — 2048 on Base Sepolia.`,
     image: "https://skillos.network/agent-default.png",
     services: [{ name: "web", endpoint }],
     active: true,
@@ -209,18 +225,18 @@ function buildAgentURI(name: string, endpoint: string): string {
   return `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString("base64")}`;
 }
 
-function rpcUrl(): string {
+export function rpcUrl(): string {
   return process.env.BASE_SEPOLIA_RPC_URL ?? DEFAULT_RPC;
 }
 
-function makePublicClient() {
+export function makePublicClient() {
   return createPublicClient({
     chain: baseSepolia,
     transport: http(rpcUrl(), { retryCount: 3, retryDelay: 200, timeout: 30_000 }),
   });
 }
 
-function makeWalletClient(pk: Hex) {
+export function makeWalletClient(pk: Hex) {
   return createWalletClient({
     account: privateKeyToAccount(pk),
     chain: baseSepolia,
@@ -234,7 +250,13 @@ type WalletClientT = ReturnType<typeof makeWalletClient>;
 // ─── Bootstrap: 2 fresh agent wallets ──────────────────────────────────────
 
 interface AgentBundle {
-  label: "hermes" | "claude";
+  // X32-4 clean-broadcast: two open-weights slots. Claude was dropped
+  // entirely (was a $3/$15-per-M cost sink, not a demo requirement).
+  // Slot names equal the underlying model id family so artifact + log
+  // labels self-describe.
+  //   mistral  → mistralai/mistral-large-2411
+  //   deepseek → deepseek/deepseek-v4-flash
+  label: "mistral" | "deepseek";
   privateKey: Hex;
   address: Address;
   endpoint: string;
@@ -430,7 +452,7 @@ async function ensureUsdcAllowance(
   throw new Error(`[x32-2] approve replica-propagation timeout for spender=${spender}`);
 }
 
-async function createTournament(
+export async function createTournament(
   deployer: WalletClientT,
   publicClient: PublicClientT,
   tournamentId: Hex,
@@ -465,7 +487,7 @@ async function createTournament(
 
 // ─── Step 5: sponsorPool top-up → SBT mint ─────────────────────────────────
 
-async function sponsorPoolTopup(
+export async function sponsorPoolTopup(
   deployer: WalletClientT,
   publicClient: PublicClientT,
   tournamentId: Hex,
@@ -568,37 +590,49 @@ async function sponsorPoolTopup(
 //     pass the agent's freshly-registered agentId + privateKey via env so the
 //     MCP server can do SIWA + signed POST /v1/agents/scores. Out of scope here.
 
-// X32 model selection — see PR description for full rationale.
+// X32-4 model selection — final config (post X32-4 clean-broadcast).
 //
-// The "hermes" agent leg label is retained (preserves AgentBundle wiring,
-// env var names X25_HERMES_*, endpoint URLs) but the underlying model is
-// NOT a Hermes variant: as of May 27 2026, OpenRouter routes every Hermes
-// model (3-70b, 3-405b, 3-405b:free, 4-70b, 4-405b) to providers that do
-// not expose function-calling (`tools: false` in `/api/v1/models`). The
-// X29 wrapper relies on tool-use, so any Hermes leg routed through
-// OpenRouter cannot drive a `submit_score` tool call today.
+// Iteration history:
+//   X32-3 + X32-4 dry-run #1: meta-llama/llama-3.3-70b-instruct FAILED
+//     tool-use twice (105 iter no submit_score, $0.20 burned). Dropped.
+//   X32-4 dry-run #2: Mistral Large + Claude Sonnet 4.5 both submitted
+//     scores BUT subsequent broadcasts burned $16 total across two
+//     stuck-tournament cycles — caused by (a) Claude's $3/$15 per-M
+//     pricing, (b) no context windowing (quadratic token growth),
+//     (c) no per-leg token cap. Claude dropped from the demo entirely
+//     (carryover from "Hermes vs Claude" framing, not a requirement).
+//   X32-4 final broadcast (May 28 09:45 UTC): Mistral Large submitted
+//     on-chain successfully (score 168, tx 0x850afbfd...). DeepSeek
+//     (chat) leg crashed on a transient `read ETIMEDOUT` from the
+//     OpenRouter `/chat/completions` socket — a network blip, not a
+//     tool-use failure. Tournament settled with Mistral as sole winner
+//     (settle tx 0x85f5e2c2..., $40 USDC to agentId 6437).
+//   X32-5 fixes:
+//     1. Inference call now retries 3× on transient errors (ETIMEDOUT,
+//        ECONNRESET, 5xx, fetch socket errors) with exp backoff 1/2/4s.
+//        See packages/hermes-mcp-wrapper/src/inference.ts. A single
+//        socket blip will no longer crash a leg.
+//     2. `deepseek/deepseek-chat` swapped to `deepseek/deepseek-v4-flash`
+//        — old endpoint sunsetting on OpenRouter 2026-07-24, V4 Flash
+//        supersedes at lower price ($0.10/$0.20 per M) + 1M context.
 //
-// Founder direction on X32 question 2 (May 27 2026): pick the first
-// tool-use-verified open-weights model on OpenRouter from a defined
-// fallback chain. Verified order at the time of selection:
-//   1. meta-llama/llama-3.3-70b-instruct   — tools: true, $0.10/$0.32 per M (chosen)
-//   2. mistralai/mistral-large-2411        — tools: true, $2.00/$6.00 per M
-//   3. qwen/qwen-2.5-72b-instruct          — tools: true, $0.36/$0.40 per M
-//   4. deepseek/deepseek-chat              — tools: true, $0.23/$0.91 per M
-//   5. google/gemini-2.0-flash-exp:free    — not currently on OpenRouter
+// Final config:
+//   Leg 1: `mistralai/mistral-large-2411` — tools: true, $2.00/$6.00
+//     per M, validated end-to-end in X32-4 on-chain broadcast.
+//   Leg 2: `deepseek/deepseek-v4-flash` — tools: true, ctx 1,048,576,
+//     $0.10/$0.20 per M. Fallback chain: deepseek-v4-pro → qwen-2.5-72b.
 //
-// Phase 2 follow-up (out of X32 scope): direct Nous Research Hermes Agent
-// API integration would restore "Hermes vs Claude" narrative; tracked
-// separately. v1.11 housekeeping: Strategic Memory v1.10 demo-narrative
-// note + pitch deck Slide 8 must update to "{ChosenModel} vs Claude" or
-// adopt the looser "open-weights vs frontier" framing.
-const OPEN_WEIGHTS_MODEL = "meta-llama/llama-3.3-70b-instruct";
-
-// Founder direction: Claude Sonnet 4.5 is the locked Claude leg model for
-// this sprint. Sonnet 4.6 is also available on OpenRouter (tools: true) and
-// is the documented "latest" per system context; staying on 4.5 per the
-// founder's X32 message.
-const CLAUDE_MODEL = "anthropic/claude-sonnet-4.5";
+// AgentBundle.label union: "mistral" | "deepseek". Filename, package
+// name, wrapper function name (`createHermesMcpClient`) are kept stable
+// — those are infrastructure identities, not demo labels.
+//
+// Verified `tools: true` on OpenRouter /api/v1/models at X32-5 swap:
+//   mistralai/mistral-large-2411  — tools: true, ctx 131072
+//   deepseek/deepseek-v4-flash    — tools: true, ctx 1048576
+//   deepseek/deepseek-v4-pro      — tools: true, ctx 1048576 (fallback)
+//   qwen/qwen-2.5-72b-instruct    — tools: true, ctx 131072 (fallback)
+const LEG1_MODEL = "mistralai/mistral-large-2411";
+const LEG2_MODEL = "deepseek/deepseek-v4-flash";
 
 // OpenRouter pricing overlay for models the X29 wrapper's `estimateCostUsd`
 // doesn't natively price (it only knows the three validated Hermes ids,
@@ -614,7 +648,11 @@ const OPENROUTER_PRICING_USD_PER_M: Record<string, { input: number; output: numb
   "meta-llama/llama-3.3-70b-instruct": { input: 0.1, output: 0.32 },
   "mistralai/mistral-large-2411": { input: 2.0, output: 6.0 },
   "qwen/qwen-2.5-72b-instruct": { input: 0.36, output: 0.4 },
-  "deepseek/deepseek-chat": { input: 0.2288, output: 0.9144 },
+  // X32-5 swap: deepseek-chat sunsetting on OpenRouter 2026-07-24; V4
+  // Flash supersedes at lower price ($0.10/$0.20 per M) + 1M context.
+  // Keep V4 Pro priced too as the documented fallback target.
+  "deepseek/deepseek-v4-flash": { input: 0.1, output: 0.2 },
+  "deepseek/deepseek-v4-pro": { input: 0.435, output: 0.87 },
 };
 
 function overlayCostUsd(model: string, prompt: number, completion: number): number {
@@ -623,34 +661,118 @@ function overlayCostUsd(model: string, prompt: number, completion: number): numb
   return (prompt * rates.input + completion * rates.output) / 1_000_000;
 }
 
-const AGENT_SYSTEM_PROMPT = (label: string, tournamentId: Hex): string =>
+// X32-4: 2048 gameplay loop prompt. Three-tool agentic loop — read board,
+// pick direction, repeat until game-over or the soft cap, then submit
+// with the recorded move trail. The submit_score tool's engine validation
+// rejects any mismatch between the claimed score and the deterministic
+// replay, so the LLM cannot "fake" a high score.
+//
+// SOFT_MOVE_CAP < MAX_MOVES is intentional: a smaller per-run move budget
+// keeps total LLM iterations + token cost predictable across both legs
+// (smaller open-weights models were observed looping past their iteration
+// budget when the soft cap matched MAX_MOVES). The engine still caps at
+// MAX_MOVES for replay determinism, but the prompt asks the agent to
+// submit by SOFT_MOVE_CAP.
+const SOFT_MOVE_CAP = 30;
+const AGENT_SYSTEM_PROMPT = (label: string, tournamentId: Hex, sessionId: string): string =>
   [
-    `You are an autonomous agent competing in a Match3 score-attack tournament on`,
-    `SkillOS testnet (Base Sepolia). Your agent label is "${label}".`,
+    `You are an autonomous agent playing 2048 in a SkillOS tournament on Base Sepolia.`,
+    `Your agent label is "${label}". Goal: maximize your final score.`,
     ``,
-    `Game: Match3 (deterministic — engine seeds runs with seed=42).`,
+    `Game rules:`,
+    `- 4×4 grid of numbered tiles (2, 4, 8, 16, ...). Empty cells are 0.`,
+    `- Each move: choose a direction (up | down | left | right). All tiles slide`,
+    `  that way. Two adjacent tiles of equal value collide → merge into one tile`,
+    `  with their sum, and your score increases by that sum.`,
+    `- After every successful move, one new tile (2 or 4) spawns in a random`,
+    `  empty cell.`,
+    `- Engine hard cap: ${MAX_MOVES} legal moves. Your soft cap for this run:`,
+    `  ${SOFT_MOVE_CAP} moves — you MUST submit before exceeding it.`,
+    ``,
     `Tournament ID: ${tournamentId}`,
-    `Tier: T0 (signature-only submission; no plausibility infra in v0.1).`,
+    `Your session ID: ${sessionId}`,
+    `Tier: T0 (signature-only submission).`,
     ``,
-    `Task: Compose exactly one \`submit_score\` tool call claiming your final score`,
-    `for a single Match3 playthrough. Choose a plausible integer score in [100, 10000]`,
-    `reflecting competent (not perfect) play. After the tool returns, output a single`,
-    `concise sentence describing your run.`,
+    `Available tools:`,
+    `1. get_board_state({ sessionId }) — returns the current 4×4 board, score,`,
+    `   movesUsed, and gameOver flag. Call this ONCE at the start. First call`,
+    `   also initializes the session. You do NOT need to call it again between`,
+    `   moves — make_move returns the updated board on every call.`,
+    `2. make_move({ sessionId, direction }) — applies one direction. Returns the`,
+    `   new board, scoreDelta, moved (false = no-op direction, try a different`,
+    `   one — the move budget is NOT consumed), gameOver, and movesUsed.`,
+    `3. submit_score({ tournamentId, game: "2048", score, sessionId, moves }) —`,
+    `   call EXACTLY ONCE at the end. \`moves\` is the chronological array of`,
+    `   every direction you successfully applied (excluding no-ops). The server`,
+    `   replays the engine and rejects mismatched scores, so be honest.`,
     ``,
-    `Constraints:`,
-    `- Call \`submit_score\` exactly once with the tournamentId above.`,
-    `- Score must be an integer in [100, 10000].`,
-    `- Do not call any other tools.`,
-    `- Do not retry on tool error — surface it and stop.`,
+    `Strategy hint: keep the largest tile in a corner and avoid scattering tiles`,
+    `randomly. Don't deadlock the board too early.`,
+    ``,
+    `Procedure (FOLLOW STRICTLY):`,
+    `- Step 1: get_board_state once to see the opening tiles.`,
+    `- Step 2: make_move repeatedly. Each call returns the NEW board — use it.`,
+    `- Step 3: STOP making moves when EITHER gameOver === true OR you have`,
+    `  successfully applied ${SOFT_MOVE_CAP} moves (whichever comes first).`,
+    `- Step 4: call submit_score ONCE. The \`score\` argument MUST be EXACTLY`,
+    `  the \`score\` field from your most recent make_move response — do NOT`,
+    `  re-derive it, do NOT sum scoreDeltas, do NOT estimate. Copy it`,
+    `  verbatim. \`moves\` is the chronological array of every direction`,
+    `  argument you passed to make_move (include no-op attempts too — they`,
+    `  replay as no-ops on the engine side, so the array can be the full`,
+    `  history). The server's engine validation rejects any mismatch.`,
+    `- Step 5: write a single concise sentence summary describing the run.`,
+    `- On any tool error: surface it verbatim and stop — do not retry.`,
   ].join("\n");
 
-const AGENT_USER_PROMPT = "Submit your Match3 score for this tournament.";
+const AGENT_USER_PROMPT = "Play 2048 to game-over and submit your score.";
 
-// JSON-Schema mirror of packages/mcp/src/tools/submit_score.ts inputSchema.
-// We keep this in sync manually rather than importing it because the source
-// uses zod and Hermes/Claude on OpenRouter expect plain JSON-Schema in the
-// tools bridge. If the real submit_score schema drifts, the broadcast-path
-// migration will catch it (it'll listTools off the real server).
+// Total agentic turns budget: 1 get_board_state + SOFT_MOVE_CAP make_moves
+// + 1 submit_score + 1 summary = SOFT_MOVE_CAP + 3. Pad for no-op
+// directions and LLM slack.
+const AGENT_MAX_ITERATIONS = SOFT_MOVE_CAP + 8;
+
+// X32-4 credit-burn guards (passed to client.run, enforced by the wrapper).
+//
+// `AGENT_WINDOW_TURNS = 3` — keep the system + user prompts + the last 3
+// (assistant + tool) pairs. Without windowing the wrapper sends the full
+// growing transcript each turn (quadratic token cost); $16 was burned
+// across prior X32-4 runs in part because of this. With windowing, each
+// turn is ~constant tokens since the authoritative 2048 state lives in
+// the MCP server's session_store — the model only needs the system prompt
+// + the most recent make_move result to pick the next direction.
+//
+// `AGENT_MAX_TOTAL_TOKENS = 800_000` — hard cap per leg. If misbehavior
+// blows past this (e.g. infinite tool-call loop) the wrapper exits with
+// `stoppedReason: "aborted_budget"` and the trail captured so far is
+// preserved.
+const AGENT_WINDOW_TURNS = 3;
+const AGENT_MAX_TOTAL_TOKENS = 800_000;
+
+// JSON-Schema mirrors of the three tools the 2048 agent loop uses. These
+// must match the zod inputSchema in packages/mcp/src/tools/{get_board_state,
+// make_move,submit_score}.ts. We keep them inlined here because Claude /
+// open-weights tool-use on OpenRouter expects plain JSON-Schema in the
+// bridge — the wrapper does not transform zod for us.
+const DRY_RUN_GET_BOARD_STATE_SCHEMA = {
+  type: "object",
+  properties: {
+    sessionId: { type: "string", minLength: 1, maxLength: 128 },
+  },
+  required: ["sessionId"],
+  additionalProperties: false,
+} as const;
+
+const DRY_RUN_MAKE_MOVE_SCHEMA = {
+  type: "object",
+  properties: {
+    sessionId: { type: "string", minLength: 1, maxLength: 128 },
+    direction: { type: "string", enum: ["up", "down", "left", "right"] },
+  },
+  required: ["sessionId", "direction"],
+  additionalProperties: false,
+} as const;
+
 const DRY_RUN_SUBMIT_SCORE_SCHEMA = {
   type: "object",
   properties: {
@@ -659,21 +781,66 @@ const DRY_RUN_SUBMIT_SCORE_SCHEMA = {
       pattern: "^0x[a-fA-F0-9]{64}$",
       description: "Tournament id (bytes32 hex).",
     },
+    game: {
+      type: "string",
+      enum: ["2048", "wordle", "sudoku", "minesweeper", "clicker", "match3"],
+    },
     score: { type: "integer", minimum: 0, description: "Raw player score." },
     tier: { type: "string", enum: ["T0", "T1", "T2", "T3"], description: "Quality tier. v0.1 only supports T0." },
     soloRunId: { type: "string", pattern: "^0x[a-fA-F0-9]{64}$" },
     matchCountDelta: { type: "integer", minimum: 1, maximum: 10 },
+    sessionId: { type: "string", minLength: 1, maxLength: 128 },
+    moves: {
+      type: "array",
+      items: { type: "string", enum: ["up", "down", "left", "right"] },
+      maxItems: 1000,
+    },
   },
-  required: ["tournamentId", "score"],
+  required: ["tournamentId", "game", "score"],
   additionalProperties: false,
 } as const;
 
-interface DryRunStubCapture {
-  args: Record<string, unknown> | null;
-  calls: number;
+// One captured turn of gameplay — populated by either the dry-run stub
+// (engine is in-process) or the broadcast-path wrapper (engine is in the
+// MCP subprocess; we mirror it locally for trail capture).
+interface MoveTrailEntry {
+  turn: number;
+  direction: Direction;
+  boardBefore: number[][];
+  boardAfter: number[][];
+  scoreDelta: number;
+  scoreAfter: number;
+  moved: boolean;
+  gameOver: boolean;
 }
 
-function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClientLike {
+interface DryRunStubCapture {
+  // submit_score args, captured for downstream artifact emission.
+  args: Record<string, unknown> | null;
+  // Total tool calls of any kind. Used to verify the loop actually ran.
+  calls: number;
+  // Full chronological move trail captured by the stub — one entry per
+  // successful make_move (no-ops still recorded as moved:false for debug).
+  moves: MoveTrailEntry[];
+  // Final engine snapshot at submit_score time (or game-over).
+  finalScore: number;
+  movesUsed: number;
+}
+
+/**
+ * Dry-run stub: plays a real in-process 2048 engine session so the LLM
+ * sees real boards and scores. Mirrors the @skillos/mcp tool surface for
+ * get_board_state / make_move / submit_score. No SIWA, no HTTP, no chain.
+ */
+function createDryRunMcpStub(
+  label: string,
+  sessionId: string,
+  capture: DryRunStubCapture,
+): McpClientLike {
+  // In-process engine session, keyed by sessionId. The stub manages its own
+  // map (not the MCP package's session_store) because dry-run runs entirely
+  // outside the MCP server process.
+  const sessions = new Map<string, GameSession>();
   return {
     async connect(): Promise<void> {
       // No transport open — this stub is in-process.
@@ -682,9 +849,21 @@ function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClie
       return {
         tools: [
           {
+            name: "get_board_state",
+            description:
+              "Read the current 4×4 2048 board for this session. First call auto-creates the session seeded by sessionId. [DRY-RUN STUB]",
+            inputSchema: DRY_RUN_GET_BOARD_STATE_SCHEMA as unknown as Record<string, unknown>,
+          },
+          {
+            name: "make_move",
+            description:
+              "Apply one direction (up/down/left/right) to a 2048 session. Returns the new board + scoreDelta + moved + gameOver. [DRY-RUN STUB]",
+            inputSchema: DRY_RUN_MAKE_MOVE_SCHEMA as unknown as Record<string, unknown>,
+          },
+          {
             name: "submit_score",
             description:
-              "Submit a score as a verified agent. [DRY-RUN STUB: mirrors @skillos/mcp submit_score input schema; returns synthetic success without SIWA / chain broadcast.]",
+              "Submit the final score with the full move trail. Engine replays the moves and rejects score mismatches. [DRY-RUN STUB: validates against in-process engine; no SIWA, no HTTP, no chain.]",
             inputSchema: DRY_RUN_SUBMIT_SCORE_SCHEMA as unknown as Record<string, unknown>,
           },
         ],
@@ -692,22 +871,105 @@ function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClie
     },
     async callTool(req: { name: string; arguments?: Record<string, unknown> }) {
       capture.calls += 1;
-      if (req.name !== "submit_score") {
-        return {
-          content: [{ type: "text", text: `Unknown tool "${req.name}" in dry-run stub.` }],
-          isError: true,
+      const args = (req.arguments ?? {}) as Record<string, unknown>;
+
+      if (req.name === "get_board_state") {
+        const sid = String(args.sessionId ?? "");
+        if (!sid) {
+          return { content: [{ type: "text", text: "sessionId required" }], isError: true };
+        }
+        let sess = sessions.get(sid);
+        if (!sess) {
+          sess = createSession(sid);
+          sessions.set(sid, sess);
+        }
+        const payload = {
+          sessionId: sid,
+          board: serializeBoard(sess.board),
+          score: sess.score,
+          movesUsed: sess.movesUsed,
+          gameOver: engineIsGameOver(sess),
         };
+        return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
       }
-      capture.args = req.arguments ?? {};
-      const synthetic = {
-        txHash: `0x${"dryrun".padEnd(64, "0")}`,
-        soloRunId: `0x${"dryrun".padEnd(64, "a")}`,
-        tier: capture.args.tier ?? "T0",
-        note: `DRY-RUN STUB (${label}): args captured; no SIWA, no HTTP, no chain broadcast.`,
-        receivedArgs: capture.args,
-      };
+
+      if (req.name === "make_move") {
+        const sid = String(args.sessionId ?? "");
+        const dir = args.direction as Direction;
+        const sess = sessions.get(sid);
+        if (!sess) {
+          return {
+            content: [{ type: "text", text: `Unknown sessionId "${sid}". Call get_board_state first.` }],
+            isError: true,
+          };
+        }
+        if (engineIsGameOver(sess)) {
+          return {
+            content: [{ type: "text", text: `Session "${sid}" is game-over.` }],
+            isError: true,
+          };
+        }
+        const before = serializeBoard(sess.board);
+        const r = engineApplyMove(sess, dir);
+        const after = serializeBoard(sess.board);
+        capture.moves.push({
+          turn: sess.movesUsed,
+          direction: dir,
+          boardBefore: before,
+          boardAfter: after,
+          scoreDelta: r.scoreDelta,
+          scoreAfter: sess.score,
+          moved: r.moved,
+          gameOver: r.gameOver,
+        });
+        capture.finalScore = sess.score;
+        capture.movesUsed = sess.movesUsed;
+        const payload = {
+          sessionId: sid,
+          direction: dir,
+          board: after,
+          score: sess.score,
+          scoreDelta: r.scoreDelta,
+          moved: r.moved,
+          gameOver: r.gameOver,
+          movesUsed: sess.movesUsed,
+        };
+        return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
+      }
+
+      if (req.name === "submit_score") {
+        capture.args = args;
+        // Engine validation — mirror what the real submit_score does for 2048.
+        const sid = String(args.sessionId ?? "");
+        const moves = (args.moves as Direction[] | undefined) ?? [];
+        const claimedScore = Number(args.score ?? -1);
+        const live = sessions.get(sid);
+        const liveScore = live ? live.score : null;
+        if (liveScore !== null && liveScore !== claimedScore) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `[STUB] Engine score mismatch: claimed=${claimedScore} live=${liveScore} (sessionId=${sid}, moves=${moves.length}). Submission rejected.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        const synthetic = {
+          txHash: `0x${"dryrun".padEnd(64, "0")}`,
+          soloRunId: `0x${"dryrun".padEnd(64, "a")}`,
+          tier: args.tier ?? "T0",
+          note: `DRY-RUN STUB (${label}): engine-validated; no SIWA, no HTTP, no chain broadcast.`,
+          receivedArgs: args,
+          engineValidatedScore: liveScore,
+        };
+        return { content: [{ type: "text", text: JSON.stringify(synthetic, null, 2) }] };
+      }
+
       return {
-        content: [{ type: "text", text: JSON.stringify(synthetic, null, 2) }],
+        content: [{ type: "text", text: `Unknown tool "${req.name}" in dry-run stub.` }],
+        isError: true,
       };
     },
     async close(): Promise<void> {
@@ -719,13 +981,33 @@ function createDryRunMcpStub(label: string, capture: DryRunStubCapture): McpClie
 interface AgentLegResult {
   label: AgentBundle["label"];
   model: string;
+  sessionId: string;
   tokenUsage: TokenUsage;
   costEstimateUsd: number;
   iterations: number;
-  stoppedReason: "no_more_tool_calls" | "max_iterations";
+  stoppedReason: "no_more_tool_calls" | "max_iterations" | "aborted_budget";
   finalContent: string | null;
-  claimedSubmission: { tournamentId: string; score: number; tier: string } | null;
+  claimedSubmission: {
+    tournamentId: string;
+    game: string;
+    score: number;
+    tier: string;
+    sessionId: string | null;
+    movesCount: number;
+  } | null;
+  // X32-4: full move trail (visualization-ready). Populated in both
+  // dry-run and broadcast paths.
+  moves: MoveTrailEntry[];
+  finalScore: number;
+  movesUsed: number;
   toolCallCount: number;
+}
+
+function buildSessionId(label: string, tournamentId: Hex): string {
+  // sessionId is the engine's seed AND the session key. Pin it to the
+  // (label, tournamentId) pair so reruns of the same agent in the same
+  // tournament observe the same opening board — useful for debugging.
+  return `${label}:${tournamentId}`;
 }
 
 async function runAgentLegDryRun(args: {
@@ -734,8 +1016,15 @@ async function runAgentLegDryRun(args: {
   tournamentId: Hex;
   openrouterApiKey: string;
 }): Promise<AgentLegResult> {
-  const capture: DryRunStubCapture = { args: null, calls: 0 };
-  const stub = createDryRunMcpStub(args.label, capture);
+  const sessionId = buildSessionId(args.label, args.tournamentId);
+  const capture: DryRunStubCapture = {
+    args: null,
+    calls: 0,
+    moves: [],
+    finalScore: 0,
+    movesUsed: 0,
+  };
+  const stub = createDryRunMcpStub(args.label, sessionId, capture);
   const client = createHermesMcpClient(
     {
       openrouterApiKey: args.openrouterApiKey,
@@ -761,9 +1050,14 @@ async function runAgentLegDryRun(args: {
   await client.connect();
   let result: Awaited<ReturnType<typeof client.run>>;
   try {
+    // X32-4: AGENT_MAX_ITERATIONS = SOFT_MOVE_CAP + 8 — enough for one
+    // get_board_state + SOFT_MOVE_CAP make_moves + submit + summary, with
+    // pad for no-op slack.
     result = await client.run(AGENT_USER_PROMPT, {
-      systemPrompt: AGENT_SYSTEM_PROMPT(args.label, args.tournamentId),
-      maxIterations: 5,
+      systemPrompt: AGENT_SYSTEM_PROMPT(args.label, args.tournamentId, sessionId),
+      maxIterations: AGENT_MAX_ITERATIONS,
+      windowTurns: AGENT_WINDOW_TURNS,
+      maxTotalTokens: AGENT_MAX_TOTAL_TOKENS,
     });
   } finally {
     await client.close();
@@ -781,20 +1075,28 @@ async function runAgentLegDryRun(args: {
     typeof capture.args["score"] === "number"
       ? {
           tournamentId: capture.args["tournamentId"] as string,
+          game: String(capture.args["game"] ?? GAME),
           score: capture.args["score"] as number,
           tier: typeof capture.args["tier"] === "string" ? (capture.args["tier"] as string) : "T0",
+          sessionId:
+            typeof capture.args["sessionId"] === "string" ? (capture.args["sessionId"] as string) : null,
+          movesCount: Array.isArray(capture.args["moves"]) ? (capture.args["moves"] as unknown[]).length : 0,
         }
       : null;
 
   return {
     label: args.label,
     model: args.model,
+    sessionId,
     tokenUsage: { ...result.usage, estimatedCostUsd: costEstimateUsd },
     costEstimateUsd,
     iterations: result.iterations,
     stoppedReason: result.stoppedReason,
     finalContent: result.finalContent,
     claimedSubmission,
+    moves: capture.moves,
+    finalScore: capture.finalScore,
+    movesUsed: capture.movesUsed,
     toolCallCount: capture.calls,
   };
 }
@@ -809,6 +1111,12 @@ interface BroadcastSubmitCapture {
   parsedResult: { txHash?: string; soloRunId?: string; [k: string]: unknown } | null;
   toolCalls: number;
   errored: boolean;
+  // X32-4: parsed move trail captured from the real make_move tool calls.
+  // The real MCP server returns boardBefore is implicit (it's the prior
+  // make_move's `board`); we reconstruct it from the previous turn.
+  moves: MoveTrailEntry[];
+  finalScore: number;
+  movesUsed: number;
 }
 
 /**
@@ -823,6 +1131,10 @@ function createCapturingMcpWrapper(capture: BroadcastSubmitCapture): McpClientLi
     { name: "x25-broadcast-demo", version: "0.1.0" },
     { capabilities: {} },
   );
+  // X32-4: Reconstruct boardBefore for each make_move by remembering the last
+  // observed board (initially from get_board_state, then from each prior
+  // make_move's `board` field).
+  let lastBoardSnapshot: number[][] | null = null;
   return {
     async connect(transport: unknown): Promise<void> {
       // The wrapper hands us a real StdioClientTransport instance. Just delegate.
@@ -836,12 +1148,60 @@ function createCapturingMcpWrapper(capture: BroadcastSubmitCapture): McpClientLi
       capture.toolCalls += 1;
       try {
         const out = await realClient.callTool(req as never);
+
+        // X32-4: trail capture for 2048 tools.
+        const contentArr = (out as { content?: Array<{ type: string; text?: string }> }).content;
+        const text =
+          Array.isArray(contentArr) && contentArr[0]?.type === "text" ? contentArr[0].text ?? null : null;
+
+        if (req.name === "get_board_state" && text) {
+          try {
+            const parsed = JSON.parse(text) as {
+              board?: number[][];
+              score?: number;
+              movesUsed?: number;
+            };
+            if (Array.isArray(parsed.board)) lastBoardSnapshot = parsed.board;
+            if (typeof parsed.score === "number") capture.finalScore = parsed.score;
+            if (typeof parsed.movesUsed === "number") capture.movesUsed = parsed.movesUsed;
+          } catch {
+            // Tolerate non-JSON tool output; trail capture is best-effort.
+          }
+        }
+
+        if (req.name === "make_move" && text) {
+          try {
+            const parsed = JSON.parse(text) as {
+              board?: number[][];
+              direction?: Direction;
+              score?: number;
+              scoreDelta?: number;
+              moved?: boolean;
+              gameOver?: boolean;
+              movesUsed?: number;
+            };
+            const boardAfter = Array.isArray(parsed.board) ? parsed.board : [];
+            const dir = (parsed.direction ?? (req.arguments?.direction as Direction)) as Direction;
+            capture.moves.push({
+              turn: typeof parsed.movesUsed === "number" ? parsed.movesUsed : capture.moves.length + 1,
+              direction: dir,
+              boardBefore: lastBoardSnapshot ?? [],
+              boardAfter,
+              scoreDelta: typeof parsed.scoreDelta === "number" ? parsed.scoreDelta : 0,
+              scoreAfter: typeof parsed.score === "number" ? parsed.score : 0,
+              moved: parsed.moved ?? false,
+              gameOver: parsed.gameOver ?? false,
+            });
+            if (boardAfter.length > 0) lastBoardSnapshot = boardAfter;
+            if (typeof parsed.score === "number") capture.finalScore = parsed.score;
+            if (typeof parsed.movesUsed === "number") capture.movesUsed = parsed.movesUsed;
+          } catch {
+            // Same tolerance as get_board_state.
+          }
+        }
+
         if (req.name === "submit_score") {
           capture.args = req.arguments ?? {};
-          // Surface the text payload back to the caller — the SDK packs the
-          // server's JSON-stringified result inside `content[0].text`.
-          const contentArr = (out as { content?: Array<{ type: string; text?: string }> }).content;
-          const text = Array.isArray(contentArr) && contentArr[0]?.type === "text" ? contentArr[0].text ?? null : null;
           capture.resultText = text;
           if (text) {
             try {
@@ -875,7 +1235,7 @@ interface AgentLegBroadcastResult extends AgentLegResult {
   mcpResultText: string | null;
 }
 
-async function runAgentLegBroadcast(args: {
+export async function runAgentLegBroadcast(args: {
   agent: AgentBundle;
   model: string;
   tournamentId: Hex;
@@ -885,12 +1245,16 @@ async function runAgentLegBroadcast(args: {
   if (args.agent.agentId === null) {
     throw new Error(`[x32-2] ${args.agent.label}: agentId is null — register must run first`);
   }
+  const sessionId = buildSessionId(args.agent.label, args.tournamentId);
   const capture: BroadcastSubmitCapture = {
     args: null,
     resultText: null,
     parsedResult: null,
     toolCalls: 0,
     errored: false,
+    moves: [],
+    finalScore: 0,
+    movesUsed: 0,
   };
   const wrapped = createCapturingMcpWrapper(capture);
 
@@ -930,9 +1294,12 @@ async function runAgentLegBroadcast(args: {
   await client.connect();
   let result: Awaited<ReturnType<typeof client.run>>;
   try {
+    // X32-4: AGENT_MAX_ITERATIONS budget — matches dry-run leg semantics.
     result = await client.run(AGENT_USER_PROMPT, {
-      systemPrompt: AGENT_SYSTEM_PROMPT(args.agent.label, args.tournamentId),
-      maxIterations: 5,
+      systemPrompt: AGENT_SYSTEM_PROMPT(args.agent.label, args.tournamentId, sessionId),
+      maxIterations: AGENT_MAX_ITERATIONS,
+      windowTurns: AGENT_WINDOW_TURNS,
+      maxTotalTokens: AGENT_MAX_TOTAL_TOKENS,
     });
   } finally {
     await client.close();
@@ -948,8 +1315,14 @@ async function runAgentLegBroadcast(args: {
     typeof capture.args["score"] === "number"
       ? {
           tournamentId: capture.args["tournamentId"] as string,
+          game: String(capture.args["game"] ?? GAME),
           score: capture.args["score"] as number,
           tier: typeof capture.args["tier"] === "string" ? (capture.args["tier"] as string) : "T0",
+          sessionId:
+            typeof capture.args["sessionId"] === "string" ? (capture.args["sessionId"] as string) : null,
+          movesCount: Array.isArray(capture.args["moves"])
+            ? (capture.args["moves"] as unknown[]).length
+            : 0,
         }
       : null;
 
@@ -983,12 +1356,16 @@ async function runAgentLegBroadcast(args: {
   return {
     label: args.agent.label,
     model: args.model,
+    sessionId,
     tokenUsage: { ...result.usage, estimatedCostUsd: costEstimateUsd },
     costEstimateUsd,
     iterations: result.iterations,
     stoppedReason: result.stoppedReason,
     finalContent: result.finalContent,
     claimedSubmission,
+    moves: capture.moves,
+    finalScore: capture.finalScore,
+    movesUsed: capture.movesUsed,
     toolCallCount: capture.toolCalls,
     submitTxHash,
     submitTxConfirmed,
@@ -1037,7 +1414,7 @@ async function buildSortedRanking(
   return scored.map((s) => s.player);
 }
 
-async function settleTournament(
+export async function settleTournament(
   deployer: WalletClientT,
   publicClient: PublicClientT,
   tournamentId: Hex,
@@ -1077,12 +1454,23 @@ async function settleTournament(
 interface AgentArtifact {
   label: AgentBundle["label"];
   model: string;
+  sessionId: string;
   tokenUsage: TokenUsage;
   costEstimateUsd: number;
   iterations: number;
-  stoppedReason: "no_more_tool_calls" | "max_iterations";
+  stoppedReason: "no_more_tool_calls" | "max_iterations" | "aborted_budget";
   finalContent: string | null;
-  claimedSubmission: { tournamentId: string; score: number; tier: string } | null;
+  claimedSubmission: {
+    tournamentId: string;
+    game: string;
+    score: number;
+    tier: string;
+    sessionId: string | null;
+    movesCount: number;
+  } | null;
+  moves: MoveTrailEntry[];
+  finalScore: number;
+  movesUsed: number;
   toolCallCount: number;
 }
 
@@ -1128,8 +1516,8 @@ interface DemoArtifact {
    * wrapper integration (model name, token usage, cost estimate, captured
    * claimed score). In broadcast (current sprint defers wiring), null.
    */
-  hermesAgent: AgentArtifact | null;
-  claudeAgent: AgentArtifact | null;
+  mistralAgent: AgentArtifact | null;
+  deepseekAgent: AgentArtifact | null;
   basescanUrls: {
     tournament: string;
     sponsorshipModule: string;
@@ -1205,9 +1593,9 @@ async function main(): Promise<void> {
   }
 
   // ─── Step 1: generate agent bundles ──────────────────────────────────────
-  const hermes = generateAgentBundle("hermes");
-  const claude = generateAgentBundle("claude");
-  const bundles: AgentBundle[] = [hermes, claude];
+  const mistral = generateAgentBundle("mistral");
+  const deepseek = generateAgentBundle("deepseek");
+  const bundles: AgentBundle[] = [mistral, deepseek];
   console.log(`[x25] agents:`);
   for (const b of bundles) console.log(`   ${b.label}: ${b.address}`);
 
@@ -1249,47 +1637,47 @@ async function main(): Promise<void> {
       );
     }
     console.log(`\n--- DRY-RUN: agent legs via @skillos/hermes-mcp-wrapper (stubbed MCP) ---\n`);
-    console.log(`[x25] hermes leg: model=${OPEN_WEIGHTS_MODEL} (open-weights; Hermes routing on OpenRouter has tools:false — see PR description)`);
-    console.log(`[x25] claude leg: model=${CLAUDE_MODEL}`);
+    console.log(`[x25] mistral leg: model=${LEG1_MODEL} (X32-4 dry-run #2: swapped from Llama 3.3 70B after two tool-use failures; see PR description for fallback chain)`);
+    console.log(`[x25] deepseek leg: model=${LEG2_MODEL}`);
     console.log(`[x25] mcp transport: in-process stub (mirrors @skillos/mcp submit_score schema; no broadcast)`);
 
-    const hermesLeg = await runAgentLegDryRun({
-      label: "hermes",
-      model: OPEN_WEIGHTS_MODEL,
+    const mistralLeg = await runAgentLegDryRun({
+      label: "mistral",
+      model: LEG1_MODEL,
       tournamentId,
       openrouterApiKey,
     });
     console.log(
-      `[x25][hermes] iterations=${hermesLeg.iterations} stop=${hermesLeg.stoppedReason} ` +
-        `tokens=${hermesLeg.tokenUsage.totalTokens} cost≈$${hermesLeg.costEstimateUsd.toFixed(6)}`,
+      `[x25][mistral] iterations=${mistralLeg.iterations} stop=${mistralLeg.stoppedReason} ` +
+        `tokens=${mistralLeg.tokenUsage.totalTokens} cost≈$${mistralLeg.costEstimateUsd.toFixed(6)}`,
     );
-    if (hermesLeg.claimedSubmission) {
+    if (mistralLeg.claimedSubmission) {
       console.log(
-        `[x25][hermes] claimed score=${hermesLeg.claimedSubmission.score} (tier ${hermesLeg.claimedSubmission.tier})`,
+        `[x25][mistral] claimed score=${mistralLeg.claimedSubmission.score} (tier ${mistralLeg.claimedSubmission.tier})`,
       );
     } else {
-      console.log(`[x25][hermes] no claimed submission captured (toolCalls=${hermesLeg.toolCallCount})`);
+      console.log(`[x25][mistral] no claimed submission captured (toolCalls=${mistralLeg.toolCallCount})`);
     }
 
-    const claudeLeg = await runAgentLegDryRun({
-      label: "claude",
-      model: CLAUDE_MODEL,
+    const deepseekLeg = await runAgentLegDryRun({
+      label: "deepseek",
+      model: LEG2_MODEL,
       tournamentId,
       openrouterApiKey,
     });
     console.log(
-      `[x25][claude] iterations=${claudeLeg.iterations} stop=${claudeLeg.stoppedReason} ` +
-        `tokens=${claudeLeg.tokenUsage.totalTokens} cost≈$${claudeLeg.costEstimateUsd.toFixed(6)}`,
+      `[x25][deepseek] iterations=${deepseekLeg.iterations} stop=${deepseekLeg.stoppedReason} ` +
+        `tokens=${deepseekLeg.tokenUsage.totalTokens} cost≈$${deepseekLeg.costEstimateUsd.toFixed(6)}`,
     );
-    if (claudeLeg.claimedSubmission) {
+    if (deepseekLeg.claimedSubmission) {
       console.log(
-        `[x25][claude] claimed score=${claudeLeg.claimedSubmission.score} (tier ${claudeLeg.claimedSubmission.tier})`,
+        `[x25][deepseek] claimed score=${deepseekLeg.claimedSubmission.score} (tier ${deepseekLeg.claimedSubmission.tier})`,
       );
     } else {
-      console.log(`[x25][claude] no claimed submission captured (toolCalls=${claudeLeg.toolCallCount})`);
+      console.log(`[x25][deepseek] no claimed submission captured (toolCalls=${deepseekLeg.toolCallCount})`);
     }
 
-    const combinedCost = hermesLeg.costEstimateUsd + claudeLeg.costEstimateUsd;
+    const combinedCost = mistralLeg.costEstimateUsd + deepseekLeg.costEstimateUsd;
     console.log(`\n[x25] combined estimated cost: $${combinedCost.toFixed(6)} (both legs, dry-run)`);
     console.log(`\n[x25] DRY-RUN complete. Re-run with --broadcast to send all txs.\n`);
 
@@ -1319,16 +1707,16 @@ async function main(): Promise<void> {
         fundUsdcTxHash: null,
       })),
       txHashes: {
-        fundEth: { hermes: null, claude: null },
-        fundUsdc: { hermes: null, claude: null },
-        register: { hermes: null, claude: null },
+        fundEth: { mistral: null, deepseek: null },
+        fundUsdc: { mistral: null, deepseek: null },
+        register: { mistral: null, deepseek: null },
         create: null,
         sponsor: null,
         settle: null,
       },
       settle: { sortedRanking: null, totalDistributed: null, refunded: null },
-      hermesAgent: hermesLeg,
-      claudeAgent: claudeLeg,
+      mistralAgent: mistralLeg,
+      deepseekAgent: deepseekLeg,
       basescanUrls: {
         tournament: `https://sepolia.basescan.org/address/${TOURNAMENT_POOL_V2_ADDRESS}`,
         sponsorshipModule: `https://sepolia.basescan.org/address/${SPONSORSHIP_MODULE_ADDRESS}`,
@@ -1345,9 +1733,9 @@ async function main(): Promise<void> {
         sponsorTx: null,
         createTx: null,
       },
-      leaderboardUrl: `https://match3.skillos.games/tournament/${tournamentId}`,
+      leaderboardUrl: `https://2048.skillos.games/tournament/${tournamentId}`,
       profileUrls: Object.fromEntries(
-        bundles.map((b) => [b.label, `https://match3.skillos.games/agent/${b.address}`]),
+        bundles.map((b) => [b.label, `https://2048.skillos.games/agent/${b.address}`]),
       ),
     };
     const out = writeArtifact(artifact);
@@ -1428,43 +1816,43 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n--- BROADCAST: agent legs via @skillos/hermes-mcp-wrapper (real stdio MCP) ---\n`);
-  console.log(`[x32-2] hermes leg: model=${OPEN_WEIGHTS_MODEL}`);
-  console.log(`[x32-2] claude leg: model=${CLAUDE_MODEL}`);
+  console.log(`[x32-2] mistral leg: model=${LEG1_MODEL}`);
+  console.log(`[x32-2] deepseek leg: model=${LEG2_MODEL}`);
   console.log(`[x32-2] mcp transport: stdio → node packages/mcp/dist/index.js (per-agent env)`);
 
-  const hermesLeg = await runAgentLegBroadcast({
-    agent: hermes,
-    model: OPEN_WEIGHTS_MODEL,
+  const mistralLeg = await runAgentLegBroadcast({
+    agent: mistral,
+    model: LEG1_MODEL,
     tournamentId,
     openrouterApiKey,
     publicClient,
   });
   console.log(
-    `[x32-2][hermes] iterations=${hermesLeg.iterations} stop=${hermesLeg.stoppedReason} ` +
-      `tokens=${hermesLeg.tokenUsage.totalTokens} cost≈$${hermesLeg.costEstimateUsd.toFixed(6)}`,
+    `[x32-2][mistral] iterations=${mistralLeg.iterations} stop=${mistralLeg.stoppedReason} ` +
+      `tokens=${mistralLeg.tokenUsage.totalTokens} cost≈$${mistralLeg.costEstimateUsd.toFixed(6)}`,
   );
-  console.log(`[x32-2][hermes] submitTx=${hermesLeg.submitTxHash ?? "<none>"} confirmed=${hermesLeg.submitTxConfirmed}`);
-  if (hermesLeg.claimedSubmission) {
-    console.log(`[x32-2][hermes] claimed score=${hermesLeg.claimedSubmission.score} (tier ${hermesLeg.claimedSubmission.tier})`);
+  console.log(`[x32-2][mistral] submitTx=${mistralLeg.submitTxHash ?? "<none>"} confirmed=${mistralLeg.submitTxConfirmed}`);
+  if (mistralLeg.claimedSubmission) {
+    console.log(`[x32-2][mistral] claimed score=${mistralLeg.claimedSubmission.score} (tier ${mistralLeg.claimedSubmission.tier})`);
   }
 
-  const claudeLeg = await runAgentLegBroadcast({
-    agent: claude,
-    model: CLAUDE_MODEL,
+  const deepseekLeg = await runAgentLegBroadcast({
+    agent: deepseek,
+    model: LEG2_MODEL,
     tournamentId,
     openrouterApiKey,
     publicClient,
   });
   console.log(
-    `[x32-2][claude] iterations=${claudeLeg.iterations} stop=${claudeLeg.stoppedReason} ` +
-      `tokens=${claudeLeg.tokenUsage.totalTokens} cost≈$${claudeLeg.costEstimateUsd.toFixed(6)}`,
+    `[x32-2][deepseek] iterations=${deepseekLeg.iterations} stop=${deepseekLeg.stoppedReason} ` +
+      `tokens=${deepseekLeg.tokenUsage.totalTokens} cost≈$${deepseekLeg.costEstimateUsd.toFixed(6)}`,
   );
-  console.log(`[x32-2][claude] submitTx=${claudeLeg.submitTxHash ?? "<none>"} confirmed=${claudeLeg.submitTxConfirmed}`);
-  if (claudeLeg.claimedSubmission) {
-    console.log(`[x32-2][claude] claimed score=${claudeLeg.claimedSubmission.score} (tier ${claudeLeg.claimedSubmission.tier})`);
+  console.log(`[x32-2][deepseek] submitTx=${deepseekLeg.submitTxHash ?? "<none>"} confirmed=${deepseekLeg.submitTxConfirmed}`);
+  if (deepseekLeg.claimedSubmission) {
+    console.log(`[x32-2][deepseek] claimed score=${deepseekLeg.claimedSubmission.score} (tier ${deepseekLeg.claimedSubmission.tier})`);
   }
 
-  const combinedCost = hermesLeg.costEstimateUsd + claudeLeg.costEstimateUsd;
+  const combinedCost = mistralLeg.costEstimateUsd + deepseekLeg.costEstimateUsd;
   console.log(`\n[x32-2] combined LLM cost: $${combinedCost.toFixed(6)} (both legs, broadcast)`);
 
   // Step 7: settle. Always broadcast settle in X32-2 (sprint demands end-to-end
@@ -1507,9 +1895,9 @@ async function main(): Promise<void> {
       fundUsdcTxHash: b.fundUsdcTxHash,
     })),
     txHashes: {
-      fundEth: { hermes: hermes.fundEthTxHash, claude: claude.fundEthTxHash },
-      fundUsdc: { hermes: hermes.fundUsdcTxHash, claude: claude.fundUsdcTxHash },
-      register: { hermes: hermes.registerTxHash, claude: claude.registerTxHash },
+      fundEth: { mistral: mistral.fundEthTxHash, deepseek: deepseek.fundEthTxHash },
+      fundUsdc: { mistral: mistral.fundUsdcTxHash, deepseek: deepseek.fundUsdcTxHash },
+      register: { mistral: mistral.registerTxHash, deepseek: deepseek.registerTxHash },
       create: createTxHash,
       sponsor: sponsorTxHash,
       settle: settleResult?.txHash ?? null,
@@ -1520,8 +1908,8 @@ async function main(): Promise<void> {
       refunded: settleResult?.refunded.toString() ?? null,
     },
     // X32-2: wrapper wiring is live for both legs over real stdio MCP.
-    hermesAgent: hermesLeg,
-    claudeAgent: claudeLeg,
+    mistralAgent: mistralLeg,
+    deepseekAgent: deepseekLeg,
     basescanUrls: {
       tournament: `https://sepolia.basescan.org/address/${TOURNAMENT_POOL_V2_ADDRESS}`,
       sponsorshipModule: `https://sepolia.basescan.org/address/${SPONSORSHIP_MODULE_ADDRESS}`,
@@ -1534,16 +1922,16 @@ async function main(): Promise<void> {
       sponsorReceiptSbt: blockscoutAddrUrl(SPONSOR_RECEIPT_SBT_ADDRESS),
       identityRegistry: blockscoutAddrUrl(IDENTITY_REGISTRY_ADDRESS),
       submissionTxs: {
-        hermes: blockscoutTxUrl(hermesLeg.submitTxHash),
-        claude: blockscoutTxUrl(claudeLeg.submitTxHash),
+        mistral: blockscoutTxUrl(mistralLeg.submitTxHash),
+        deepseek: blockscoutTxUrl(deepseekLeg.submitTxHash),
       },
       settleTx: blockscoutTxUrl(settleResult?.txHash ?? null),
       sponsorTx: blockscoutTxUrl(sponsorTxHash),
       createTx: blockscoutTxUrl(createTxHash),
     },
-    leaderboardUrl: `https://match3.skillos.games/tournament/${tournamentId}`,
+    leaderboardUrl: `https://2048.skillos.games/tournament/${tournamentId}`,
     profileUrls: Object.fromEntries(
-      bundles.map((b) => [b.label, `https://match3.skillos.games/agent/${b.address}`]),
+      bundles.map((b) => [b.label, `https://2048.skillos.games/agent/${b.address}`]),
     ),
   };
   const out = writeArtifact(artifact);
@@ -1551,7 +1939,24 @@ async function main(): Promise<void> {
   console.log(`\n=== SUCCESS ===\n`);
 }
 
-main().catch((err) => {
-  console.error("[x25] fatal:", err);
-  process.exit(1);
-});
+// Only auto-run when invoked directly (not when imported by, e.g., the
+// resume utility at scripts/x32-4-resume-broadcast.ts). `process.argv[1]`
+// is the entry-point path that node was invoked with; comparing against
+// `import.meta.url` distinguishes "imported as a module" from "executed
+// as a script". The `endsWith` check is robust against tsx's transform-
+// path remapping where argv[1] may be a different absolute path than the
+// originating .ts file.
+const isEntryPoint = (() => {
+  try {
+    const arg1 = process.argv[1] ?? "";
+    return arg1.endsWith("create-hermes-vs-claude-demo.ts") || arg1.endsWith("create-hermes-vs-claude-demo.js");
+  } catch {
+    return false;
+  }
+})();
+if (isEntryPoint) {
+  main().catch((err) => {
+    console.error("[x25] fatal:", err);
+    process.exit(1);
+  });
+}

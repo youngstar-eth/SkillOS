@@ -32,6 +32,8 @@ import { signSIWAMessage } from '@buildersgarden/siwa/siwa';
 import { signAuthenticatedRequest } from '@buildersgarden/siwa/erc8128';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { MissingAgentIdError, MissingWalletError } from '../config.js';
+import { replay, type Direction } from '../engines/game2048.js';
+import { getSession } from '../engines/session_store.js';
 import { buildSiwaSigner, buildWallet } from '../wallet.js';
 import type { ServerContext } from '../server.js';
 import { registerTool } from './_register.js';
@@ -92,10 +94,86 @@ export function registerSubmitScoreTool(server: McpServer, ctx: ServerContext): 
         .max(10)
         .optional()
         .describe('Match count increment, capped at 10 on-chain. Defaults to 1.'),
+      // X32-4: 2048-only — engine session validation. When `game === "2048"`
+      // and a sessionId is supplied, the server re-derives the score by
+      // replaying the move trail under the deterministic engine and rejects
+      // mismatched claims before any SIWA / on-chain work happens.
+      sessionId: z
+        .string()
+        .min(1)
+        .max(128)
+        .optional()
+        .describe(
+          'X32-4 (2048 only): the engine session id used during the run. If supplied alongside `moves`, the server validates `score` against the engine\'s replay output. Required when `game === "2048"`.',
+        ),
+      moves: z
+        .array(z.enum(['up', 'down', 'left', 'right']))
+        .max(1000)
+        .optional()
+        .describe(
+          'X32-4 (2048 only): full direction sequence (chronological). Used to replay the engine and validate `score`. Required when `game === "2048"`.',
+        ),
     },
-    handler: async ({ tournamentId, game, score, tier, soloRunId, matchCountDelta }) => {
+    handler: async ({ tournamentId, game, score, tier, soloRunId, matchCountDelta, sessionId, moves }) => {
       if (!ctx.config.privateKey) throw new MissingWalletError();
       if (ctx.config.agentId === null) throw new MissingAgentIdError();
+
+      // X32-4 engine validation for the 2048 demo game.
+      //
+      // We have two engine-authoritative sources for the score:
+      //   - LIVE: the in-memory session_store, populated by make_move calls
+      //     in THIS process. Captures the exact gameplay the agent observed.
+      //   - REPLAY: replay(sessionId, moves) — pure, works cross-process.
+      //
+      // Single-process broadcast (the X32-4 demo) → LIVE exists and is
+      // authoritative. Cross-process / replay-only verification → fall back
+      // to REPLAY.
+      //
+      // Initial X32-4 implementation rejected on `replayed.score !== claimed`
+      // — but that surfaced an unrelated failure mode: LLMs (both Mistral
+      // and Claude) can't reliably reproduce the chronological direction
+      // array of a 30-move game in their final tool-call payload, even
+      // when the captured live-session score matches the agent's `score`
+      // field exactly. They omit moves, include retried no-ops, or shuffle
+      // order. Rejecting on that bookkeeping mistake blocks the demo
+      // without catching any actual score fraud.
+      //
+      // v0.1 rule (X32-4): trust LIVE when it exists; only fall back to
+      // REPLAY when no live session is available. The validation still
+      // catches the "no live session, lying about replay" case which is
+      // the cross-process attack surface.
+      //
+      // v1.11 backlog (H-v1.11-24, H-v1.11-25): tighten this once either
+      // (a) the wrapper auto-populates `moves` from its captured trail,
+      // (b) the prompt + LLM bookkeeping reliably produce faithful trails,
+      // or (c) the engine grows on-chain move-by-move verification.
+      if (game === '2048') {
+        if (!sessionId || !moves) {
+          throw new Error(
+            'submit_score(game="2048") requires `sessionId` and `moves` for engine validation.',
+          );
+        }
+        const live = getSession(sessionId);
+        if (live) {
+          if (live.score !== score) {
+            throw new Error(
+              `Engine score mismatch (live session): claimed=${score} live=${live.score} (sessionId=${sessionId}). Refusing to submit.`,
+            );
+          }
+          // LIVE matches — accept. (The agent-supplied `moves` array is
+          // retained in the on-chain attestation payload; it's still a
+          // signed claim by the agent, just no longer the validation
+          // gatekeeper in single-process mode.)
+        } else {
+          // Cross-process / no live session — fall back to pure replay.
+          const replayed = replay(sessionId, moves as Direction[]);
+          if (replayed.score !== score) {
+            throw new Error(
+              `Engine score mismatch (replay): claimed=${score} replayed=${replayed.score} (sessionId=${sessionId}, moves=${moves.length}). Refusing to submit.`,
+            );
+          }
+        }
+      }
 
       const wallet = buildWallet({ ...ctx.config, privateKey: ctx.config.privateKey });
       const signer = buildSiwaSigner(wallet.account);
