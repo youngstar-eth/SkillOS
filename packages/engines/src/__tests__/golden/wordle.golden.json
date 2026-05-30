@@ -1,0 +1,252 @@
+{
+  "$comment": "Δ6 golden vectors for the Wordle engine. GENERATED from @skillos/engines (a verbatim lift of apps/wordle/src/lib/wordle/{engine,data}) and cross-validated against the live game source by scripts/fidelity-wordle-live-vs-engine.test.ts. expectedScore is the GUESS-BONUS-ONLY deterministic score (the live speed bonus is wall-clock-derived and NOT replayable — see wordle.ts header). Do NOT hand-edit expectedScore/expectedGuesses — regenerate via scripts/gen-golden-wordle and review the diff. A changed value = engine drift; CI fails by design.",
+  "game": "wordle",
+  "maxGuesses": 6,
+  "scoreModel": "guess-bonus-only: won ? (MAX_GUESSES+1-guessCount)*1000 : 0 (speed bonus excluded — non-replayable wall-clock)",
+  "vectors": [
+    {
+      "name": "empty_log",
+      "note": "Boundary: no guesses → score 0, valid, still playing (not terminal).",
+      "seed": "delta6-wordle-empty",
+      "answer": "reuse",
+      "moves": [],
+      "expectedScore": 0,
+      "expectedStatus": "playing",
+      "expectedGuessCount": 0,
+      "expectedGuesses": [],
+      "terminal": false
+    },
+    {
+      "name": "single_miss",
+      "note": "Boundary: exactly one valid non-answer guess. Still playing, score 0.",
+      "seed": "delta6-wordle-single",
+      "answer": "groan",
+      "moves": [
+        "crane"
+      ],
+      "expectedScore": 0,
+      "expectedStatus": "playing",
+      "expectedGuessCount": 1,
+      "expectedGuesses": [
+        {
+          "word": "crane",
+          "states": [
+            "absent",
+            "correct",
+            "present",
+            "present",
+            "absent"
+          ]
+        }
+      ],
+      "terminal": false
+    },
+    {
+      "name": "win_in_three",
+      "note": "Productive run: two misses then the answer on guess 3 → score (7-3)*1000 = 4000.",
+      "seed": "delta6-wordle-win3",
+      "answer": "blunt",
+      "moves": [
+        "crane",
+        "slate",
+        "blunt"
+      ],
+      "expectedScore": 4000,
+      "expectedStatus": "won",
+      "expectedGuessCount": 3,
+      "expectedGuesses": [
+        {
+          "word": "crane",
+          "states": [
+            "absent",
+            "absent",
+            "absent",
+            "correct",
+            "absent"
+          ]
+        },
+        {
+          "word": "slate",
+          "states": [
+            "absent",
+            "correct",
+            "absent",
+            "present",
+            "absent"
+          ]
+        },
+        {
+          "word": "blunt",
+          "states": [
+            "correct",
+            "correct",
+            "correct",
+            "correct",
+            "correct"
+          ]
+        }
+      ],
+      "terminal": true
+    },
+    {
+      "name": "win_in_six",
+      "note": "Terminal/bound case (WIN at the last allowed guess): five misses then answer on guess 6 → score 1000.",
+      "seed": "delta6-wordle-win6",
+      "answer": "forge",
+      "moves": [
+        "crane",
+        "slate",
+        "audio",
+        "point",
+        "lucky",
+        "forge"
+      ],
+      "expectedScore": 1000,
+      "expectedStatus": "won",
+      "expectedGuessCount": 6,
+      "expectedGuesses": [
+        {
+          "word": "crane",
+          "states": [
+            "absent",
+            "present",
+            "absent",
+            "absent",
+            "correct"
+          ]
+        },
+        {
+          "word": "slate",
+          "states": [
+            "absent",
+            "absent",
+            "absent",
+            "absent",
+            "correct"
+          ]
+        },
+        {
+          "word": "audio",
+          "states": [
+            "absent",
+            "absent",
+            "absent",
+            "absent",
+            "present"
+          ]
+        },
+        {
+          "word": "point",
+          "states": [
+            "absent",
+            "correct",
+            "absent",
+            "absent",
+            "absent"
+          ]
+        },
+        {
+          "word": "lucky",
+          "states": [
+            "absent",
+            "absent",
+            "absent",
+            "absent",
+            "absent"
+          ]
+        },
+        {
+          "word": "forge",
+          "states": [
+            "correct",
+            "correct",
+            "correct",
+            "correct",
+            "correct"
+          ]
+        }
+      ],
+      "terminal": true
+    },
+    {
+      "name": "loss_six_guesses",
+      "note": "Terminal/bound case (LOSS): six valid non-answer guesses → status lost, score 0.",
+      "seed": "delta6-wordle-loss",
+      "answer": "shame",
+      "moves": [
+        "crane",
+        "slate",
+        "audio",
+        "point",
+        "lucky",
+        "fjord"
+      ],
+      "expectedScore": 0,
+      "expectedStatus": "lost",
+      "expectedGuessCount": 6,
+      "expectedGuesses": [
+        {
+          "word": "crane",
+          "states": [
+            "absent",
+            "absent",
+            "correct",
+            "absent",
+            "correct"
+          ]
+        },
+        {
+          "word": "slate",
+          "states": [
+            "correct",
+            "absent",
+            "correct",
+            "absent",
+            "correct"
+          ]
+        },
+        {
+          "word": "audio",
+          "states": [
+            "present",
+            "absent",
+            "absent",
+            "absent",
+            "absent"
+          ]
+        },
+        {
+          "word": "point",
+          "states": [
+            "absent",
+            "absent",
+            "absent",
+            "absent",
+            "absent"
+          ]
+        },
+        {
+          "word": "lucky",
+          "states": [
+            "absent",
+            "absent",
+            "absent",
+            "absent",
+            "absent"
+          ]
+        },
+        {
+          "word": "fjord",
+          "states": [
+            "absent",
+            "absent",
+            "absent",
+            "absent",
+            "absent"
+          ]
+        }
+      ],
+      "terminal": true
+    }
+  ]
+}
