@@ -66,6 +66,8 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      - name: Build @skillos/mcp (smoke-x32-4-stub.ts validates the ./engine/2048 subpath export via the package.json exports map — requires dist/)
+        run: npm run build --workspace=@skillos/mcp
       - name: Run TS tests (node:test via tsx)
         # Direct invocation matches the local developer pattern — no
         # turbo `test` task defined. 24 test files: 11 in duel-backend
