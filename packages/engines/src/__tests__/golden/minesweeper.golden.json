@@ -1,0 +1,975 @@
+{
+  "$comment": "Δ6 golden vectors for the minesweeper engine. GENERATED from @skillos/engines (verbatim lift of apps/minesweeper) + cross-validated against the live game by scripts/fidelity-minesweeper-live-vs-engine.test.ts. score = revealedCount (0..71). Do NOT hand-edit; regenerate + review.",
+  "game": "minesweeper",
+  "board": {
+    "rows": 9,
+    "cols": 9,
+    "nonMineCells": 71
+  },
+  "vectors": [
+    {
+      "name": "empty_log",
+      "note": "No moves → score 0, still playing.",
+      "seed": "delta6-ms-empty",
+      "moves": [],
+      "expectedScore": 0,
+      "expectedStatus": "playing",
+      "expectedStates": [
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ]
+      ],
+      "terminal": false
+    },
+    {
+      "name": "short_run",
+      "note": "One reveal + one flag (flag is score-neutral).",
+      "seed": "delta6-ms-short",
+      "moves": [
+        {
+          "row": 0,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 1,
+          "action": "flag"
+        }
+      ],
+      "expectedScore": 1,
+      "expectedStatus": "playing",
+      "expectedStates": [
+        [
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "flagged",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ]
+      ],
+      "terminal": false
+    },
+    {
+      "name": "productive_run",
+      "note": "Reveal 5 safe cells (partial, non-terminal).",
+      "seed": "delta6-ms-prod",
+      "moves": [
+        {
+          "row": 0,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 4,
+          "action": "reveal"
+        }
+      ],
+      "expectedScore": 42,
+      "expectedStatus": "playing",
+      "expectedStates": [
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ]
+      ],
+      "terminal": false
+    },
+    {
+      "name": "loss_mine_hit",
+      "note": "A few safe reveals then a mine → LOSS terminal; revealedCount frozen.",
+      "seed": "delta6-ms-loss",
+      "moves": [
+        {
+          "row": 0,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 2,
+          "action": "reveal"
+        }
+      ],
+      "expectedScore": 37,
+      "expectedStatus": "lost",
+      "expectedStates": [
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden",
+          "hidden"
+        ]
+      ],
+      "terminal": true
+    },
+    {
+      "name": "win_full_clear",
+      "note": "Reveal all 71 safe cells → WIN terminal, score 71.",
+      "seed": "delta6-ms-win",
+      "moves": [
+        {
+          "row": 0,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 0,
+          "col": 8,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 4,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 1,
+          "col": 8,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 4,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 2,
+          "col": 8,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 3,
+          "col": 8,
+          "action": "reveal"
+        },
+        {
+          "row": 4,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 4,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 4,
+          "col": 4,
+          "action": "reveal"
+        },
+        {
+          "row": 4,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 4,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 4,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 4,
+          "col": 8,
+          "action": "reveal"
+        },
+        {
+          "row": 5,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 5,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 5,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 5,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 5,
+          "col": 4,
+          "action": "reveal"
+        },
+        {
+          "row": 5,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 5,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 4,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 6,
+          "col": 8,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 4,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 7,
+          "col": 8,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 0,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 1,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 2,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 3,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 5,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 6,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 7,
+          "action": "reveal"
+        },
+        {
+          "row": 8,
+          "col": 8,
+          "action": "reveal"
+        }
+      ],
+      "expectedScore": 71,
+      "expectedStatus": "won",
+      "expectedStates": [
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed"
+        ],
+        [
+          "hidden",
+          "revealed",
+          "hidden",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed"
+        ],
+        [
+          "hidden",
+          "revealed",
+          "hidden",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "revealed",
+          "revealed",
+          "hidden"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "revealed"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed"
+        ],
+        [
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed",
+          "hidden",
+          "revealed",
+          "revealed",
+          "revealed",
+          "revealed"
+        ]
+      ],
+      "terminal": true
+    }
+  ]
+}
