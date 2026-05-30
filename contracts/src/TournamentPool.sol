@@ -171,6 +171,59 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         bool cancelled;
     }
 
+    // ─── Δ1 Arena Config (v2.3) ─────────────────────────────────────────────────
+    // The on-chain config set per the Δ1 SPEC §3 locked on/off-chain split. These
+    // dimensions are settlement / verification / legal-relevant and live on the
+    // struct; the descriptive dims (dataTier, creditedAxes weights, dataRights)
+    // stay OFF-chain in v2_tournaments + the API. The cross-dimension VALIDITY
+    // rules (SPEC §2 — legal matrix, tier coupling, format↔resolution) are
+    // enforced off-chain at config-create (API Zod), NOT here: the contract only
+    // STORES raw config (bytecode discipline). Enum index 0 is the sensible
+    // default, so a tournament created via the legacy no-config path defaults
+    // correctly. Ordering is ABI surface — append only.
+
+    enum EntryType {
+        FREE,
+        FEE
+    }
+
+    enum PrizeSource {
+        NONE,
+        PLAYER_POOL,
+        SPONSOR
+    }
+
+    enum Format {
+        SOLO_SUBMIT,
+        PVP
+    }
+
+    enum VerificationFamily {
+        DETERMINISTIC_REPLAY,
+        STAKED_RESOLUTION
+    }
+
+    enum ResolutionPolicy {
+        HIGHEST_SCORE,
+        BRACKET_ELIM,
+        THRESHOLD
+    }
+
+    /// @notice Δ1 Arena config object — set at createTournament, immutable thereafter.
+    /// @dev    `feeAmount` is meaningful only when `entry == FEE` (USDC atoms, 6dp).
+    ///         `seedCommit` is the commit-reveal ref (Settlement SPEC seam #2).
+    ///         NOT a bracket-execution field — `format == PVP` only records intent;
+    ///         `startBracketRound` stays the `ReservedForV23` stub (Δ2 owns it).
+    struct TournamentConfig {
+        EntryType entry;
+        uint256 feeAmount;
+        PrizeSource prizeSource;
+        Format format;
+        VerificationFamily verification;
+        bytes32 seedCommit;
+        ResolutionPolicy resolution;
+    }
+
     struct Tournament {
         address sponsor;
         /// @dev Developer attribution address — set at createTournament time, immutable
@@ -192,6 +245,10 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         uint256 participationBonus;
         bool settled;
         address[] participants;
+        /// @dev Δ1 Arena config (v2.3). Set at createTournament, immutable. Legacy
+        ///      no-config path defaults to FREE / NONE / SOLO_SUBMIT /
+        ///      DETERMINISTIC_REPLAY / HIGHEST_SCORE, feeAmount 0, seedCommit 0.
+        TournamentConfig config;
     }
 
     struct RankEntry {
@@ -397,6 +454,14 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         uint256 prizePool,
         uint256 participationBonus
     );
+
+    /// @notice Δ1 (v2.3): emitted alongside TournamentCreated with the on-chain
+    ///         Arena config. Additive — TournamentCreated is unchanged, so existing
+    ///         indexers keep working; config-aware indexers read this. Emitted for
+    ///         every createTournament (the legacy no-config path emits the default
+    ///         config).
+    event TournamentConfigured(bytes32 indexed id, TournamentConfig config);
+
     /// @notice Emitted on permissionless top-up of a tournament's prize pool.
     /// @dev    `funder` is the direct caller (typically SponsorshipModule).
     ///         End-user sponsor identity is captured separately by the module's
@@ -482,6 +547,67 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         uint256 prizePool,
         uint256 participationBonus
     ) external nonReentrant {
+        _createTournament(
+            id, devAddr, game, cycleType, startsAt, endsAt, prizePool, participationBonus, _defaultConfig()
+        );
+    }
+
+    /// @notice Δ1 (v2.3): create a tournament with an explicit on-chain Arena config.
+    /// @dev    Identical lifecycle + fee/prize semantics to the legacy 8-param
+    ///         overload; additionally records `config` on the struct (immutable)
+    ///         and emits TournamentConfigured. Config VALIDITY (legal matrix, tier
+    ///         coupling, format↔resolution — SPEC §2) is enforced OFF-chain at the
+    ///         API, NOT here. `format == PVP` records intent only; bracket execution
+    ///         (`startBracketRound`) remains the ReservedForV23 stub (Δ2).
+    /// @param  config  Δ1 Arena config (entry/fee, prizeSource, format, verification,
+    ///                 seedCommit, resolution).
+    function createTournament(
+        bytes32 id,
+        address devAddr,
+        bytes32 game,
+        CycleType cycleType,
+        uint64 startsAt,
+        uint64 endsAt,
+        uint256 prizePool,
+        uint256 participationBonus,
+        TournamentConfig calldata config
+    ) external nonReentrant {
+        _createTournament(
+            id, devAddr, game, cycleType, startsAt, endsAt, prizePool, participationBonus, config
+        );
+    }
+
+    /// @dev Default Arena config for the legacy no-config path — every enum at index
+    ///      0 (FREE / NONE / SOLO_SUBMIT / DETERMINISTIC_REPLAY / HIGHEST_SCORE),
+    ///      feeAmount 0, seedCommit 0. Matches Solidity zero-init, so the on-chain
+    ///      read proves "defaults correctly".
+    function _defaultConfig() internal pure returns (TournamentConfig memory) {
+        return TournamentConfig({
+            entry: EntryType.FREE,
+            feeAmount: 0,
+            prizeSource: PrizeSource.NONE,
+            format: Format.SOLO_SUBMIT,
+            verification: VerificationFamily.DETERMINISTIC_REPLAY,
+            seedCommit: bytes32(0),
+            resolution: ResolutionPolicy.HIGHEST_SCORE
+        });
+    }
+
+    /// @dev Shared createTournament body. Behaviour is byte-for-byte the v2.2 single
+    ///      function; the ONLY Δ1 additions are `t.config = config` + the
+    ///      TournamentConfigured emit. Reentrancy is guarded by the external
+    ///      overloads (this internal helper is never called re-entrantly).
+    function _createTournament(
+        bytes32 id,
+        address devAddr,
+        bytes32 game,
+        CycleType cycleType,
+        uint64 startsAt,
+        uint64 endsAt,
+        uint256 prizePool,
+        uint256 participationBonus,
+        TournamentConfig memory config
+    ) internal {
         if (_tournaments[id].sponsor != address(0)) revert TournamentAlreadyExists();
         if (devAddr == address(0)) revert ZeroAddress();
         if (endsAt <= startsAt) revert InvalidWindow();
@@ -498,6 +624,7 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         t.endsAt = endsAt;
         t.prizePool = prizePool;
         t.participationBonus = participationBonus;
+        t.config = config;
 
         // M-3 dust accounting: this prizePool joins the tracked surface; the
         // matching debit happens in settle() once all USDC has flowed back out.
@@ -506,6 +633,7 @@ contract TournamentPool is Ownable, ReentrancyGuard, EIP712 {
         emit TournamentCreated(
             id, msg.sender, game, devAddr, cycleType, startsAt, endsAt, prizePool, participationBonus
         );
+        emit TournamentConfigured(id, config);
 
         // Idempotent dev attribution mint — first createTournament per devAddr triggers
         // the soulbound NFT mint; subsequent calls (any tournament, same dev) hit the
