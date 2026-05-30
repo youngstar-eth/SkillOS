@@ -32,20 +32,53 @@ interface MoveRecord<M = unknown> {
   hashing (SPEC §8 open item).
 - **Payload `M`** is game-native and owned by each engine:
 
-  | game | `M` (`move` payload) |
-  |---|---|
-  | 2048 | `'up' \| 'down' \| 'left' \| 'right'` (`Move2048`) |
-  | wordle | _(Stage 2)_ |
-  | sudoku | _(Stage 2)_ |
-  | minesweeper | _(Stage 2)_ |
-  | clicker | _(Stage 2)_ |
-  | match3 | _(Stage 2)_ |
+  | game | `M` (`move` payload) | score | session bound |
+  |---|---|---|---|
+  | 2048 | `'up' \| 'down' \| 'left' \| 'right'` (`Move2048`) | merge sum | game-over **or** `MAX_MOVES=100` (engine cap) |
+  | wordle | a 5-letter guess string (`MoveWordle`) | guess-bonus (skill-pure; see note) | win **or** 6 guesses (natural) |
+  | sudoku | `{ row, col, value }` (`MoveSudoku`) | `countCorrect` 41→81 | solved (natural) **or** end-of-log; defensive `MAX_MOVES=4096` |
+  | minesweeper | `{ row, col, action:'reveal'\|'flag' }` (`MoveMinesweeper`) | `revealedCount` 0→71 | win/loss (natural) **or** end-of-log; defensive `MAX_MOVES=4096` |
+  | clicker | `{ t? }` a tap, optional ms timestamp (`MoveClicker`) | tap count (skill-pure) | **the input log** — live 2-min timer made replayable (design choice) |
+  | match3 | `{ a:[r,c], b:[r,c] }` a swap (`MoveMatch3`) | cascade accumulator | **the input log** — no natural terminal; defensive `MAX_MOVES=4096` |
 
 The registry boundary treats `move` as `unknown`; each engine **re-validates and
 narrows** its own payload inside `verify`. Structural validation of the envelope
 (null / non-array / bad-`seq`) is shared via `orderedMoves` — so the
 `moves=null` bypass the F0 gate has today **cannot reach any scoring path**
 (SPEC §4).
+
+## Session bounds & score notes (per game)
+
+Every engine documents its session bound explicitly in its file header (no
+inherited caps — cf. the 2048 `MAX_MOVES=100` lesson). Two games have **no
+natural terminal**, so "the input log is the session" (a defensive cap only
+bounds replay cost on a forged log):
+
+- **2048** — game-over (no legal move) or the engine `MAX_MOVES=100` cap.
+- **wordle** — win or 6 guesses (natural). Guesses after the terminal are
+  rejected (`guess_after_terminal`).
+- **sudoku** — solved (natural) or end-of-log; given-cell edits no-op (live-faithful).
+- **minesweeper** — win (71 revealed) / loss (mine hit), or end-of-log; flags are score-neutral; post-terminal taps ignored (live-faithful).
+- **clicker** — *design choice* (no live terminal): the live 2-minute timer is
+  encoded as `SESSION_MS`; the replayable bound is the recorded taps. Clicker
+  has **no seeded gameplay state** — the seed only picks a cosmetic emoji — so
+  its live-fidelity check is necessarily shallow (cosmetic seed-fold + the
+  count rule), and its score is trust-client by design (live V1).
+- **match3** — *no natural terminal*: the live session is wall-clock-bounded;
+  the engine's bound is the input log + a defensive `MAX_MOVES=4096`.
+
+**Cross-game scoring rule (matters for the settlement call site):** `verify()`
+returns the **deterministic, skill-pure** score. Non-replayable or submit-layer
+adjustments are deliberately **excluded** and exposed separately:
+
+- **wordle** — the live score adds a **wall-clock speed bonus** (up to 6000)
+  that is *not* recoverable from the log (no per-move timestamps). `verify()`
+  scores the guess-bonus only ⇒ an on-chain live score can exceed `verify()` by
+  up to 6000. A naive equality check would reject legitimate runs — the
+  settlement layer must reconcile (record a log-derived duration, settle on
+  guess-bonus, or allow a speed band). **Founder decision pending.**
+- **match3 / clicker** — the live submit clamps `min(max(1|0, s), 49999)`;
+  `verify()` returns the raw count and exposes `clampSubmitScore()` for callers.
 
 ## Determinism contract
 
