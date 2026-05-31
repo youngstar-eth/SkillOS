@@ -123,7 +123,8 @@ jobs:
             scripts/fidelity-sudoku-live-vs-engine.test.ts \
             scripts/fidelity-minesweeper-live-vs-engine.test.ts \
             scripts/fidelity-clicker-live-vs-engine.test.ts \
-            scripts/fidelity-match3-live-vs-engine.test.ts
+            scripts/fidelity-match3-live-vs-engine.test.ts \
+            scripts/faz0/resolver.test.ts
 
 
   # Status check name: test-foundry
