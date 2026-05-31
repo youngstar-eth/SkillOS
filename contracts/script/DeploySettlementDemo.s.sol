@@ -5,32 +5,37 @@ import {Script, console2} from "forge-std/Script.sol";
 import {SettlementDemo} from "../src/SettlementDemo.sol";
 
 /// @title DeploySettlementDemo — Faz 0 Pitch-MVP standalone challenge-loop demo
-/// @notice Deploys SettlementDemo to Base Sepolia. The FOUNDER broadcasts —
-///         `DEPLOYER_PRIVATE_KEY` lives only in the founder's local environment
-///         and never reaches the agent. Enforces `deployer != resolver`
+/// @notice Deploys SettlementDemo to Base Sepolia via a cast KEYSTORE broadcast —
+///         the deployer key is encrypted at rest in `~/.foundry/keystores` and is
+///         unlocked only via `--account`/`--password-file`; the raw private key
+///         never reaches the agent or the shell. Enforces `deployer != resolver`
 ///         (distinct trust roles; Settlement SPEC §9 / dispatch Stage 3).
 ///
-/// @dev Dry-run (no broadcast; a throwaway key is fine — nothing is signed):
-///        DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-///        RESOLVER_ADDRESS=0x000000000000000000000000000000000000dEaD \
-///        forge script script/DeploySettlementDemo.s.sol:DeploySettlementDemo -vvvv
+/// @dev The broadcasting EOA (owner) is supplied by forge's `--sender`/`--account`
+///      keystore — the script reads it from `msg.sender`, not from any env key.
 ///
-///      Broadcast to Base Sepolia (founder runs locally):
-///        DEPLOYER_PRIVATE_KEY=0x<founder-key>  RESOLVER_ADDRESS=0x<resolver-eoa> \
+///      Dry-run (no broadcast; --sender just needs to differ from RESOLVER_ADDRESS):
+///        RESOLVER_ADDRESS=0x<resolver-eoa> \
 ///        forge script script/DeploySettlementDemo.s.sol:DeploySettlementDemo \
-///          --rpc-url base_sepolia --broadcast -vvvv
+///          --sender 0x<deployer-eoa> -vvvv
+///
+///      Broadcast to Base Sepolia (keystore-signed; key stays encrypted):
+///        RESOLVER_ADDRESS=0x<resolver-eoa> \
+///        forge script script/DeploySettlementDemo.s.sol:DeploySettlementDemo \
+///          --rpc-url "$RPC" --account deployer --sender 0x<deployer-eoa> \
+///          --password-file <path> --broadcast -vvvv
 ///        (optional Basescan source verification: append
 ///          --verify --etherscan-api-key $BASESCAN_API_KEY)
 ///
 ///      Required env:
-///        DEPLOYER_PRIVATE_KEY  — deployer EOA key (founder-local; broadcast only)
-///        RESOLVER_ADDRESS      — resolver role address; MUST differ from deployer
+///        RESOLVER_ADDRESS — resolver role address; MUST differ from deployer
 contract DeploySettlementDemo is Script {
     uint256 constant CHAIN_BASE_SEPOLIA = 84_532;
 
     function run() external returns (SettlementDemo demo) {
-        uint256 deployerPk = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address deployer = vm.addr(deployerPk);
+        // Deployer/owner = the keystore EOA forge signs with (via --account/--sender).
+        // No private key is read here — the key stays encrypted in the keystore.
+        address deployer = msg.sender;
         address resolver = vm.envAddress("RESOLVER_ADDRESS");
 
         require(resolver != address(0), "RESOLVER_ADDRESS is zero");
@@ -41,7 +46,7 @@ contract DeploySettlementDemo is Script {
         console2.log("Deployer (owner): ", deployer);
         console2.log("Resolver:         ", resolver);
 
-        vm.startBroadcast(deployerPk);
+        vm.startBroadcast();
         demo = new SettlementDemo(resolver);
         vm.stopBroadcast();
 
