@@ -13,9 +13,14 @@ export type SkillOSEnv = 'testnet' | 'mainnet';
 export interface SkillOSMcpConfig {
   env: SkillOSEnv;
   baseUrl: string;
-  /** 0x-prefixed 32-byte private key, or null if not set. Required for write tools. */
-  privateKey: `0x${string}` | null;
-  /** ERC-8004 tokenId owned by `privateKey`. Required for agent tools. */
+  /**
+   * Agent wallet address W (the base-mcp Base Account), or null if not set.
+   * SPEC-B1: @skillos/mcp holds NO private key — all signing is delegated to
+   * base-mcp. W is the single agent identity (mints the agentId, signs SIWA +
+   * ERC-8128). Required for delegated write tools.
+   */
+  agentAddress: `0x${string}` | null;
+  /** ERC-8004 tokenId owned by `agentAddress` (W). Required for agent tools. */
   agentId: number | null;
   /** SIWA domain — must match server SIWE_DOMAIN env. */
   siwaDomain: string;
@@ -43,7 +48,6 @@ const ENV_DEFAULTS: Record<
   },
 };
 
-const PK_RE = /^0x[a-fA-F0-9]{64}$/;
 const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
 
 function readEnvEnum(): SkillOSEnv {
@@ -58,15 +62,15 @@ export function loadConfig(): SkillOSMcpConfig {
   const env = readEnvEnum();
   const defaults = ENV_DEFAULTS[env];
 
-  const rawPk = process.env.SKILLOS_PRIVATE_KEY?.trim();
-  let privateKey: `0x${string}` | null = null;
-  if (rawPk) {
-    if (!PK_RE.test(rawPk)) {
+  const rawAddr = process.env.SKILLOS_AGENT_ADDRESS?.trim();
+  let agentAddress: `0x${string}` | null = null;
+  if (rawAddr) {
+    if (!ADDR_RE.test(rawAddr)) {
       throw new Error(
-        'SKILLOS_PRIVATE_KEY must be 0x-prefixed 32-byte hex (66 chars total). Remove the var if you only need read tools.',
+        'SKILLOS_AGENT_ADDRESS must be a 0x-prefixed 20-byte address (42 chars). This is your base-mcp wallet (W). Remove the var if you only need read tools.',
       );
     }
-    privateKey = rawPk as `0x${string}`;
+    agentAddress = rawAddr as `0x${string}`;
   }
 
   const rawAgentId = process.env.SKILLOS_AGENT_ID?.trim();
@@ -91,7 +95,7 @@ export function loadConfig(): SkillOSMcpConfig {
   return {
     env,
     baseUrl: process.env.SKILLOS_BASE_URL?.trim() || defaults.baseUrl,
-    privateKey,
+    agentAddress,
     agentId,
     siwaDomain: process.env.SKILLOS_SIWA_DOMAIN?.trim() || 'skillos.network',
     registryAddress,
@@ -100,19 +104,19 @@ export function loadConfig(): SkillOSMcpConfig {
   };
 }
 
-export class MissingWalletError extends Error {
+export class MissingAgentAddressError extends Error {
   constructor() {
     super(
-      'Tool requires a wallet. Set SKILLOS_PRIVATE_KEY (0x-prefixed 32-byte hex) in the MCP server env.',
+      'Tool requires the agent wallet address. Set SKILLOS_AGENT_ADDRESS to your base-mcp wallet (W). @skillos/mcp holds no key — signing is delegated to base-mcp.',
     );
-    this.name = 'MissingWalletError';
+    this.name = 'MissingAgentAddressError';
   }
 }
 
 export class MissingAgentIdError extends Error {
   constructor() {
     super(
-      'Tool requires an agent identity. Set SKILLOS_AGENT_ID to the ERC-8004 tokenId your wallet owns. Run agent_register first if you have none.',
+      'Tool requires an agent identity. Set SKILLOS_AGENT_ID to the ERC-8004 tokenId your wallet (W) owns. Run prepare_register → base-mcp send_calls → complete_register first if you have none.',
     );
     this.name = 'MissingAgentIdError';
   }
