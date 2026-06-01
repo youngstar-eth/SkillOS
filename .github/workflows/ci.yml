@@ -124,7 +124,8 @@ jobs:
             scripts/fidelity-minesweeper-live-vs-engine.test.ts \
             scripts/fidelity-clicker-live-vs-engine.test.ts \
             scripts/fidelity-match3-live-vs-engine.test.ts \
-            scripts/faz0/resolver.test.ts
+            scripts/faz0/resolver.test.ts \
+            packages/mcp/test/delegation-signing.test.ts
 
 
   # Status check name: test-foundry

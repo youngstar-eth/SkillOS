@@ -1,20 +1,19 @@
-// fund_pool — sponsor a tournament's prize pool with USDC.
+// SPEC-B1 delegation — prize-pool funding as calldata (no signing).
 //
-// Two on-chain writes (USDC.approve then SponsorshipModule.sponsorPool) via
-// direct viem.writeContract. Both must succeed for the contribution to land;
-// we wait for receipt on each so the LLM gets a definitive outcome rather
-// than a fire-and-forget tx hash.
+// fund_pool held a private key (two viem.writeContract calls). Under wallet
+// delegation it becomes prepare_fund_pool: it returns the USDC.approve +
+// SponsorshipModule.sponsorPool calldata as a two-call batch for the host to
+// send via base-mcp send_calls(chain=base-sepolia, calls=[...]) from W.
+// @skillos/mcp signs nothing.
 //
-// Architectural invariant (CLAUDE.md): retry-fee and prize-pool slots are
-// segregated on TournamentPool — sponsorPool() lands in the prize-pool slot
-// via the SponsorshipModule's permissioned path. We don't fund pools via
-// any other entry point.
+// Architectural invariant (CLAUDE.md): sponsorPool() lands in the segregated
+// prize-pool slot via the SponsorshipModule's permissioned path. We don't fund
+// pools via any other entry point.
 
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { encodeFunctionData } from 'viem';
 import { ERC20_APPROVE_ABI, SPONSORSHIP_MODULE_ABI, getChainAddresses, usdcAtoms } from '@skillos/sdk';
-import { MissingWalletError } from '../config.js';
-import { buildWallet } from '../wallet.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ServerContext } from '../server.js';
 import { registerTool } from './_register.js';
 
@@ -28,44 +27,26 @@ const Amount = z
   .regex(/^[0-9]+(\.[0-9]{1,6})?$/, 'amount must be a decimal USD amount with ≤6 fractional digits')
   .describe('USDC amount as a decimal string (e.g. "5", "0.5", "12.345"). Six fractional digits = USDC atomic precision.');
 
-export function registerFundPoolTool(server: McpServer, ctx: ServerContext): void {
+export function registerPrepareFundPoolTool(server: McpServer, ctx: ServerContext): void {
   registerTool(server, {
-    name: 'fund_pool',
+    name: 'prepare_fund_pool',
     description:
-      'Permissionlessly sponsor a SkillOS tournament prize pool with USDC. Performs USDC approve + SponsorshipModule.sponsorPool() in sequence; both transactions are waited to completion. Requires SKILLOS_PRIVATE_KEY to be set with a funded Base wallet.',
+      'Build the calldata to permissionlessly sponsor a SkillOS tournament prize pool with USDC. Returns a two-call batch [USDC.approve, SponsorshipModule.sponsorPool] for the host to send via base-mcp send_calls(chain=base-sepolia, calls=[...]) from W. @skillos/mcp signs nothing.',
     inputSchema: { tournamentId: Bytes32, amount: Amount },
     handler: async ({ tournamentId, amount }) => {
-      if (!ctx.config.privateKey) throw new MissingWalletError();
-
       const addresses = getChainAddresses(ctx.config.env);
-      const wallet = buildWallet({ ...ctx.config, privateKey: ctx.config.privateKey });
       const atoms = usdcAtoms(amount);
 
-      const approveHash = await wallet.walletClient.writeContract({
-        account: wallet.account,
-        chain: null,
-        address: addresses.usdc,
+      const approveData = encodeFunctionData({
         abi: ERC20_APPROVE_ABI,
         functionName: 'approve',
         args: [addresses.sponsorshipModule, atoms],
       });
-      const approveReceipt = await wallet.publicClient.waitForTransactionReceipt({ hash: approveHash });
-      if (approveReceipt.status !== 'success') {
-        throw new Error(`USDC approve reverted: ${approveHash}`);
-      }
-
-      const sponsorHash = await wallet.walletClient.writeContract({
-        account: wallet.account,
-        chain: null,
-        address: addresses.sponsorshipModule,
+      const sponsorData = encodeFunctionData({
         abi: SPONSORSHIP_MODULE_ABI,
         functionName: 'sponsorPool',
         args: [tournamentId as `0x${string}`, atoms],
       });
-      const sponsorReceipt = await wallet.publicClient.waitForTransactionReceipt({ hash: sponsorHash });
-      if (sponsorReceipt.status !== 'success') {
-        throw new Error(`sponsorPool reverted: ${sponsorHash}`);
-      }
 
       return {
         content: [
@@ -73,14 +54,15 @@ export function registerFundPoolTool(server: McpServer, ctx: ServerContext): voi
             type: 'text',
             text: JSON.stringify(
               {
-                ok: true,
+                calls: [
+                  { to: addresses.usdc, data: approveData, value: '0x0' },
+                  { to: addresses.sponsorshipModule, data: sponsorData, value: '0x0' },
+                ],
+                chainId: ctx.config.chainId,
                 tournamentId,
                 amount,
                 atoms: atoms.toString(),
-                sponsor: wallet.address,
-                approveTxHash: approveHash,
-                sponsorTxHash: sponsorHash,
-                chainId: ctx.config.chainId,
+                hint: 'Send via base-mcp send_calls(chain=base-sepolia, calls=[...]) from W. The two calls (approve then sponsorPool) must execute in order.',
               },
               null,
               2,
