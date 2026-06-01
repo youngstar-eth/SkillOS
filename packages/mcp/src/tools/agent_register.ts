@@ -1,27 +1,19 @@
-// agent_register — mint an ERC-8004 agent identity for the configured wallet.
+// SPEC-B1 delegation — agent registration split into prepare/complete.
 //
-// Direct viem.writeContract against the IdentityRegistry; ABI fragment is
-// the canonical minimal set needed for register(agentURI) + Registered
-// event parsing. We do NOT route through @buildersgarden/siwa's
-// `registerAgent` helper — it sits between two incompatible signer shapes
-// (ethers vs viem) and reveals a fresh mismatch on every attempted
-// adapter. Direct contract write is the locked pattern (see X4
-// brittleness note in memory).
+//   prepare_register → builds IdentityRegistry.register(agentURI) calldata
+//                      { to, data, value }. The host sends it via base-mcp
+//                      send_calls from wallet W; @skillos/mcp signs nothing.
+//   complete_register → reads the mint receipt (read-only) and parses the
+//                      Registered event to resolve the agentId owned by W.
 //
-// After register, we run SIWA sign-in once so the API fetches the agent
-// Builder Code from api.base.dev and returns it. That value is stable for
-// the receipt lifetime (24h) and useful for the caller to wire into
-// downstream attribution.
+// We encode minimal metadata as a data: URI and target register(agentURI).
+// No SIWA / Builder Code lookup here (that needed a held key; it now lives in
+// the prepare_siwa/complete_siwa pair).
 
 import { z } from 'zod';
-import {
-  parseEventLogs,
-  type Address,
-} from 'viem';
-import { createSkillOSAgentClient } from '@skillos/sdk';
+import { encodeFunctionData, parseEventLogs, type Address } from 'viem';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { MissingWalletError } from '../config.js';
-import { buildSiwaSigner, buildWallet } from '../wallet.js';
+import { buildPublicClient } from '../wallet.js';
 import type { ServerContext } from '../server.js';
 import { registerTool } from './_register.js';
 
@@ -55,22 +47,14 @@ interface AgentMetadata {
   basename?: string;
 }
 
-export function registerAgentRegisterTool(server: McpServer, ctx: ServerContext): void {
+export function registerPrepareRegisterTool(server: McpServer, ctx: ServerContext): void {
   registerTool(server, {
-    name: 'agent_register',
+    name: 'prepare_register',
     description:
-      'Register the configured wallet as an ERC-8004 agent identity on Base. Encodes minimal metadata as a data: URI and mints an agent NFT. After mint, runs SIWA sign-in once so the API auto-registers a Builder Code with api.base.dev. Returns agentId, registry CAIP-10 string, and the optional builderCode.',
+      'Build the calldata to register wallet W as an ERC-8004 agent identity on Base. Encodes minimal metadata as a data: URI and returns { to, data, value } for IdentityRegistry.register(agentURI). The host SENDS this via base-mcp send_calls(chain=base-sepolia) from W — @skillos/mcp signs nothing. After the tx lands, call complete_register(txHash) to resolve the agentId.',
     inputSchema: {
-      name: z
-        .string()
-        .min(1)
-        .max(64)
-        .describe('Display name for the agent (≤64 chars).'),
-      description: z
-        .string()
-        .min(1)
-        .max(280)
-        .describe('Short description of what this agent does.'),
+      name: z.string().min(1).max(64).describe('Display name for the agent (≤64 chars).'),
+      description: z.string().min(1).max(280).describe('Short description of what this agent does.'),
       endpoint: z
         .string()
         .url()
@@ -79,17 +63,10 @@ export function registerAgentRegisterTool(server: McpServer, ctx: ServerContext)
         .string()
         .regex(/^[a-z0-9-]+\.base\.eth$/)
         .optional()
-        .describe('Optional Basename (e.g., myagent.base.eth). Persisted in the metadata only — does not auto-register on-chain.'),
-      image: z
-        .string()
-        .url()
-        .optional()
-        .describe('Avatar URL. Defaults to the SkillOS placeholder.'),
+        .describe('Optional Basename (e.g., myagent.base.eth). Persisted in metadata only — does not auto-register on-chain.'),
+      image: z.string().url().optional().describe('Avatar URL. Defaults to the SkillOS placeholder.'),
     },
     handler: async ({ name, description, endpoint, basename, image }) => {
-      if (!ctx.config.privateKey) throw new MissingWalletError();
-      const wallet = buildWallet({ ...ctx.config, privateKey: ctx.config.privateKey });
-
       const metadata: AgentMetadata = {
         name,
         description,
@@ -100,20 +77,52 @@ export function registerAgentRegisterTool(server: McpServer, ctx: ServerContext)
         ...(basename ? { basename } : {}),
       };
       const agentURI = `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString('base64')}`;
-
-      const txHash = await wallet.walletClient.writeContract({
-        account: wallet.account,
-        chain: null,
-        address: ctx.config.registryAddress,
+      const data = encodeFunctionData({
         abi: IDENTITY_REGISTRY_ABI,
         functionName: 'register',
         args: [agentURI],
       });
-      const receipt = await wallet.publicClient.waitForTransactionReceipt({ hash: txHash });
-      if (receipt.status !== 'success') {
-        throw new Error(`register reverted: ${txHash}`);
-      }
 
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                to: ctx.config.registryAddress,
+                data,
+                value: '0x0',
+                chainId: ctx.config.chainId,
+                agentURI,
+                hint: 'Send via base-mcp send_calls(chain=base-sepolia, calls=[{to,data,value}]) from W, then call complete_register(txHash).',
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  });
+}
+
+export function registerCompleteRegisterTool(server: McpServer, ctx: ServerContext): void {
+  registerTool(server, {
+    name: 'complete_register',
+    description:
+      'Resolve the agentId from a register transaction hash. Reads the receipt (read-only) and parses the Registered event. Returns { agentId, owner }. Save agentId — set SKILLOS_AGENT_ID=<id> in your MCP env to enable submit_score.',
+    inputSchema: {
+      txHash: z
+        .string()
+        .regex(/^0x[a-fA-F0-9]{64}$/, 'txHash must be 0x-prefixed 32-byte hex')
+        .describe('Transaction hash of the register() call broadcast via base-mcp.'),
+    },
+    handler: async ({ txHash }) => {
+      const publicClient = buildPublicClient(ctx.config);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (receipt.status !== 'success') {
+        throw new Error(`register tx reverted: ${txHash}`);
+      }
       const logs = parseEventLogs({
         abi: IDENTITY_REGISTRY_ABI,
         logs: receipt.logs,
@@ -122,34 +131,8 @@ export function registerAgentRegisterTool(server: McpServer, ctx: ServerContext)
       if (logs.length === 0) {
         throw new Error(`register tx ${txHash} succeeded but emitted no Registered event`);
       }
-      const { agentId: agentIdRaw, owner } = logs[0]!.args as {
-        agentId: bigint;
-        owner: Address;
-      };
+      const { agentId: agentIdRaw, owner } = logs[0]!.args as { agentId: bigint; owner: Address };
       const agentId = Number(agentIdRaw);
-
-      // Best-effort: SIWA sign-in to fold in the Builder Code. Don't block
-      // success of the register call on this — the on-chain mint is the
-      // authoritative outcome the caller asked for.
-      let builderCode: string | undefined;
-      try {
-        const agentClient = createSkillOSAgentClient({
-          env: ctx.config.env,
-          agentId,
-          signer: buildSiwaSigner(wallet.account) as never,
-          domain: ctx.config.siwaDomain,
-          baseUrl: ctx.config.baseUrl,
-          agentRegistry: ctx.config.registryAddress,
-        });
-        const signin = await agentClient.signIn();
-        builderCode = signin.builderCode;
-      } catch (err) {
-        process.stderr.write(
-          `[@skillos/mcp] agent_register: SIWA sign-in for Builder Code lookup failed (non-fatal): ${
-            err instanceof Error ? err.message : String(err)
-          }\n`,
-        );
-      }
 
       return {
         content: [
@@ -164,8 +147,7 @@ export function registerAgentRegisterTool(server: McpServer, ctx: ServerContext)
                 registry: ctx.config.registryAddress,
                 agentRegistry: `eip155:${ctx.config.chainId}:${ctx.config.registryAddress}`,
                 chainId: ctx.config.chainId,
-                ...(builderCode ? { builderCode } : {}),
-                hint: 'Save agentId — set SKILLOS_AGENT_ID=<id> in your MCP env to enable submit_score.',
+                hint: 'Set SKILLOS_AGENT_ID=' + agentId + ' in your MCP env to enable submit_score.',
               },
               null,
               2,
