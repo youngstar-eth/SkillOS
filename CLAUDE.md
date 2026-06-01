@@ -83,10 +83,12 @@ Two systems coexist intentionally:
 
 | Frame | Where it lives | Phase 02 means | Phase 03 means |
 |---|---|---|---|
-| **Engineering-internal** | this repo's `README.md`, internal pitch | "in-progress" (solo polish, bracket tournament structure (X22), SDK alpha) | "Q2 2026 mainnet (post-legal-review)" |
-| **Marketing-public** | apex `lib/apex.ts`, `https://skillos.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
+| **Engineering-internal** | this repo's `README.md` (narrative sections), internal pitch, `docs/strategy/*` | "in-progress" (solo polish, bracket tournament structure (X22), SDK alpha) | "Q3 2026 mainnet (post-legal-review)" |
+| **Marketing-public** | `README.md:147` (public roadmap bullet, tracks apex), `https://skillos.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
 
 Don't reconcile — the two audiences have different granularity needs. When writing **public-facing copy**, use the marketing-public system; when writing **internal docs / commit messages / GitHub issues**, use the engineering-internal system. README.md and apex are intentionally on different cadences.
+
+Pointer accuracy: apex (`lib/apex.ts`, `https://skillos.games`) is deliberately **dateless** ("Direction over delivery dates" — no Q/H date string). The public **"H2 2026"** date string therefore lives in **`README.md:147`** (the Phase 2 roadmap bullet, which tracks the apex framing and is **public-facing**, not engineering-internal), *not* in apex itself. Most other `README.md` sections remain engineering-internal narrative.
 
 ## Vercel push gating
 
