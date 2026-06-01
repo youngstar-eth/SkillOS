@@ -55,7 +55,7 @@ export default function ChallengePage() {
         {/* Hero */}
         <section className="rounded-2xl border border-border bg-bg-elev p-6">
           <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            Faz-0 · Base Sepolia · standalone demo
+            Phase 0 · Base Sepolia · standalone demo
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             A false score was caught — and economically slashed.
@@ -200,7 +200,7 @@ CLAIMED_SCORE=9999 npx tsx scripts/faz0/run-resolver.ts`}</code>
         <section className="rounded-2xl border border-dashed border-border p-5">
           <p className="text-[11px] leading-relaxed text-neutral-500">
             <span className="text-neutral-400">Scope:</span> SettlementDemo is a
-            standalone Faz-0 pitch demo. It is <em>not</em> the production
+            standalone Phase 0 pitch demo. It is <em>not</em> the production
             settlement path, <em>not</em> the v2.3 settle, and <em>not</em> an
             audit fix. A score is <em>claimed</em> (not re-executed on-chain);
             the security property is <em>challenge + deterministic replay</em>,
