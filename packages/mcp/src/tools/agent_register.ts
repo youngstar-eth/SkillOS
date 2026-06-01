@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { encodeFunctionData, parseEventLogs, type Address } from 'viem';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { buildPublicClient } from '../wallet.js';
+import { writeFileCache } from '../identity/resolve.js';
 import type { ServerContext } from '../server.js';
 import { registerTool } from './_register.js';
 
@@ -110,7 +111,7 @@ export function registerCompleteRegisterTool(server: McpServer, ctx: ServerConte
   registerTool(server, {
     name: 'complete_register',
     description:
-      'Resolve the agentId from a register transaction hash. Reads the receipt (read-only) and parses the Registered event. Returns { agentId, owner }. Save agentId — set SKILLOS_AGENT_ID=<id> in your MCP env to enable submit_score.',
+      'Resolve the agentId from a register transaction hash. Reads the receipt (read-only) and parses the Registered event. Returns { agentId, owner } and caches it locally so prepare_siwa/prepare_submit auto-resolve it from your wallet — no SKILLOS_AGENT_ID needed (still honored as an override).',
     inputSchema: {
       txHash: z
         .string()
@@ -134,6 +135,10 @@ export function registerCompleteRegisterTool(server: McpServer, ctx: ServerConte
       const { agentId: agentIdRaw, owner } = logs[0]!.args as { agentId: bigint; owner: Address };
       const agentId = Number(agentIdRaw);
 
+      // Seed the local cache so subsequent boots auto-resolve W → agentId
+      // (zero-config, and works offline) without needing SKILLOS_AGENT_ID.
+      writeFileCache(ctx.config, owner, agentId, 'complete_register');
+
       return {
         content: [
           {
@@ -147,7 +152,9 @@ export function registerCompleteRegisterTool(server: McpServer, ctx: ServerConte
                 registry: ctx.config.registryAddress,
                 agentRegistry: `eip155:${ctx.config.chainId}:${ctx.config.registryAddress}`,
                 chainId: ctx.config.chainId,
-                hint: 'Set SKILLOS_AGENT_ID=' + agentId + ' in your MCP env to enable submit_score.',
+                hint:
+                  'agentId cached — prepare_siwa/prepare_submit now resolve it automatically from your wallet. ' +
+                  'Set SKILLOS_AGENT_ID=' + agentId + ' only to pin it or run offline.',
               },
               null,
               2,
