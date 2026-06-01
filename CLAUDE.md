@@ -83,7 +83,7 @@ Two systems coexist intentionally:
 
 | Frame | Where it lives | Phase 02 means | Phase 03 means |
 |---|---|---|---|
-| **Engineering-internal** | this repo's `README.md`, internal pitch | "in-progress" (solo polish, bracket tournament structure (X22), SDK alpha) | "Q2 2026 mainnet (post-legal-review)" |
+| **Engineering-internal** | this repo's `README.md`, internal pitch | "in-progress" (solo polish, bracket tournament structure (X22), SDK alpha) | "Q3 2026 mainnet (post-legal-review)" |
 | **Marketing-public** | apex `lib/apex.ts`, `https://skillos.games` | "Mainnet activation, H2 2026, audit-gated" | "Decentralization (when substrate proves itself)" |
 
 Don't reconcile — the two audiences have different granularity needs. When writing **public-facing copy**, use the marketing-public system; when writing **internal docs / commit messages / GitHub issues**, use the engineering-internal system. README.md and apex are intentionally on different cadences.
