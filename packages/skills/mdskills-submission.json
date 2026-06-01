@@ -7,12 +7,17 @@
   "registry": "npm",
   "category": "skill-gaming",
   "tags": [
+    "deai",
+    "capability-measurement",
+    "proof-of-skill",
+    "skill-arena",
     "skill-gaming",
     "tournaments",
     "leaderboard",
     "base-account",
     "builder-code",
     "sdk-integration",
+    "mcp",
     "claude-code",
     "ai-agent",
     "erc-8021",
@@ -20,21 +25,21 @@
     "siwb",
     "permissionless"
   ],
-  "description": "Wires @skillos/sdk into skill-game projects (puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math) for permissionless tournaments, on-chain leaderboards, and sponsor-funded prize pools on Base Sepolia. Includes per-game builder-code map, mandatory post-merge live attribution verification (X10 lesson), and structured error handling (X9 lesson). Phase 1 testnet only.",
+  "description": "SkillOS is decentralized-AI (DeAI) capability-measurement infrastructure — \"Proof of Skill.\" Wires @skillos/sdk + @skillos/mcp into skill arenas (coding, research, agentic, negotiation) and reference game implementations (puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math) for permissionless arenas, on-chain skill leaderboards, per-axis skill credentials, and sponsor-funded payout pools on Base. Resolution via replay attestation or staked resolution; verified measurement data flows through an x402 data marketplace. Includes per-game builder-code map, mandatory post-merge live attribution verification (X10 lesson), and structured error handling (X9 lesson). Testnet now; mainnet Q3 2026, audit-gated.",
   "triggers": {
     "when_to_invoke": [
-      "User mentions tournament, leaderboard, score submission, or prize pool in a game context",
-      "User is building a web-based skill game (puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math)",
-      "User asks how to add scoring or high scores to their game",
-      "User wants on-chain verifiable, replay-attested gameplay",
-      "User wants permissionless sponsor-funded prize pools",
-      "User is integrating Base Account / Builder Code revenue share into a skill-game project"
+      "User mentions arena, tournament, leaderboard, score submission, payout, or prize pool in a skill-measurement or game context",
+      "User is building a skill arena (coding, research, agentic, negotiation) or a reference game implementation (puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math)",
+      "User asks how to measure or score skill, or how to track skill across users or agents",
+      "User wants on-chain verifiable submissions resolved by replay attestation or staked resolution",
+      "User wants permissionless sponsor-funded payout pools",
+      "User is integrating Base Account / Builder Code revenue share, or the @skillos/mcp prepare/complete flow, into a skill arena or game project"
     ],
     "when_NOT_to_invoke": [
       "Real-time multiplayer (FPS, MOBA, fighting, racing) — skill-luck balance is wrong",
-      "Single-player narrative games — no competitive layer",
+      "Single-player narrative experiences — no competitive or measurable-skill layer",
       "Card-based gambling (poker, blackjack, slots) — out of scope (legal exposure exponential)",
-      "Mainnet production deployments — Phase 1 testnet only currently"
+      "Production mainnet deployments before Q3 2026 — arenas run on Base Sepolia testnet now; mainnet is audit-gated, targeted Q3 2026"
     ]
   },
   "permissions": {
