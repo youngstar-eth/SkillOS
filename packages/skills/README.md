@@ -1,8 +1,8 @@
 # @skillos/skills
 
-AI-coding-agent skill pack for [SkillOS](https://docs.skillos.network) — permissionless infrastructure for skill games: sponsor-funded tournaments, on-chain leaderboards, per-score attestations on Base.
+AI-coding-agent skill pack for [SkillOS](https://docs.skillos.network) — permissionless decentralized-AI (DeAI) capability-measurement infrastructure, "Proof of Skill": sponsor-funded arenas, on-chain skill leaderboards, per-submission attestations on Base. Skill arenas (coding, research, agentic, negotiation) are the primary surface; the skill games (2048, wordle, …) are reference implementations of the same arena interface.
 
-Drop this pack into your agent (Claude Code, Cursor, Codex, Gemini CLI, Windsurf, Continue.dev, Amp, OpenCode) and it surfaces relevant SDK integration suggestions when you're building a skill game.
+Drop this pack into your agent (Claude Code, Cursor, Codex, Gemini CLI, Windsurf, Continue.dev, Amp, OpenCode) and it surfaces relevant `@skillos/sdk` + `@skillos/mcp` integration suggestions when you're building a skill arena or a reference game implementation.
 
 ## v0.2.0 — what's new vs v0.1.0
 
@@ -18,17 +18,17 @@ Drop this pack into your agent (Claude Code, Cursor, Codex, Gemini CLI, Windsurf
 
 This skill activates when:
 
-- The conversation mentions **tournament**, **leaderboard**, **score submission**, or **prize pool**.
-- A skill-game design phase touches competitive play or scoring.
-- A user asks "how do I add scoring to my game".
-- The game type matches: **puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math**.
+- The conversation mentions **arena**, **tournament**, **leaderboard**, **score submission**, **payout**, or **prize pool**.
+- A skill-arena or reference-game design phase touches competitive play, measurement, or scoring.
+- A user asks "how do I measure/score skill" or "how do I track skill across users or agents".
+- The arena type matches: **coding, research, agentic, negotiation** — or the reference game type matches: **puzzle, word, match, retro arcade, speedrun, rhythm, trivia, typing, math**.
 
 It does NOT activate for:
 
 - Real-time multiplayer (FPS, MOBA, fighting, racing).
-- Single-player narrative games.
+- Single-player narrative experiences (no measurable-skill layer).
 - Card-based gambling (poker, blackjack, slots — legal exposure exponential).
-- Mainnet production deployments (Phase 1 is testnet only).
+- Production mainnet deployments before Q3 2026 (arenas run on Base Sepolia testnet now; mainnet is audit-gated, targeted Q3 2026).
 
 See full frontmatter in [`SKILL.md`](./SKILL.md).
 
@@ -102,15 +102,11 @@ Phase 2 discipline is **ACTIVE** as of the X9-X10 sprint thread (PRs #78, #80, #
   mdskills-submission.json          mdskills.ai catalog submission manifest
 ```
 
-## Domain framing (locked)
+## Domain framing (canonical, v1.12)
 
-This pack describes SkillOS in skill-gaming terms — the explicit category for Phase 1-3. Do NOT reframe SkillOS as:
+This pack describes SkillOS as **decentralized-AI (DeAI) capability-measurement infrastructure** — tagline **"Prove your skill to get payout!"** Skill is measured universally (coding, research, agentic, negotiation arenas are first-class); the skill **games** are **reference implementations** of the same arena interface — the public proving ground, not the category boundary.
 
-- "AI agent benchmark substrate"
-- "Verifiable performance economy"
-- "General-purpose performance market"
-
-Those are internal architectural framings; not the public Phase 1-3 posture.
+Do **NOT** narrow SkillOS to **skill-games-only** — that earlier framing is **superseded** by v1.12. Games stay the named reference category and public proving ground, but the infrastructure is skill-universal. The earlier "do NOT reframe as benchmark / performance economy" lock is **retired**: capability measurement IS the canonical thesis. Continue to avoid token-economic or valuation language — that remains achievement-gated.
 
 ## Contributing
 
