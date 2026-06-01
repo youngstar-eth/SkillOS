@@ -30,7 +30,7 @@ export interface ServerContext {
 }
 
 export const PACKAGE_NAME = '@skillos/mcp';
-export const PACKAGE_VERSION = '0.2.0';
+export const PACKAGE_VERSION = '0.2.1';
 
 export function buildServer(config: SkillOSMcpConfig): McpServer {
   const sdk = createSkillOSClient({ env: config.env, baseUrl: config.baseUrl });

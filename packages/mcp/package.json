@@ -1,13 +1,13 @@
 {
   "name": "@skillos/mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Official Model Context Protocol server for SkillOS — list tournaments, submit scores, fund pools, register agents, and fetch x402-paywalled tier data from any MCP-compatible client (Claude Desktop, Cursor, agent runtimes).",
   "type": "module",
   "license": "MIT",
   "homepage": "https://docs.skillos.network",
   "repository": {
     "type": "git",
-    "url": "https://github.com/youngstar-eth/skillos.git",
+    "url": "git+https://github.com/youngstar-eth/skillos.git",
     "directory": "packages/mcp"
   },
   "keywords": [
@@ -22,7 +22,7 @@
     "tournament"
   ],
   "bin": {
-    "skillos-mcp": "./dist/index.js"
+    "skillos-mcp": "dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

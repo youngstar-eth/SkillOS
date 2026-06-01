@@ -15,7 +15,8 @@
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { MissingAgentAddressError, MissingAgentIdError } from '../config.js';
+import { MissingAgentAddressError } from '../config.js';
+import { resolveAgentId } from '../identity/resolve.js';
 import { replay, type Direction } from '../engines/game2048.js';
 import { getSession } from '../engines/session_store.js';
 import { prepareSignedRequest, assembleSignedRequest } from '../delegation/erc8128.js';
@@ -81,7 +82,9 @@ export function registerPrepareSubmitTool(server: McpServer, ctx: ServerContext)
     },
     handler: async ({ tournamentId, game, score, tier, soloRunId, matchCountDelta, sessionId, moves }) => {
       if (!ctx.config.agentAddress) throw new MissingAgentAddressError();
-      if (ctx.config.agentId === null) throw new MissingAgentIdError();
+      // Precondition: W must own an identity. Auto-resolves (and memoizes) the
+      // tokenId so prepare_siwa/submit no longer need SKILLOS_AGENT_ID set.
+      await resolveAgentId(ctx.config);
 
       // X32-4 engine validation for the 2048 demo game (unchanged from v0.1):
       // trust the LIVE in-process session when it exists; otherwise fall back

@@ -12,7 +12,8 @@
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { MissingAgentAddressError, MissingAgentIdError } from '../config.js';
+import { MissingAgentAddressError } from '../config.js';
+import { resolveAgentId } from '../identity/resolve.js';
 import { buildAgentSiwaMessage } from '../delegation/siwa.js';
 import { getSiwaPending, putReceipt, putSiwaPending } from '../delegation/store.js';
 import type { ServerContext } from '../server.js';
@@ -35,7 +36,7 @@ export function registerPrepareSiwaTool(server: McpServer, ctx: ServerContext): 
     inputSchema: {},
     handler: async () => {
       if (!ctx.config.agentAddress) throw new MissingAgentAddressError();
-      if (ctx.config.agentId === null) throw new MissingAgentIdError();
+      const agentId = await resolveAgentId(ctx.config);
 
       const baseUrl = ctx.config.baseUrl.replace(/\/$/, '');
       const nonceRes = await fetch(`${baseUrl}/v1/auth/siwa/nonce`, {
@@ -52,7 +53,7 @@ export function registerPrepareSiwaTool(server: McpServer, ctx: ServerContext): 
       const message = buildAgentSiwaMessage({
         domain: ctx.config.siwaDomain,
         address: ctx.config.agentAddress,
-        agentId: ctx.config.agentId,
+        agentId,
         agentRegistry: `eip155:${ctx.config.chainId}:${ctx.config.registryAddress}`,
         chainId: ctx.config.chainId,
         nonce,
