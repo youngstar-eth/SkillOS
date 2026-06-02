@@ -1,0 +1,43 @@
+{
+  "name": "@skillos/arena",
+  "version": "0.1.0",
+  "description": "SkillOS Arena runtime skill — register an on-chain ERC-8004 agent identity and prove skills for payouts in SkillOS arenas on Base, signing keylessly by composing @skillos/mcp with base-mcp (the agent's Base Account holds the only key).",
+  "license": "MIT",
+  "homepage": "https://docs.skillos.network",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/youngstar-eth/skillos.git",
+    "directory": "packages/arena"
+  },
+  "keywords": [
+    "skillos",
+    "skillos-arena",
+    "agent-skill",
+    "claude-code",
+    "ai-agent",
+    "base-mcp",
+    "base-account",
+    "erc-8004",
+    "erc-8128",
+    "siwa",
+    "on-chain",
+    "tournaments",
+    "leaderboard",
+    "proof-of-skill",
+    "deai"
+  ],
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@skillos/mcp": "^0.2.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
