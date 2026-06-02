@@ -48,14 +48,14 @@ jobs:
 
       - name: Check skills/ copy matches canonical packages/arena
         run: |
-          status=0
+          drift=0
           for f in SKILL.md LICENSE; do
             if ! diff -q "packages/arena/$f" "skills/skillos-arena/$f" >/dev/null; then
               echo "🚫 arena SKILL.md drift: skills/ copy out of sync with packages/arena ($f)"
-              status=1
+              drift=1
             fi
           done
-          if [ "$status" -ne 0 ]; then
+          if [ "$drift" -ne 0 ]; then
             echo ""
             echo "The npx-skills distribution copy (skills/skillos-arena/) no longer"
             echo "matches the canonical source (packages/arena/). Users would install a"
