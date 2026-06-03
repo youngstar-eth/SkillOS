@@ -4,9 +4,11 @@
 // sub-daily expressions; sub-daily cadence requires Pro upgrade or an
 // external scheduler hitting this endpoint with the bearer token.
 //
-// Until upgraded: TournamentCreated events accumulate up to 24h between
-// indexer runs. Acceptable for reporting posture (creator metadata is read
-// by dashboards/audit, never on the duel/settle hot paths).
+// The indexer DRAINS within a single invocation (sweeps successive batches up
+// to a ~50s budget), so one daily run catches up to the safe tip even though
+// the public RPC caps eth_getLogs at 2000 blocks. Lag is therefore bounded by
+// the daily cadence, not unbounded. Set TOURNAMENT_INDEXER_MAX_BLOCK_SPAN=2000
+// in prod (no premium RPC) — see the indexer module header.
 //
 // Auth: Vercel attaches `Authorization: Bearer ${CRON_SECRET}` automatically.
 // Local/manual triggers must include the same header.
@@ -14,7 +16,7 @@
 import { runIndexTournamentsCreated } from "@skillos/duel-backend";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // RPC getLogs over a small window is fast
+export const maxDuration = 60; // drains successive getLogs batches under a ~50s budget
 export const dynamic = "force-dynamic";
 
 function isAuthorized(req: Request): boolean {
