@@ -56,9 +56,25 @@ import { TOURNAMENT_GAMES, type TournamentGame } from "./tournaments";
 const REORG_BUFFER_BLOCKS = 30n;
 
 /** Hard cap on per-run block span to keep getLogs RPC calls predictable.
- *  Base public RPC tolerates ~10K blocks; 5K leaves headroom. Mirrors
- *  runIndexSponsorEvents. */
-const MAX_BLOCK_SPAN = 5_000n;
+ *  The public Base Sepolia RPC enforces an eth_getLogs max range of 2000;
+ *  the 5000 default returns "query exceeds max block range 2000" against it,
+ *  so production overrides this via TOURNAMENT_INDEXER_MAX_BLOCK_SPAN=2000 (a
+ *  premium BASE_SEPOLIA_RPC_URL with a higher ceiling is the alternative).
+ *  Mirrors SCORES_INDEXER_MAX_BLOCK_SPAN on the scores indexer. Read at call
+ *  time — same idiom as deployBlock() below — so the value is configurable
+ *  per-environment without a module reload, and unit-testable. A non-numeric
+ *  or non-positive value falls back to the default rather than stalling the
+ *  watermark with a zero-width span. */
+const DEFAULT_MAX_BLOCK_SPAN = 5_000n;
+
+function maxBlockSpan(): bigint {
+  const raw = process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN;
+  if (raw && /^[0-9]+$/.test(raw)) {
+    const n = BigInt(raw);
+    if (n > 0n) return n;
+  }
+  return DEFAULT_MAX_BLOCK_SPAN;
+}
 
 /** Default starting block if no watermark exists. TournamentPool deploy
  *  block on Base Sepolia. Override via TOURNAMENT_INDEXER_DEPLOY_BLOCK if
@@ -166,10 +182,11 @@ export async function runIndexTournamentsCreated(
   const fromBlock = lastIndexed + 1n;
 
   // Cap span so a long outage doesn't blow up getLogs.
+  const maxSpan = maxBlockSpan();
   const candidateTo = safeLatest;
   const toBlock =
-    candidateTo - fromBlock + 1n > MAX_BLOCK_SPAN
-      ? fromBlock + MAX_BLOCK_SPAN - 1n
+    candidateTo - fromBlock + 1n > maxSpan
+      ? fromBlock + maxSpan - 1n
       : candidateTo;
 
   if (toBlock < fromBlock) {

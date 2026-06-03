@@ -476,6 +476,59 @@ test("block-span cap honored: toBlock ≤ fromBlock + MAX_BLOCK_SPAN - 1 (5000)"
   assert.equal(publicClient.calls[0]!.toBlock, 40_005_000n);
 });
 
+test("env override TOURNAMENT_INDEXER_MAX_BLOCK_SPAN caps the per-run span", async () => {
+  // The public Base Sepolia RPC enforces an eth_getLogs max range of 2000;
+  // the default 5000 span 500s. The override lets prod cap the span without a
+  // premium RPC (mirrors SCORES_INDEXER_MAX_BLOCK_SPAN). Read at call time so
+  // it is configurable per-environment without a module reload.
+  const prev = process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN;
+  process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN = "2000";
+  try {
+    const supabase = makeSupabaseMock({
+      watermark: { last_indexed_block: "40000000" },
+    });
+    const publicClient = makePublicClient({
+      blockNumber: 40_851_600n, // far past the override span
+      logs: [],
+    });
+
+    await runIndexTournamentsCreated(makeDeps(supabase, publicClient));
+
+    assert.equal(publicClient.calls.length, 1);
+    // fromBlock = 40_000_001, override span 2000 → toBlock = 40_002_000
+    assert.equal(publicClient.calls[0]!.fromBlock, 40_000_001n);
+    assert.equal(publicClient.calls[0]!.toBlock, 40_002_000n);
+  } finally {
+    if (prev === undefined) delete process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN;
+    else process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN = prev;
+  }
+});
+
+test("invalid TOURNAMENT_INDEXER_MAX_BLOCK_SPAN falls back to the 5000 default", async () => {
+  // Non-numeric / garbage values must not silently zero the span (which would
+  // stall the watermark) — they fall back to the safe 5000 default.
+  const prev = process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN;
+  process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN = "not-a-number";
+  try {
+    const supabase = makeSupabaseMock({
+      watermark: { last_indexed_block: "40000000" },
+    });
+    const publicClient = makePublicClient({
+      blockNumber: 40_851_600n,
+      logs: [],
+    });
+
+    await runIndexTournamentsCreated(makeDeps(supabase, publicClient));
+
+    assert.equal(publicClient.calls.length, 1);
+    // Garbage → default 5000 → toBlock = 40_005_000
+    assert.equal(publicClient.calls[0]!.toBlock, 40_005_000n);
+  } finally {
+    if (prev === undefined) delete process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN;
+    else process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN = prev;
+  }
+});
+
 test("idempotent re-run: existing row with creation_tx_hash already set → skip silently", async () => {
   const tournaments = new Map<string, { id: string; creation_tx_hash: string | null }>();
   tournaments.set(ON_CHAIN_ID_A, {
