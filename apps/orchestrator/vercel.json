@@ -6,6 +6,7 @@
     { "path": "/api/cron/settle-tournaments",   "schedule": "5 0 * * *" },
     { "path": "/api/cron/index-sponsor-events", "schedule": "15 0 * * *" },
     { "path": "/api/cron/index-tournaments-created", "schedule": "23 0 * * *" },
+    { "path": "/api/cron/index-scores-submitted",    "schedule": "27 0 * * *" },
     { "path": "/api/cron/reconcile-duels",      "schedule": "13 1 * * *" },
     { "path": "/api/cron/anchor-sp-snapshot",   "schedule": "7 2 * * *" },
     { "path": "/api/cron/update-ratings",       "schedule": "35 0 * * *" }
