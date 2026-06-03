@@ -1,9 +1,16 @@
 // ───────────────────────────────────────────────────────────────────────────
-// ScoreSubmitted event indexer — polls TournamentPool for ScoreSubmitted
-// events since the last indexed block and upserts them into
+// SoloScoreSubmitted event indexer — polls TournamentPool for
+// SoloScoreSubmitted events since the last indexed block and upserts them into
 // v2_tournament_scores, the DB read-model that backs the leaderboard route
 // (Fix #4a S4). Retires the fragile full-range on-chain getLogs scan in
 // apps/api/src/lib/scan.ts that returned an opaque 500 on RPC timeout.
+//
+// EVENT NAME: the pool emits `SoloScoreSubmitted` (topic0 0xa89e6d0b…) for
+// solo submissions — verified on-chain. `ScoreSubmitted` (topic0 0x06211da7…)
+// is declared in the ABI but has ZERO occurrences on the deployed contract.
+// The deployed leaderboard route currently scans `ScoreSubmitted`, which is
+// why it never returns real solo data — S4 must switch to SoloScoreSubmitted
+// in lockstep with this indexer.
 //
 // Entry point:
 //   runIndexScoresSubmitted()
@@ -79,16 +86,25 @@ function deployBlock(): bigint {
   return n;
 }
 
-// Inline event shape for getLogs — matches TOURNAMENT_POOL_ABI's ScoreSubmitted.
-const SCORE_SUBMITTED_EVENT = {
+// Inline event shape for getLogs — matches TOURNAMENT_POOL_ABI's
+// SoloScoreSubmitted. NOTE: the contract emits SoloScoreSubmitted (NOT
+// ScoreSubmitted) for solo submissions — verified on-chain, ScoreSubmitted has
+// zero occurrences on the deployed pool. The full 7-input signature MUST be
+// declared so viem computes the correct topic0 (0xa89e6d0b…); a truncated
+// signature would filter on the wrong hash and match nothing. We persist the
+// id/player/score/matchCountDelta/nonce subset; soloRunId/priorSoloCount are
+// decoded but not stored (not needed by the leaderboard).
+const SOLO_SCORE_SUBMITTED_EVENT = {
   type: "event",
-  name: "ScoreSubmitted",
+  name: "SoloScoreSubmitted",
   inputs: [
     { name: "id", type: "bytes32", indexed: true },
     { name: "player", type: "address", indexed: true },
     { name: "score", type: "uint256", indexed: false },
     { name: "matchCountDelta", type: "uint256", indexed: false },
     { name: "nonce", type: "bytes32", indexed: false },
+    { name: "soloRunId", type: "bytes32", indexed: false },
+    { name: "priorSoloCount", type: "uint256", indexed: false },
   ],
 } as const;
 
@@ -189,7 +205,7 @@ async function indexOnce(
 
   const logs = await publicClient.getLogs({
     address: contract,
-    event: SCORE_SUBMITTED_EVENT,
+    event: SOLO_SCORE_SUBMITTED_EVENT,
     fromBlock,
     toBlock,
   });
@@ -213,11 +229,12 @@ async function indexOnce(
     try {
       const decoded = decodeEventLog({
         abi: TOURNAMENT_POOL_ABI,
-        eventName: "ScoreSubmitted",
+        eventName: "SoloScoreSubmitted",
         topics: log.topics,
         data: log.data,
       });
-      if (decoded.eventName !== "ScoreSubmitted") continue;
+      if (decoded.eventName !== "SoloScoreSubmitted") continue;
+      // soloRunId/priorSoloCount are part of the event but not persisted.
       const args = decoded.args as {
         id: Hex;
         player: Address;
