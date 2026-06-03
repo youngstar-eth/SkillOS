@@ -1,0 +1,72 @@
+# ─────────────────────────────────────────────────────────────────────────
+# SkillOS — arena SKILL.md drift detector (§4 spec drift pattern).
+#
+# The skillos-arena skill ships from two byte-identical copies:
+#   - packages/arena/{SKILL.md,LICENSE}   canonical source (@skillos/arena pkg)
+#   - skills/skillos-arena/{SKILL.md,LICENSE}   npx-skills distribution copy
+#
+# The skills/ copy is the surface vercel-labs/skills discovers
+# (`npx skills add youngstar-eth/SkillOS --skill skillos-arena`). If the
+# canonical packages/arena copy is edited and the skills/ copy is not
+# refreshed, users silently install a STALE spec. This guard fails the PR
+# whenever the two drift apart.
+#
+# Pure `diff` — no npm ci, no Node — so it is fast and cannot itself drift.
+# Same layered-defense spirit as codegen-drift-check.yml / schema-drift-check.yml.
+#
+# Security note: no user-controlled input (PR titles/bodies, branch names,
+# commit messages) is interpolated into any run: shell. Only GitHub-internal
+# metadata is used, and only in the concurrency group key.
+# ─────────────────────────────────────────────────────────────────────────
+
+name: Arena Skill Drift Check
+
+on:
+  pull_request:
+    paths:
+      - 'packages/arena/SKILL.md'
+      - 'packages/arena/LICENSE'
+      - 'skills/skillos-arena/**'
+      - 'scripts/sync-arena-skill.sh'
+      - '.github/workflows/arena-skill-drift-check.yml'
+  # Ad-hoc verification.
+  workflow_dispatch:
+
+concurrency:
+  group: arena-skill-drift-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arena-skill-drift:
+    name: arena-skill-drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check skills/ copy matches canonical packages/arena
+        run: |
+          drift=0
+          for f in SKILL.md LICENSE; do
+            if ! diff -q "packages/arena/$f" "skills/skillos-arena/$f" >/dev/null; then
+              echo "🚫 arena SKILL.md drift: skills/ copy out of sync with packages/arena ($f)"
+              drift=1
+            fi
+          done
+          if [ "$drift" -ne 0 ]; then
+            echo ""
+            echo "The npx-skills distribution copy (skills/skillos-arena/) no longer"
+            echo "matches the canonical source (packages/arena/). Users would install a"
+            echo "stale skillos-arena spec."
+            echo ""
+            echo "Fix (one command):"
+            echo "  scripts/sync-arena-skill.sh"
+            echo "  git add skills/skillos-arena"
+            echo "  git commit -m 'chore(arena): sync skills/ distribution copy'"
+            echo "  git push"
+            echo ""
+            exit 1
+          fi
+          echo "✓ skills/skillos-arena matches packages/arena (SKILL.md + LICENSE). No drift."
