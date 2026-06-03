@@ -6,10 +6,15 @@
 //
 // Entry point:
 //   runIndexTournamentsCreated()
-//     Scheduled daily at 00:23 UTC. Idempotent: backfill UPDATE is gated on
-//     `creation_tx_hash IS NULL` so re-running on overlapping block windows
-//     never overwrites a previously indexed creator. Watermark advances only
-//     on successful sweep.
+//     Scheduled daily at 00:23 UTC. DRAINS: sweeps successive MAX_BLOCK_SPAN
+//     batches per invocation until it reaches the safe tip or a wall-clock /
+//     iteration budget is hit — the public Base Sepolia RPC caps eth_getLogs at
+//     2000 blocks, far below the ~43k blocks/day produced, so a single batch
+//     per daily run could never catch up. The same loop performs the initial
+//     deploy-to-tip backfill across a few invocations. Idempotent: backfill
+//     UPDATE is gated on `creation_tx_hash IS NULL` so re-running on overlapping
+//     block windows never overwrites a previously indexed creator. Watermark
+//     advances per batch. Mirrors runIndexScoresSubmitted.
 //
 // Reorg posture: stops indexing at (currentBlock - REORG_BUFFER_BLOCKS).
 // Mirrors runIndexSponsorEvents for symmetry — see that module's header for
@@ -56,9 +61,35 @@ import { TOURNAMENT_GAMES, type TournamentGame } from "./tournaments";
 const REORG_BUFFER_BLOCKS = 30n;
 
 /** Hard cap on per-run block span to keep getLogs RPC calls predictable.
- *  Base public RPC tolerates ~10K blocks; 5K leaves headroom. Mirrors
- *  runIndexSponsorEvents. */
-const MAX_BLOCK_SPAN = 5_000n;
+ *  The public Base Sepolia RPC enforces an eth_getLogs max range of 2000;
+ *  the 5000 default returns "query exceeds max block range 2000" against it,
+ *  so production overrides this via TOURNAMENT_INDEXER_MAX_BLOCK_SPAN=2000 (a
+ *  premium BASE_SEPOLIA_RPC_URL with a higher ceiling is the alternative).
+ *  Mirrors SCORES_INDEXER_MAX_BLOCK_SPAN on the scores indexer. Read at call
+ *  time — same idiom as deployBlock() below — so the value is configurable
+ *  per-environment without a module reload, and unit-testable. A non-numeric
+ *  or non-positive value falls back to the default rather than stalling the
+ *  watermark with a zero-width span. */
+const DEFAULT_MAX_BLOCK_SPAN = 5_000n;
+
+function maxBlockSpan(): bigint {
+  const raw = process.env.TOURNAMENT_INDEXER_MAX_BLOCK_SPAN;
+  if (raw && /^[0-9]+$/.test(raw)) {
+    const n = BigInt(raw);
+    if (n > 0n) return n;
+  }
+  return DEFAULT_MAX_BLOCK_SPAN;
+}
+
+/** Hard cap on batches per invocation — a backstop so a misconfigured tip can
+ *  never spin unbounded. The wall-clock budget below is the usual stop.
+ *  Mirrors runIndexScoresSubmitted. */
+const MAX_BATCHES_PER_RUN = 300;
+
+/** Wall-clock budget per invocation. Kept well under the cron route's
+ *  maxDuration=60s so the function returns cleanly with the watermark advanced
+ *  as far as it got; the next run resumes from there. */
+const RUN_BUDGET_MS = 50_000;
 
 /** Default starting block if no watermark exists. TournamentPool deploy
  *  block on Base Sepolia. Override via TOURNAMENT_INDEXER_DEPLOY_BLOCK if
@@ -101,6 +132,10 @@ export interface IndexTournamentsCreatedResult {
   backfilled: number;
   /** New rows inserted from SDK-created tournaments. */
   inserted: number;
+  /** Batches swept this invocation (the drain loop runs ≥1). */
+  batches: number;
+  /** True if the watermark reached the safe tip (no backlog remaining). */
+  caughtUp: boolean;
   /** Per-event errors that did not abort the sweep. */
   errors: Array<{ txHash: string; logIndex: number; message: string }>;
 }
@@ -143,48 +178,56 @@ async function writeWatermark(
   if (error) throw new Error(`watermark write failed: ${error.message}`);
 }
 
-// ─── Main ──────────────────────────────────────────────────────────────────
+// ─── Single batch ──────────────────────────────────────────────────────────
+
+interface BatchResult {
+  toBlock: bigint;
+  eventsFound: number;
+  backfilled: number;
+  inserted: number;
+  caughtUp: boolean;
+  errors: IndexTournamentsCreatedResult["errors"];
+}
 
 /**
- * Sweep TournamentPool.TournamentCreated events since the watermark and
- * persist creator metadata to v2_tournaments. Returns a structured summary
- * the cron route serializes directly.
+ * Sweep one MAX_BLOCK_SPAN batch of TournamentCreated events from the watermark
+ * and persist creator metadata to v2_tournaments. The drain loop below calls
+ * this repeatedly until the safe tip is reached.
  */
-export async function runIndexTournamentsCreated(
-  deps: IndexTournamentsCreatedDependencies = {},
-): Promise<IndexTournamentsCreatedResult> {
-  const supabase = deps.supabase ?? getSupabaseService();
-  const publicClient = deps.publicClient ?? getPublicClient();
-
-  const contractAddress = getAddress(TOURNAMENT_POOL_V2_ADDRESS);
-
+async function indexOnce(
+  supabase: ReturnType<typeof getSupabaseService>,
+  publicClient: ReturnType<typeof getPublicClient>,
+  contract: Address,
+): Promise<BatchResult> {
   const latest = await publicClient.getBlockNumber();
   const safeLatest =
     latest > REORG_BUFFER_BLOCKS ? latest - REORG_BUFFER_BLOCKS : 0n;
 
-  const lastIndexed = await readWatermark(supabase, contractAddress);
+  const lastIndexed = await readWatermark(supabase, contract);
   const fromBlock = lastIndexed + 1n;
 
-  // Cap span so a long outage doesn't blow up getLogs.
-  const candidateTo = safeLatest;
-  const toBlock =
-    candidateTo - fromBlock + 1n > MAX_BLOCK_SPAN
-      ? fromBlock + MAX_BLOCK_SPAN - 1n
-      : candidateTo;
-
-  if (toBlock < fromBlock) {
+  // Nothing new to index — already at the safe tip.
+  if (fromBlock > safeLatest) {
     return {
-      fromBlock: fromBlock.toString(),
-      toBlock: toBlock.toString(),
+      toBlock: lastIndexed,
       eventsFound: 0,
       backfilled: 0,
       inserted: 0,
+      caughtUp: true,
       errors: [],
     };
   }
 
+  // Cap span so each getLogs call stays under the RPC max range; the drain
+  // loop in runIndexTournamentsCreated sweeps successive batches to the tip.
+  const maxSpan = maxBlockSpan();
+  const toBlock =
+    safeLatest - fromBlock + 1n > maxSpan
+      ? fromBlock + maxSpan - 1n
+      : safeLatest;
+
   const logs = await publicClient.getLogs({
-    address: contractAddress,
+    address: contract,
     event: {
       type: "event",
       name: "TournamentCreated",
@@ -350,14 +393,70 @@ export async function runIndexTournamentsCreated(
   // errors above are recorded but don't block watermark advancement —
   // unknown game hashes / decode failures will keep failing on retry,
   // so re-scanning the same range gains nothing.
-  await writeWatermark(supabase, contractAddress, toBlock);
+  await writeWatermark(supabase, contract, toBlock);
 
   return {
-    fromBlock: fromBlock.toString(),
-    toBlock: toBlock.toString(),
+    toBlock,
     eventsFound: logs.length,
     backfilled,
     inserted,
+    caughtUp: toBlock >= safeLatest,
+    errors,
+  };
+}
+
+// ─── Main (drain loop) ─────────────────────────────────────────────────────
+
+/**
+ * Drain TournamentCreated events into v2_tournaments until the safe tip is
+ * reached or the per-invocation budget is exhausted. Mirrors
+ * runIndexScoresSubmitted: a single MAX_BLOCK_SPAN batch can't keep up with
+ * Base Sepolia's block rate (~43k/day) under the 2000-block public-RPC ceiling,
+ * so each run sweeps successive batches. Idempotent (gated UPDATE / unique
+ * INSERT on on_chain_id), so overlapping runs stay safe. Returns a structured
+ * summary the cron route serializes directly.
+ */
+export async function runIndexTournamentsCreated(
+  deps: IndexTournamentsCreatedDependencies = {},
+): Promise<IndexTournamentsCreatedResult> {
+  const supabase = deps.supabase ?? getSupabaseService();
+  const publicClient = deps.publicClient ?? getPublicClient();
+  const contract = getAddress(TOURNAMENT_POOL_V2_ADDRESS);
+
+  const startedAt = Date.now();
+  let firstFrom: bigint | undefined;
+  let lastTo = await readWatermark(supabase, contract);
+  let eventsFound = 0;
+  let backfilled = 0;
+  let inserted = 0;
+  let batches = 0;
+  let caughtUp = false;
+  const errors: IndexTournamentsCreatedResult["errors"] = [];
+
+  while (batches < MAX_BATCHES_PER_RUN) {
+    if (firstFrom === undefined) firstFrom = lastTo + 1n;
+    const r = await indexOnce(supabase, publicClient, contract);
+    batches += 1;
+    lastTo = r.toBlock;
+    eventsFound += r.eventsFound;
+    backfilled += r.backfilled;
+    inserted += r.inserted;
+    if (r.errors.length) errors.push(...r.errors);
+    if (r.caughtUp) {
+      caughtUp = true;
+      break;
+    }
+    if (Date.now() - startedAt >= RUN_BUDGET_MS) break;
+  }
+
+  return {
+    fromBlock: (firstFrom ?? lastTo).toString(),
+    toBlock: lastTo.toString(),
+    eventsFound,
+    backfilled,
+    inserted,
+    batches,
+    caughtUp,
     errors,
   };
 }
