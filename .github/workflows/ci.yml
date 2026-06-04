@@ -117,6 +117,7 @@ jobs:
             apps/api/test/games.test.ts \
             apps/api/test/ratings.test.ts \
             apps/api/test/rate-limit.test.ts \
+            apps/api/test/tournaments.test.ts \
             scripts/smoke-x32-4-stub.ts \
             scripts/fidelity-2048-live-vs-engine.test.ts \
             scripts/fidelity-wordle-live-vs-engine.test.ts \
