@@ -473,7 +473,7 @@ export interface paths {
         };
         /**
          * Score submissions by wallet
-         * @description All ScoreSubmitted events where player == :wallet, across every tournament. Sorted newest-first.
+         * @description All SoloScoreSubmitted entries where player == :wallet, across every tournament, sorted newest-first. DB-primary from the v2_tournament_scores read-model, with a bounded on-chain freshness tail.
          */
         get: {
             parameters: {
@@ -503,6 +503,15 @@ export interface paths {
                 };
                 /** @description Invalid params */
                 422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Read-model empty and on-chain tail-scan unavailable */
+                502: {
                     headers: {
                         [name: string]: unknown;
                     };
