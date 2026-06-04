@@ -339,7 +339,7 @@ export interface paths {
         };
         /**
          * Get tournament by id
-         * @description Fresh on-chain state for a single tournament.
+         * @description Tournament state from the v2_tournaments read-model (DB-primary), with an optional non-fatal on-chain read for the live participant count.
          */
         get: {
             parameters: {
@@ -380,6 +380,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description Read-model and chain both unavailable */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         put?: never;
@@ -399,7 +408,7 @@ export interface paths {
         };
         /**
          * Score history for a tournament
-         * @description All ScoreSubmitted events for the tournament, sorted by score descending (block number ascending as tiebreaker). Each row represents one submission, not best-per-player.
+         * @description All SoloScoreSubmitted entries for the tournament, sorted by score descending (block number then log index ascending as tiebreakers). DB-primary from the v2_tournament_scores read-model, with a bounded on-chain freshness tail. Each row is one submission, not best-per-player.
          */
         get: {
             parameters: {
@@ -429,6 +438,15 @@ export interface paths {
                 };
                 /** @description Invalid params */
                 422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Read-model empty and on-chain tail-scan unavailable */
+                502: {
                     headers: {
                         [name: string]: unknown;
                     };
