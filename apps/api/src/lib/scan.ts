@@ -31,6 +31,20 @@ interface ScanArgs {
   abi: Abi;
   eventName: string;
   args?: Record<string, unknown>;
+  /**
+   * Lower bound (inclusive). Defaults to FROM_BLOCK (the contract deploy
+   * block). The leaderboard route passes a per-tournament floor so the scan is
+   * bounded to the freshness gap rather than re-scanning the whole deploy→tip
+   * range on every request — the latter is what produced the opaque 500s under
+   * the public RPC's tightened getLogs limits (Fix #4a-S4).
+   */
+  fromBlock?: bigint;
+  /**
+   * Upper bound (inclusive). Defaults to the current chain tip. Passing a tip
+   * the caller already fetched saves one RPC round-trip and lets the caller log
+   * the exact [floor, tip] window on failure.
+   */
+  toBlock?: bigint;
 }
 
 // Generic over the caller's row shape. Each route declares the event-specific
@@ -39,11 +53,12 @@ interface ScanArgs {
 // at the call site the row shape is statically known from the ABI + eventName.
 export async function scanContractEvents<Row>(opts: ScanArgs): Promise<Row[]> {
   const client = getPublicClient();
-  const tip = await client.getBlockNumber();
-  if (FROM_BLOCK > tip) return [];
+  const from0 = opts.fromBlock ?? FROM_BLOCK;
+  const tip = opts.toBlock ?? (await client.getBlockNumber());
+  if (from0 > tip) return [];
 
   const chunks: Array<[bigint, bigint]> = [];
-  for (let from = FROM_BLOCK; from <= tip; from += MAX_RANGE) {
+  for (let from = from0; from <= tip; from += MAX_RANGE) {
     const to = from + MAX_RANGE - 1n > tip ? tip : from + MAX_RANGE - 1n;
     chunks.push([from, to]);
   }
