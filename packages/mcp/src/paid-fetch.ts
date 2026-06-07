@@ -12,7 +12,8 @@
 import axios, { type AxiosInstance } from 'axios';
 import { x402Client, wrapAxiosWithPayment } from '@x402/axios';
 import { registerExactEvmScheme } from '@x402/evm/exact/client';
-import type { PrivateKeyAccount } from 'viem/accounts';
+import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
+import { MissingX402PayerKeyError } from './config.js';
 
 export interface PaidFetcher {
   get<T = unknown>(path: string, params?: Record<string, unknown>): Promise<T>;
@@ -33,4 +34,25 @@ export function buildPaidFetcher(account: PrivateKeyAccount, baseUrl: string): P
       return response.data;
     },
   };
+}
+
+/**
+ * Build a PaidFetcher from config — resolves the funded EOA payer key into a
+ * viem account. Throws MissingX402PayerKeyError when the key is unset, so paid
+ * data tools fail with a precise, actionable message (and key-less installs of
+ * read/play tools are never affected, since this runs only when a paid tool is
+ * actually called).
+ *
+ * The payer is a held EOA by necessity: the x402 "exact" EVM rail verifies
+ * ECDSA only, so a smart-wallet Base Account cannot settle it. This key pays
+ * data tiers ONLY — identity / SIWA / score-write signing stays delegated to
+ * base-mcp.
+ */
+export function buildPaidFetcherFromConfig(config: {
+  x402PayerKey: `0x${string}` | null;
+  baseUrl: string;
+}): PaidFetcher {
+  if (!config.x402PayerKey) throw new MissingX402PayerKeyError();
+  const account = privateKeyToAccount(config.x402PayerKey);
+  return buildPaidFetcher(account, config.baseUrl);
 }
