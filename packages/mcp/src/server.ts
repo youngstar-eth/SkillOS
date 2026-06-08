@@ -6,8 +6,14 @@
 // deterministic for LLM clients that fingerprint server capabilities.
 //
 // SPEC-B1: the agent write path is delegated to base-mcp via prepare_*/
-// complete_* pairs — @skillos/mcp holds no key and signs nothing. Play tools
-// (get_board_state/make_move) and read tools are unchanged.
+// complete_* pairs — @skillos/mcp holds no key and signs nothing for identity,
+// SIWA, or score writes. Play tools (get_board_state/make_move) and read tools
+// are unchanged.
+//
+// B2-A exception (data tiers only): the x402 data tools sign an EIP-3009 USDC
+// authorization with a funded EOA (SKILLOS_X402_PAYER_KEY) because the x402
+// "exact" EVM rail verifies ECDSA only — a smart-wallet Base Account cannot
+// settle it. That key pays data purchases ONLY; it never signs identity/writes.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createSkillOSClient, type SkillOSClient } from '@skillos/sdk';
@@ -30,7 +36,7 @@ export interface ServerContext {
 }
 
 export const PACKAGE_NAME = '@skillos/mcp';
-export const PACKAGE_VERSION = '0.2.1';
+export const PACKAGE_VERSION = '0.2.2';
 
 export function buildServer(config: SkillOSMcpConfig): McpServer {
   const sdk = createSkillOSClient({ env: config.env, baseUrl: config.baseUrl });
@@ -50,7 +56,7 @@ export function buildServer(config: SkillOSMcpConfig): McpServer {
   registerCompleteSubmitTool(server, ctx);
   registerPrepareFundPoolTool(server, ctx);
 
-  // Data tiers (x402 — gated to Phase B2 in the delegation build).
+  // Data tiers (x402) — live via a funded EOA payer (SKILLOS_X402_PAYER_KEY).
   registerFetchCohortSnapshotTool(server, ctx);
   registerFetchMatchReplayTool(server, ctx);
 

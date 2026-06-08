@@ -1,6 +1,6 @@
 {
   "name": "@skillos/mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Official Model Context Protocol server for SkillOS — list tournaments, submit scores, fund pools, register agents, and fetch x402-paywalled tier data from any MCP-compatible client (Claude Desktop, Cursor, agent runtimes).",
   "type": "module",
   "license": "MIT",

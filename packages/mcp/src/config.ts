@@ -41,6 +41,17 @@ export interface SkillOSMcpConfig {
    * Sensible defaults per env; override with `SKILLOS_EXPLORER_URL`.
    */
   explorerUrl: string;
+  /**
+   * Funded EOA private key used SOLELY to pay the x402 data tiers
+   * (fetch_match_replay / fetch_cohort_snapshot) by signing the EIP-3009 USDC
+   * authorization. This is the ONLY key @skillos/mcp reads, and it is NOT the
+   * agent identity signer — identity / SIWA / ERC-8128 writes stay delegated to
+   * base-mcp (W). The x402 "exact" EVM rail verifies ECDSA only, so the payer
+   * MUST be an EOA; a smart-wallet Base Account cannot settle it. Env:
+   * `SKILLOS_X402_PAYER_KEY`. Null when unset → data tools throw a precise
+   * error; every other tool is unaffected.
+   */
+  x402PayerKey: `0x${string}` | null;
 }
 
 const ENV_DEFAULTS: Record<
@@ -64,6 +75,7 @@ const ENV_DEFAULTS: Record<
 };
 
 const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
+const PK_RE = /^0x[a-fA-F0-9]{64}$/;
 
 function readEnvEnum(): SkillOSEnv {
   const v = (process.env.SKILLOS_ENV ?? 'testnet').toLowerCase();
@@ -107,6 +119,17 @@ export function loadConfig(): SkillOSMcpConfig {
     registryAddress = rawRegistry as Address;
   }
 
+  const rawPayerKey = process.env.SKILLOS_X402_PAYER_KEY?.trim();
+  let x402PayerKey: `0x${string}` | null = null;
+  if (rawPayerKey) {
+    if (!PK_RE.test(rawPayerKey)) {
+      throw new Error(
+        'SKILLOS_X402_PAYER_KEY must be a 0x-prefixed 32-byte hex private key (66 chars).',
+      );
+    }
+    x402PayerKey = rawPayerKey as `0x${string}`;
+  }
+
   return {
     env,
     baseUrl: process.env.SKILLOS_BASE_URL?.trim() || defaults.baseUrl,
@@ -117,6 +140,7 @@ export function loadConfig(): SkillOSMcpConfig {
     chainId: defaults.chainId,
     rpcUrl: process.env.SKILLOS_RPC_URL?.trim() || defaults.rpcUrl,
     explorerUrl: (process.env.SKILLOS_EXPLORER_URL?.trim() || defaults.explorerUrl).replace(/\/$/, ''),
+    x402PayerKey,
   };
 }
 
@@ -169,5 +193,20 @@ export class AgentIdResolutionError extends Error {
         'Retry, set SKILLOS_AGENT_ID=<id>, or override SKILLOS_EXPLORER_URL.',
     );
     this.name = 'AgentIdResolutionError';
+  }
+}
+
+/**
+ * Thrown when a paid x402 data tool is called but no payer key is configured.
+ * Distinct from the delegation errors above: identity / writes are delegated to
+ * base-mcp, but the x402 "exact" EVM rail is ECDSA-only, so paying a data tier
+ * needs a held funded EOA (`SKILLOS_X402_PAYER_KEY`) — data payments ONLY.
+ */
+export class MissingX402PayerKeyError extends Error {
+  constructor() {
+    super(
+      'This data tool requires an x402 payer. Set SKILLOS_X402_PAYER_KEY to a funded Base-Sepolia EOA private key — it signs the EIP-3009 USDC authorization and pays the quoted price (gasless for the payer; the facilitator broadcasts). The payer MUST be an EOA: a smart-wallet Base Account cannot settle x402. This key pays data tiers ONLY — identity signing stays delegated to base-mcp.',
+    );
+    this.name = 'MissingX402PayerKeyError';
   }
 }
